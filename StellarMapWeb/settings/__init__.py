@@ -6,7 +6,7 @@ Otherwise, the settings_dev module is imported.
 """
 from decouple import config
 
-SERVER_ENV = config('ENV')
+SERVER_ENV = config('ENV', default='development')
 
 if SERVER_ENV == 'production':
     from .settings_prod import *
