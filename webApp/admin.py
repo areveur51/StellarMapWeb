@@ -1,4 +1,3 @@
 from django.contrib import admin
 
 # Register your models here.
-# TODO: Register API models when they are created

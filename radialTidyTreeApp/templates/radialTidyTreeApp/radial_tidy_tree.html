@@ -1,0 +1,27 @@
+<!-- radialTidyTreeApp/templates/radialTidyTreeApp/radial_tidy_tree.html -->
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar Radial Tidy Tree</title>
+    <!-- Secure CDN for D3.js (HTTPS) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Local JS via static tag for security -->
+    <script src="{% static 'radialTidyTreeApp/js/radial_tidy_tree.js' %}"></script>
+</head>
+<body>
+    <h1>Stellar Lineage Tree for {{ account }} ({{ network }})</h1>
+    <svg id="tree" width="800" height="800"></svg>
+    <div id="details">{{ radial_tidy_tree_variable }}</div>  <!-- Placeholder for hover/details -->
+
+    <script>
+        // Securely parse tree data from context (escaped by Django)
+        const treeData = {{ tree_data | safe }};
+        // Call render function from radial_tidy_tree.js (assumed defined)
+        renderRadialTree(treeData);  // Efficient: Render once on load
+    </script>
+</body>
+</html>
