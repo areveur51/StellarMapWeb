@@ -1,0 +1,11 @@
+Django==4.2.7
+requests==2.31.0
+stellar-sdk==6.0.0
+django-cassandra-engine==1.7.0  # For models
+cassandra-driver==3.28.0
+asyncio==3.4.3
+tenacity==8.2.3  # Retries
+pandas==2.1.3  # For data handling in managers
+sentry-sdk==1.35.0  # Error capture from your code
+django-rest-framework==3.14.0  # For viewsets/serializers
+decouple==0.0.7  # Env config
