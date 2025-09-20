@@ -1,0 +1,83 @@
+<!-- webApp/templates/webApp/dataset.html -->
+<!-- Block for displaying dataset in a table format -->
+{% block display_dataset %}
+    <!-- Container for table display -->
+    <div class="table-container">
+        <!-- Responsive table with dark theme -->
+        <b-table
+            striped hover small dark
+            :items="account_genealogy_items"
+            :fields="visibleGeneologyFields"
+            :sort-by.sync="sortBy"
+            :sort-desc.sync="sortDesc"
+            :per-page="perPage"
+            :current-page="currentPage"
+            :filter="filter"
+            @filtered="onFiltered"
+            responsive="sm"
+            head-variant="dark"
+            table-variant="dark"
+            class="table table-dark table-striped table-sm"
+        >
+            <!-- Use verbatim to allow Vue bindings without Django interference -->
+            {% verbatim %}
+            <!-- Custom slot for stellar_creator_account column -->
+            <template #cell(stellar_creator_account)="row">
+                <!-- Truncate long accounts for readability; link to expert -->
+                <a :href="`https://stellar.expert/explorer/${row.item.network_name}/account/${row.item.stellar_creator_account}`" target="_blank">
+                    {{ truncateStellarAccount(row.item.stellar_creator_account) }}
+                </a>
+            </template>
+
+            <!-- Custom slot for stellar_account column -->
+            <template #cell(stellar_account)="row">
+                <!-- Conditional rendering based on network; secure links with target="_blank" and rel="noopener" -->
+                <a v-if="row.item.network_name === 'public'" :href="`https://stellar.expert/explorer/public/account/${row.item.stellar_account}`" target="_blank" rel="noopener noreferrer">
+                    {{ truncateStellarAccount(row.item.stellar_account) }}
+                </a>
+                <a v-else :href="`https://stellar.expert/explorer/testnet/account/${row.item.stellar_account}`" target="_blank" rel="noopener noreferrer">
+                    {{ truncateStellarAccount(row.item.stellar_account) }}
+                </a>
+            </template>
+
+            <!-- Custom slot for network_name column -->
+            <template #cell(network_name)="row">
+                <span v-if="row.item.network_name === 'public'">public</span>
+                <span v-else>{{ row.item.network_name }}</span>
+            </template>
+
+            <!-- Custom slot for home_domain column -->
+            <template #cell(home_domain)="row">
+                <span v-if="row.item.home_domain === 'no_element_home_domain'">NO HOME DOMAIN</span>
+                <span v-else>
+                    {{ row.item.home_domain }}
+                    <a :href="`https://${row.item.home_domain}/.well-known/stellar.toml`" target="_blank" rel="noopener noreferrer">TOML</a>
+                    <a :href="`https://stellar.org/developer/tools/toml-checker?url=${row.item.home_domain}`" target="_blank" rel="noopener noreferrer">TOML Checker</a>
+                </span>
+            </template>
+
+            <!-- Custom slot for stellar_expert column -->
+            <template #cell(stellar_expert)="row">
+                <!-- Secure link with rel="noopener" to prevent tabnabbing -->
+                <a :href="row.item.stellar_expert" target="_blank" rel="noopener noreferrer">Follow URL Link</a>
+                <span v-if="apiStellarExpertTagsResponses[row.item.index]">
+                    {{ apiStellarExpertTagsResponses[row.item.index].address }}
+                    {{ apiStellarExpertTagsResponses[row.item.index].name }}
+                    {{ apiStellarExpertTagsResponses[row.item.index].domain }}
+                    <span v-for="tag in apiStellarExpertTagsResponses[row.item.index].tags" :key="tag.name">
+                        <b-badge :variant="tag.name" class="ml-1">{{ tag.name }}</b-badge>
+                    </span>
+                </span>
+            </template>
+            {% endverbatim %}
+        </b-table>
+
+        <!-- Pagination for large datasets; efficient client-side -->
+        <b-pagination
+            v-model="currentPage"
+            :total-rows="totalRows"
+            :per-page="perPage"
+            align="center"
+        ></b-pagination>
+    </div>
+{% endblock %}

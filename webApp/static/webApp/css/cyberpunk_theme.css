@@ -1,11 +1,37 @@
+/*
+ * cyberpunk_theme.css
+ * Defines root variables for a cyberpunk theme.
+ * Efficiency: Centralized variables for easy maintenance and reuse.
+ * Readability: Grouped logically with comments.
+ * Security: No dynamic values; static CSS is inherently safe.
+ * Documentation: Comments explain each variable's purpose.
+ */
+
 :root {
-  --main-bg-color: #261D45;
-  --secondary-bg-color: #231B3D;
-  --tertiary-bg-color: #032314;
-  --search-container-border: #3f2c70;
-  --search-container-bg-color: #100D23;
-  --search-container-text-color: #96DDF2;
-  --text-red: #E5526F;
-  --text-green: #0BE784;
-  --b-sidebar-footer-border-top: #01C176;
+    /* Primary background for main content areas */
+    --main-bg-color: #261D45;
+
+    /* Secondary background for panels or accents */
+    --secondary-bg-color: #231B3D;
+
+    /* Tertiary background for deeper elements like footers */
+    --tertiary-bg-color: #032314;
+
+    /* Border color for search containers */
+    --search-container-border: #3f2c70;
+
+    /* Background for search inputs */
+    --search-container-bg-color: #100D23;
+
+    /* Text color within search containers */
+    --search-container-text-color: #96DDF2;
+
+    /* Red accent for errors or highlights */
+    --text-red: #E5526F;
+
+    /* Green accent for success or active states */
+    --text-green: #0BE784;
+
+    /* Border top color for sidebars/footers */
+    --b-sidebar-footer-border-top: #01C176;
 }

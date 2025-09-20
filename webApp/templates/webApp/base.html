@@ -1,0 +1,23 @@
+<!-- webApp/templates/webApp/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StellarMapWeb</title>
+
+    <!-- Securely load external styles via HTTPS; use static for local files -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'webApp/css/frontend.css' %}">
+
+    <!-- Block for extending templates to add extra head content (e.g., meta tags) -->
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Main content block; overridden in child templates -->
+    {% block content %}{% endblock %}
+
+    <!-- Block for extra JavaScript; place at end for efficient loading -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

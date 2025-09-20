@@ -1,0 +1,54 @@
+<!-- webApp/templates/webApp/search.html -->
+{% extends "webApp/base.html" %}
+{% load static %}
+
+<!-- Main content block -->
+{% block content %}
+    <!-- Include navbar and sidebar -->
+    {% include "webApp/navbar_sidebar.html" %}
+
+    <!-- Search results container -->
+    <div class="container results-container">
+        <!-- Row for layout -->
+        <div class="row response-container">
+            <!-- Column for radial tree visualization -->
+            <div class="col-md-8 radial-tree-visual">
+                <!-- Vue component for radial tree; passes tree_data securely -->
+                <radial-tree :tree-data="tree_data"></radial-tree>
+            </div>
+
+            <!-- Column for terminal outputs/table -->
+            <div class="col-md-4">
+                <h3>Terminal outputs</h3>
+                <!-- Include dataset display block -->
+                {% include "webApp/dataset.html" %}
+            </div>
+        </div>
+
+        <!-- Button to view radial tree (if needed) -->
+        <button>View Radial Tree</button>
+    </div>
+{% endblock %}
+
+<!-- Extra JS block for scripts -->
+{% block extra_js %}
+    <!-- Securely load Vue.js via HTTPS CDN with integrity check -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" integrity="sha384-ULpZ+kXPLt3N15QZBGOvB45wSqB4tQqKwTMRE1vLzcQh4B9G05JETm9bBD/zye9" crossorigin="anonymous"></script>
+
+    <!-- Load local JS files via static -->
+    <script src="{% static 'webApp/js/radial_tree_component.js' %}"></script>
+    <script src="{% static 'webApp/js/lineage_table_mixin.js' %}"></script>
+
+    <!-- Inline script for Vue app initialization; secure by avoiding user input in script -->
+    <script>
+        new Vue({
+            el: '#app',  // Mount to main app element
+            mixins: [lineage_table_mixin],  // Include mixin
+            data: {
+                tree_data: {{ tree_data | safe }},  // Passed from context (JSON safe)
+                // Other data...
+            },
+            // Methods, computed, etc. from mixin
+        });
+    </script>
+{% endblock %}
