@@ -1,16 +1,18 @@
+# StellarMapWeb/asgi.py
 """
-ASGI config for django_project project.
+ASGI config for StellarMapWeb.
 
-It exposes the ASGI callable as a module-level variable named ``application``.
+Exposes ASGI callable as 'application'.
+For deployment: https://docs.djangoproject.com/en/4.0/howto/deployment/asgi/
 
-For more information on this file, see
-https://docs.djangoproject.com/en/5.0/howto/deployment/asgi/
+Efficiency: Standard minimal setup.
+Security: Uses os.environ for settings; ensure env vars secure.
 """
 
 import os
-
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+# Set Django settings module securely via env var
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'StellarMapWeb.settings')
 
 application = get_asgi_application()

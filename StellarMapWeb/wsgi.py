@@ -1,16 +1,18 @@
+# StellarMapWeb/wsgi.py
 """
-WSGI config for django_project project.
+WSGI config for StellarMapWeb.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Exposes WSGI callable as 'application'.
+For deployment: https://docs.djangoproject.com/en/4.0/howto/deployment/wsgi/
 
-For more information on this file, see
-https://docs.djangoproject.com/en/5.0/howto/deployment/wsgi/
+Efficiency: Standard minimal setup.
+Security: Uses os.environ for settings; ensure env vars secure.
 """
 
 import os
-
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_project.settings')
+# Set Django settings module securely via env var
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'StellarMapWeb.settings')
 
 application = get_wsgi_application()

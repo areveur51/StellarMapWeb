@@ -1,9 +1,10 @@
 # radialTidyTreeApp/urls.py
 from django.urls import path
-from radialTidyTreeApp.views import radial_tidy_tree_view
+from . import views
 
 app_name = 'radialTidyTreeApp'
+
 urlpatterns = [
-    path('', radial_tidy_tree_view,
-         name='radial_tidy_tree_view'),  # Simple root path for app
+    # Add your radial tidy tree routes here when you create the views
+    # Example: path('', views.tree_view, name='tree_view'),
 ]
