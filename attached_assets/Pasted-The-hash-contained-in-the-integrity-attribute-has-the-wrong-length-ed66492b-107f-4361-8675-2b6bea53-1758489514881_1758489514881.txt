@@ -1,0 +1,14 @@
+The hash contained in the integrity attribute has the wrong length. ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+None of the “sha384” hashes in the integrity attribute match the content of the subresource at “https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js”. The computed hash is “ULpZhk1pvhc/UK5ktA9kwb2guy9ovNSTyxPNHANnA35YjBQgdwI+AhLkixDvdlw4”. ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+The resource from “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/css/frontend.css” was blocked due to MIME type (“text/html”) mismatch (X-Content-Type-Options: nosniff).
+ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+The resource from “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/js/lineage_table_mixin.js” was blocked due to MIME type (“text/html”) mismatch (X-Content-Type-Options: nosniff).
+ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+The resource from “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/js/radial_tree_component.js” was blocked due to MIME type (“text/html”) mismatch (X-Content-Type-Options: nosniff).
+ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+Loading failed for the <script> with source “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/js/radial_tree_component.js”. ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev:188:62
+The resource from “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/js/lineage_table_mixin.js” was blocked due to MIME type (“text/html”) mismatch (X-Content-Type-Options: nosniff).
+ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev
+Loading failed for the <script> with source “https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/static/webApp/js/lineage_table_mixin.js”. ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev:189:60
+Uncaught ReferenceError: Vue is not defined
+    <anonymous> https://ed66492b-107f-4361-8675-2b6bea535f9a-00-hnwsx4haomg1.picard.replit.dev/:193
