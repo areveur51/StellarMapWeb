@@ -50,6 +50,7 @@ class UserInquirySearchHistory(BaseModel):
                                     default=PENDING)  # Secure default
 
     class Meta:
+        get_pk_field = 'stellar_account'
         ordering = ['-created_at']  # Efficient ordering
 
 
@@ -66,8 +67,10 @@ class StellarCreatorAccountLineage(BaseModel):
     home_domain = cassandra_columns.Text(max_length=127)
     xlm_balance = cassandra_columns.Float(default=0.0)
     horizon_accounts_doc_api_href = cassandra_columns.Text()
-    # ... (other fields truncated; add similar)
     status = cassandra_columns.Text(max_length=127)
+    
+    class Meta:
+        get_pk_field = 'stellar_account'
 
 
 class ManagementCronHealth(BaseModel):
@@ -84,6 +87,7 @@ class ManagementCronHealth(BaseModel):
                                             clustering_order="DESC")
 
     class Meta:
+        get_pk_field = 'cron_name'
         db_table = 'management_cron_health'
 
     def __str__(self):
