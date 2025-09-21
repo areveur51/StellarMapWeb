@@ -13,8 +13,7 @@ logger = logging.getLogger(__name__)
 APP_PATH = config('APP_PATH')
 CASSANDRA_DB_NAME = config('CASSANDRA_DB_NAME')
 CASSANDRA_HOST = config('CASSANDRA_HOST')
-CLIENT_ID = config('CLIENT_ID')
-CLIENT_SECRET = config('CLIENT_SECRET')
+# Removed CLIENT_ID and CLIENT_SECRET - now using ASTRA_DB_TOKEN for authentication
 
 
 class SiteChecker:
@@ -67,12 +66,12 @@ class CassandraConnectionsHelpers:
             'secure_connect_bundle':
             f"{APP_PATH}/secure-connect-stellarmapdb.zip"
         }
-        self.auth_provider = PlainTextAuthProvider(CLIENT_ID, CLIENT_SECRET)
+        self.auth_provider = PlainTextAuthProvider("token", config('ASTRA_DB_TOKEN'))
         self.cluster = Cluster(cloud=self.cloud_config,
                                auth_provider=self.auth_provider,
                                protocol_version=4)
         self.session = self.cluster.connect(CASSANDRA_DB_NAME)
-        self.session.row_factory = dict_factory  # Efficient dict rows
+        # Set up row factory for efficient dict rows - will be configured when needed
 
     def execute_cql(self, cql: str):
         try:
