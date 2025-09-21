@@ -1,0 +1,192 @@
+/*
+ * frontend.css
+ * Imports theme and defines styles for UI components.
+ * Efficiency: Combined selectors where possible; removed redundancies (e.g., repeated !important minimized).
+ * Readability: Organized by component/section with comments; logical flow.
+ * Security: Static CSS; no vulnerabilities like inline styles that could allow injection.
+ * Documentation: Sections commented; media queries explained.
+ */
+
+@import url('cyberpunk_theme.css');
+
+/* Main background styling */
+.bg-color-261D45 {
+    background-color: var(--main-bg-color);
+    padding-top: 107px; /* Offset for radial tree positioning */
+}
+
+/* Top fixed container for headers/nav */
+.top-container {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 1;
+    box-shadow: 0 9px 63px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
+}
+
+/* Search container flex layout */
+.search-container {
+    display: flex;
+    align-items: center;
+    border: 6px solid var(--search-container-border);
+    border-radius: 10px;
+    margin: 0 auto;
+    background-color: var(--search-container-bg-color);
+}
+
+.search-container input[type="text"] {
+    flex: 1;
+    font-size: 23px;
+    padding: 17px;
+    border: none;
+    background-color: var(--search-container-bg-color);
+    color: var(--search-container-text-color);
+    width: 100%; /* Full width for responsiveness */
+}
+
+.search-container button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding-right: 26px;
+}
+
+.search-container i {
+    font-size: 23px;
+    color: var(--search-container-border);
+}
+
+/* Results and response containers */
+.results-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.response-container {
+    text-align: left;
+    color: #FFF;
+    padding-left: 17px;
+    padding-right: 17px;
+    width: 100%;
+}
+
+/* Network selector positioning */
+.network-selector {
+    margin-left: auto; /* Align to right */
+}
+
+/* Text color utilities */
+.text-red {
+    color: var(--text-red);
+}
+
+.text-green {
+    color: var(--text-green);
+}
+
+/* Media query for responsive design on small screens */
+@media (max-width: 600px) {
+    .search-container {
+        flex-direction: column; /* Stack vertically for mobile */
+    }
+
+    .network-selector {
+        margin-top: 20px; /* Space between stacked elements */
+    }
+}
+
+/* Sidebar button styles (hover/focus for accessibility) */
+.sidebar-button,
+.sidebar-button:hover,
+.sidebar-button:focus {
+    background-color: transparent;
+    border-color: transparent;
+    padding: 0.5rem 1rem;
+    color: var(--search-container-text-color); /* Consistent color on states */
+}
+
+/* Sidebar header/body/footer */
+.b-sidebar-header {
+    background-color: var(--search-container-bg-color);
+    color: var(--b-sidebar-footer-border-top);
+}
+
+.b-sidebar-body {
+    background-color: var(--secondary-bg-color);
+    color: var(--search-container-text-color);
+}
+
+.b-sidebar-footer {
+    background-color: var(--tertiary-bg-color);
+    border-top: 1.7px solid var(--b-sidebar-footer-border-top);
+    display: flex;
+    justify-content: flex-start; /* Align text left */
+}
+
+/* Close button styles */
+.close-button,
+.close-button:hover {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--search-container-text-color);
+    width: 100%;
+}
+
+/* Icon padding utility */
+.icon-pad {
+    padding-right: 17px;
+}
+
+/* Bootstrap-Vue tabs overrides */
+.card {
+    border: transparent !important; 
+}
+
+.card-header {
+    background-color: var(--search-container-bg-color) !important;
+}
+
+.card-body {
+    background-color: var(--secondary-bg-color) !important;
+}
+
+.nav-tabs .nav-item.show .nav-link,
+.nav-tabs .nav-link.active {
+    color: var(--search-container-text-color) !important;
+    background-color: var(--secondary-bg-color) !important;
+    border-color: transparent !important;
+}
+
+/* Radial tree visual container */
+.radial-tree-visual {
+    width: 71%;
+    margin-top: 50px;
+    background-color: var(--secondary-bg-color);
+    margin-bottom: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Vue.js table overrides for dark theme */
+.table-dark {
+    color: var(--search-container-text-color) !important;
+    font-size: small;
+    background-color: var(--secondary-bg-color) !important;
+}
+
+.table-dark td,
+.table-dark th,
+.table-dark thead th {
+    border-color: var(--search-container-border) !important;
+}
+
+.table-dark.table-striped tbody tr:nth-of-type(2n+1) {
+    background-color: var(--main-bg-color) !important;
+}
+
+.table-sm td,
+.table-sm th {
+    padding: 0.17rem !important;
+}
