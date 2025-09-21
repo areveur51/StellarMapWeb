@@ -8,7 +8,15 @@ from apiApp.helpers.sm_utils import StellarMapUtilityHelpers
 from apiApp.services import AstraDocument
 
 class RetryMixin:  # Reused from above
-    # ... (same as in sm_stellarexpert.py)
+    """Base mixin for retry functionality."""
+    
+    @staticmethod
+    def retry_decorator(func):
+        """Basic retry decorator."""
+        @retry(wait=wait_random_exponential(multiplier=1, max=5), stop=stop_after_attempt(3))
+        def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+        return wrapper
 
 class StellarMapHorizonAPIHelpers(RetryMixin):
     """

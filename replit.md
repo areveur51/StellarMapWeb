@@ -2,6 +2,17 @@
 
 StellarMapWeb is a Django application for visualizing Stellar blockchain lineage data using D3.js radial tree diagrams. The system tracks account creation relationships across the Stellar network, collecting data from Horizon API and Stellar Expert, then storing it in Astra DB (Cassandra) for visualization. Users can input Stellar addresses to generate interactive family tree-style visualizations showing how accounts were created and their relationships.
 
+# Recent Changes
+
+## September 21, 2025
+- Successfully resolved complex dependency chain from new webApp/views.py file
+- Installed missing packages: pandas, stellar-sdk  
+- Added required environment variables for Astra DB integration
+- Fixed import chain: StellarMapCreatorAccountLineageHelpers → sm_horizon → stellar_sdk
+- Created missing sm_cron.py helper module for cron job management
+- Resolved syntax errors and indentation issues in helper files
+- Django Server workflow running successfully on port 5000
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.

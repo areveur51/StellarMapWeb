@@ -1,6 +1,7 @@
 # apiApp/managers.py
 import pandas as pd
 import sentry_sdk
+import uuid
 from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
 from apiApp.helpers.sm_datetime import StellarMapDateTimeHelpers
 from apiApp.models import UserInquirySearchHistory, StellarCreatorAccountLineage, ManagementCronHealth
@@ -87,3 +88,42 @@ class ManagementCronHealthManager:
             raise
 
     # ... (get_distinct_cron_names similar; use set for uniques)
+
+
+class StellarCreatorAccountLineageManager:
+    """
+    Manager for StellarCreatorAccountLineage.
+    
+    Handles creation and querying of account lineage data.
+    """
+
+    def get_queryset(self, **kwargs):
+        """Filter queryset; return first or None."""
+        try:
+            return StellarCreatorAccountLineage.objects.filter(**kwargs).first()
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def create_lineage(self, request: HttpRequest):
+        """Create lineage record with timestamp."""
+        try:
+            dt_helpers = StellarMapDateTimeHelpers()
+            dt_helpers.set_datetime_obj()
+            request.data['created_at'] = dt_helpers.get_datetime_obj()
+            return StellarCreatorAccountLineage.objects.create(**request.data)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise
+
+    def get_lineage_by_account(self, account_id: str) -> pd.DataFrame:
+        """Get lineage data for account as DataFrame."""
+        try:
+            queryset = StellarCreatorAccountLineage.objects.filter(account_id=account_id)
+            if queryset.exists():
+                data = list(queryset.values())
+                return pd.DataFrame(data)
+            return pd.DataFrame()
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise

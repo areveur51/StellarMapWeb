@@ -6,7 +6,7 @@ hidden = [".pythonlibs"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["iana-etc", "libev"]
+packages = ["glibcLocales", "iana-etc", "libev"]
 
 [unitTest]
 language = "python3"
@@ -24,7 +24,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 43529
+localPort = 42637
 externalPort = 3000
 
 [agent]
