@@ -46,10 +46,27 @@ INSTALLED_APPS = [
     'webApp',
 ]
 
+# Cassandra Configuration
+CASSANDRA_DB_NAME = config('CASSANDRA_DB_NAME', default='stellarmapweb')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'cassandra': {
+        'ENGINE': 'django_cassandra_engine',
+        'NAME': CASSANDRA_DB_NAME,
+        'OPTIONS': {
+            'replication': {
+                'strategy_class': 'SimpleStrategy',
+                'replication_factor': 1
+            },
+            'connection': {
+                'retry_connect': True,
+                'consistency': 'ONE'
+            }
+        }
     }
 }
 
