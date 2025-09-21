@@ -4,7 +4,6 @@ from webApp import views
 
 app_name = 'webApp'
 urlpatterns = [
-    path('', views.redirect_to_search_view,
-         name='redirect_to_search_view'),  # Root redirect
+# Root redirect removed - now handled at main project level
     path('search/', views.search_view, name='search_view'),  # Search endpoint
 ]

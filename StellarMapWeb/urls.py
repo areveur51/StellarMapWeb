@@ -3,14 +3,15 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from webApp.views import search_view
+from webApp.views import index_view, search_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apiApp.urls')),
     path('web/', include('webApp.urls')),
     path('tree/', include('radialTidyTreeApp.urls')),
-    path('', search_view, name='home'),
+    path('', index_view, name='home'),
+    path('search/', search_view, name='search'),
 ]
 
 # Serve static files during development

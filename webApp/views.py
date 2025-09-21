@@ -11,14 +11,14 @@ from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLine
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
 
 
-def redirect_to_search_view(request):
+def index_view(request):
     """
-    Redirect root to search view.
+    Render the main landing page with search interface.
 
     Returns:
-        HttpResponseRedirect: To search_view.
+        HttpResponse: Rendered landing page.
     """
-    return redirect(reverse('webApp:search_view'))
+    return render(request, 'webApp/index.html')
 
 
 def search_view(request):
