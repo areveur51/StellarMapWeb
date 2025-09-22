@@ -1,5 +1,6 @@
 # webApp/views.py
 import json
+import os
 from decouple import config
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -24,7 +25,8 @@ def index_view(request):
 def search_view(request):
     """
     Handle search view: Validate params, fetch genealogy, render with context.
-
+    
+    If no account is provided, loads default test data from test.json.
     Uses caching for genealogy data to reduce API/DB load.
 
     Args:
@@ -36,16 +38,75 @@ def search_view(request):
     Raises:
         Http404: On invalid inputs.
     """
-    account = request.GET.get(
-        'account', 'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD'
-    )  # Secure default
+    account = request.GET.get('account')  # No default, check if provided
     network = request.GET.get('network', 'public')  # Secure default
-
+    
+    # Check if this is a default view (no account parameter provided)
+    if not account:
+        # Load default test data from test.json
+        test_json_path = os.path.join(
+            settings.BASE_DIR, 
+            'radialTidyTreeApp', 
+            'static', 
+            'radialTidyTreeApp', 
+            'json', 
+            'test.json'
+        )
+        try:
+            with open(test_json_path, 'r') as f:
+                tree_data = json.load(f)
+            
+            # Set default display values from test data
+            account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
+            network = 'testnet'  # Test data uses testnet
+            
+            context = {
+                'search_variable': 'Default Tree Data',
+                'ENV': config('ENV', default='development'),
+                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+                'account_genealogy_items': [],  # Could parse from tree_data if needed
+                'tree_data': tree_data,
+                'account': account,  # Template expects 'account' not 'query_account'
+                'network': network,  # Template expects 'network' not 'network_selected'
+                'query_account': account,  # For form persistence
+                'network_selected': network,  # For form persistence
+                'radial_tidy_tree_variable': tree_data,  # For the tree template
+            }
+            return render(request, 'webApp/search.html', context)
+            
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            # Fallback: Create simple default tree structure
+            tree_data = {
+                'stellar_account': 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB',
+                'node_type': 'ISSUER',
+                'created': '2015-09-30 13:15:54',
+                'children': []
+            }
+            account = tree_data['stellar_account']
+            network = 'testnet'
+            
+            context = {
+                'search_variable': 'Fallback Tree Data',
+                'ENV': config('ENV', default='development'),
+                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+                'account_genealogy_items': [],
+                'tree_data': tree_data,
+                'account': account,
+                'network': network,
+                'query_account': account,
+                'network_selected': network,
+                'radial_tidy_tree_variable': tree_data,
+            }
+            return render(request, 'webApp/search.html', context)
+    
+    # If account was provided, validate and process
     # Secure validation
     validator = StellarMapValidatorHelpers()
     if not validator.validate_stellar_account_address(account):
         sentry_sdk.capture_message(f"Invalid Stellar account: {account}")
         raise Http404("Invalid Stellar account address")
+    
     if network not in ['public', 'testnet']:
         raise Http404("Invalid network")
 
@@ -78,12 +139,14 @@ def search_view(request):
             }
 
     context = {
-        'search_variable': 'Hello World!',  # Placeholder
-        'ENV': config('ENV'),
-        'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE'),
+        'search_variable': 'Live Search Results',
+        'ENV': config('ENV', default='development'),
+        'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
         'account_genealogy_items': genealogy_data['account_genealogy_items'],
         'tree_data': genealogy_data['tree_data'],  # Dict for template
-        'query_account': account,
-        'network_selected': network,
+        'account': account,  # Template expects 'account' not 'query_account'
+        'network': network,  # Template expects 'network' not 'network_selected'
+        'query_account': account,  # For form persistence
+        'network_selected': network,  # For form persistence
     }
     return render(request, 'webApp/search.html', context)
