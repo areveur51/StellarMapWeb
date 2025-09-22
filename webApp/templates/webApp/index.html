@@ -1,313 +1,237 @@
-<!-- webApp/templates/webApp/index.html -->
-{% extends "webApp/base.html" %}
 {% load static %}
 
-<!-- Main content block -->
-{% block content %}
-    <div id="app">
-        <!-- Main landing page container -->
-        <div class="main-container">
-            <!-- Header section -->
-            <div class="header-section">
-                <h1 class="main-title">StellarMapWeb</h1>
-                <p class="subtitle">Visualize Stellar blockchain lineage and account relationships</p>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StellarMap Web</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <!-- include custom theme -->
+  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <!-- include the Font Awesome library for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  <!-- include HighlightJS library for syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai-sublime.min.css" crossorigin="anonymous">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js" crossorigin="anonymous"></script>
+</head>
+<body class="bg-color-261D45">
+  <div id="app">
+    <div class="top-container">
+      <!-- using the verbatim tag to avoid conflicts between Django and Vue.js templates -->
+      {% verbatim %}
+        <div class="search-container">
+          <!-- keeps the elements on the same line and responsive -->
+          <div class="container-fluid">
+            
+            <!-- Header section for landing page -->
+            <div class="landing-header text-center mb-4">
+              <h1 class="main-title text-light">StellarMap Web</h1>
+              <p class="subtitle text-muted">Visualize Stellar blockchain lineage and account relationships</p>
             </div>
 
-            <!-- Main search interface -->
-            <div class="search-section">
-                <div class="search-container">
-                    <input 
-                        type="text" 
-                        placeholder="Enter Stellar Address (e.g., GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD)"
-                        v-model="stellar_address"
-                        @keyup.enter="performSearch"
-                        class="search-input"
-                    >
-                    <button @click="performSearch" class="search-button">
-                        <span class="search-icon">🔍</span>
-                        Search
-                    </button>
-                </div>
-                
-                <!-- Network selector -->
-                <div class="network-section">
-                    <label>Network:</label>
-                    <select v-model="selected_network" class="network-selector">
-                        <option value="public">Public (Mainnet)</option>
-                        <option value="testnet">Testnet</option>
-                    </select>
-                </div>
-                
-                <!-- Search button -->
-                <div class="action-section">
-                    <button @click="performSearch" class="main-search-btn" :disabled="!stellar_address.trim()">
-                        Generate Lineage Map
-                    </button>
-                </div>
+            <!--  loading bar that is displayed while data is being fetched from the server -->
+            <div>
+              <b-progress v-if="loading" :value="progressValue" variant="danger" :animated="loading_animation" class="mt-3"></b-progress>
             </div>
 
-            <!-- Info section -->
-            <div class="info-section">
-                <div class="info-card">
-                    <h3>What is StellarMapWeb?</h3>
-                    <p>
-                        This application generates interactive lineage visualizations of Stellar addresses, 
-                        showing the relationships and creation hierarchy in a radial tree format.
-                    </p>
+            <!-- The sidebar menu allows users to access different pages,
+                the network toggle allows users to switch between testnet and public Horizon servers,
+                the input field allows users to enter their query, 
+                and the search button initiates the search function. -->
+            <div class="row align-items-center">
+              <div class="col-auto">
+                <b-button class="sidebar-button" v-b-toggle href="#sidebar-menu" @click.prevent><i class="fa fa-bars"></i></b-button>
+              </div>
+              <div class="col">
+                <div class="row align-items-center">
+                  <b-form-checkbox 
+                    v-model="network_toggle" 
+                    switch 
+                    @change="toggleNetwork"
+                    :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
+                  >{{network_selected}}</b-form-checkbox>
+                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Enter Stellar address (e.g., GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD)" value="GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD">
                 </div>
-                
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">🌟</div>
-                        <h4>Account Lineage</h4>
-                        <p>Track how accounts were created and their relationships</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">🌳</div>
-                        <h4>Radial Tree</h4>
-                        <p>Interactive D3.js visualization of account hierarchies</p>
-                    </div>
-                    
-                    <div class="feature-card">
-                        <div class="feature-icon">📊</div>
-                        <h4>Network Data</h4>
-                        <p>Real-time data from Horizon API and Stellar Expert</p>
-                    </div>
-                </div>
+              </div>
+              <div class="col-auto">
+                <button @click="search"><i class="fa fa-space-shuttle"></i></button>
+              </div>
             </div>
+
+          </div>
         </div>
+      {% endverbatim %}
     </div>
-{% endblock %}
 
-<!-- Extra CSS for landing page -->
-{% block extra_head %}
-    <link rel="stylesheet" href="{% static 'webApp/css/cyberpunk_theme.css' %}">
-    <style>
-        .main-container {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            background: linear-gradient(135deg, #0f0c29 0%, #24243e 50%, #302b63 100%);
-        }
-        
-        .header-section {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        
-        .main-title {
-            font-size: 3.5rem;
-            color: #96DDF2;
-            text-shadow: 0 0 20px #96DDF2;
-            margin-bottom: 1rem;
-        }
-        
-        .subtitle {
-            font-size: 1.2rem;
-            color: #B8860B;
-            margin-bottom: 0;
-        }
-        
-        .search-section {
-            background: rgba(16, 13, 35, 0.9);
-            border: 2px solid #3f2c70;
-            border-radius: 15px;
-            padding: 2rem;
-            margin-bottom: 3rem;
-            min-width: 600px;
-            box-shadow: 0 0 30px rgba(150, 221, 242, 0.3);
-        }
-        
-        .search-container {
-            display: flex;
-            gap: 0;
-            margin-bottom: 1.5rem;
-            border: 6px solid #3f2c70;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        
-        .search-input {
-            flex: 1;
-            font-size: 1.1rem;
-            padding: 15px 20px;
-            border: none;
-            background-color: #100D23;
-            color: #96DDF2;
-            outline: none;
-        }
-        
-        .search-input::placeholder {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        .search-button {
-            background: #3f2c70;
-            color: #96DDF2;
-            border: none;
-            padding: 15px 25px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: background 0.3s;
-        }
-        
-        .search-button:hover {
-            background: #5a4494;
-        }
-        
-        .network-section {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 1.5rem;
-            color: #96DDF2;
-        }
-        
-        .network-selector {
-            background: #100D23;
-            color: #96DDF2;
-            border: 2px solid #3f2c70;
-            border-radius: 5px;
-            padding: 8px 15px;
-            font-size: 1rem;
-        }
-        
-        .action-section {
-            text-align: center;
-        }
-        
-        .main-search-btn {
-            background: linear-gradient(45deg, #B8860B, #DAA520);
-            color: #fff;
-            border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .main-search-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(184, 134, 11, 0.4);
-        }
-        
-        .main-search-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .info-section {
-            max-width: 800px;
-            text-align: center;
-        }
-        
-        .info-card {
-            background: rgba(16, 13, 35, 0.7);
-            border: 1px solid #3f2c70;
-            border-radius: 10px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            color: #96DDF2;
-        }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .feature-card {
-            background: rgba(16, 13, 35, 0.7);
-            border: 1px solid #3f2c70;
-            border-radius: 10px;
-            padding: 1.5rem;
-            color: #96DDF2;
-            transition: transform 0.3s;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
-            border-color: #5a4494;
-        }
-        
-        .feature-icon {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-        
-        .feature-card h4 {
-            color: #B8860B;
-            margin-bottom: 0.5rem;
-        }
-        
-        @media (max-width: 768px) {
-            .search-section {
-                min-width: auto;
-                width: 100%;
-            }
+    <!-- Info section for landing page -->
+    <div class="landing-content">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-md-10">
             
-            .main-title {
-                font-size: 2.5rem;
-            }
+            <!-- Main info card -->
+            <b-card class="info-card mb-4" bg-variant="dark" text-variant="light">
+              <h3 class="text-center mb-3">What is StellarMapWeb?</h3>
+              <p class="text-center">
+                This application generates interactive lineage visualizations of Stellar addresses, 
+                showing the relationships and creation hierarchy in a radial tree format.
+              </p>
+            </b-card>
             
-            .search-container {
-                flex-direction: column;
-            }
-            
-            .search-input {
-                border-radius: 0;
-            }
-        }
-    </style>
-{% endblock %}
-
-<!-- Extra JS for landing page functionality -->
-{% block extra_js %}
-    <!-- Load D3.js library for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" crossorigin="anonymous"></script>
+            <!-- Features grid -->
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
+                  <div class="text-center">
+                    <div class="feature-icon mb-3">
+                      <i class="fas fa-sitemap fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Account Lineage</h5>
+                    <p class="card-text">Track how accounts were created and their relationships</p>
+                  </div>
+                </b-card>
+              </div>
+              
+              <div class="col-md-4 mb-3">
+                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
+                  <div class="text-center">
+                    <div class="feature-icon mb-3">
+                      <i class="fas fa-project-diagram fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Radial Tree</h5>
+                    <p class="card-text">Interactive D3.js visualization of account hierarchies</p>
+                  </div>
+                </b-card>
+              </div>
+              
+              <div class="col-md-4 mb-3">
+                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
+                  <div class="text-center">
+                    <div class="feature-icon mb-3">
+                      <i class="fas fa-chart-line fa-3x text-info"></i>
+                    </div>
+                    <h5 class="card-title">Network Data</h5>
+                    <p class="card-text">Real-time data from Horizon API and Stellar Expert</p>
+                  </div>
+                </b-card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     
-    <!-- Securely load Vue.js via HTTPS CDN with integrity check -->
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" integrity="sha384-ULpZhk1pvhc/UK5ktA9kwb2guy9ovNSTyxPNHANnA35YjBQgdwI+AhLkixDvdlw4" crossorigin="anonymous"></script>
+    <!-- The sidebar contains links and information that can be accessed by the user. -->
+    <b-sidebar id="sidebar-menu" title="StellarMap.Network" shadow>
+      <div class="px-3 py-2">
+        This web application allows users to generate the lineage of Stellar addresses 
+        and visualize them in a radial, tidy tree format. The tree maps address types 
+        and activity, providing a clear and organized view of the relationships between addresses. 
+      </div>
 
-    <!-- Vue.js app for landing page -->
-    <script>
-        new Vue({
-            el: '#app',
-            data: {
-                stellar_address: 'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD',
-                selected_network: 'public'
-            },
-            methods: {
-                performSearch() {
-                    if (!this.stellar_address.trim()) {
-                        alert('Please enter a Stellar address');
-                        return;
-                    }
-                    
-                    // Navigate to search results with parameters
-                    const searchUrl = `/search/?account=${encodeURIComponent(this.stellar_address)}&network=${this.selected_network}`;
-                    window.location.href = searchUrl;
-                },
-                
-                // Allow search on Enter key
-                handleKeyPress(event) {
-                    if (event.key === 'Enter') {
-                        this.performSearch();
-                    }
-                }
-            }
-        });
-    </script>
-{% endblock %}
+      <template #footer="{ hide }">
+        <div class="d-flex text-light align-items-center px-3 py-2">
+          <b-button class="close-button" @click="hide">
+            <i class="fas fa-sign-out icon-pad"></i> Close
+          </b-button>
+        </div>
+      </template>
+    </b-sidebar>
+  </div>
+
+  <!-- Load required Bootstrap and BootstrapVue CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
+  <!-- Load Vue followed by BootstrapVue -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  <!-- Load D3.js for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" crossorigin="anonymous"></script>
+  
+  <script>
+    var vm = new Vue({
+      el: '#app',
+      data: {
+        query_account: 'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD',
+        loading: false,
+        progressValue: 0,
+        network_toggle: true,
+        network_selected: 'public',
+        loading_animation: true
+      },
+      methods: {
+        async search() {
+          // Set 'loading' to true to show a loading indicator
+          this.loading = true;
+          this.progressValue = 17;
+          
+          try {
+            // Navigate to search results with parameters  
+            const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
+            window.location.href = searchUrl;
+          } catch (e) {
+            // If an error occurs, store the error message
+            console.error('Search error:', e.message);
+            this.loading = false;
+          }
+        },
+        toggleNetwork() {
+          // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
+          this.network_selected = this.network_toggle ? 'public' : 'testnet'
+        }
+      }
+    })
+  </script>
+
+  <style>
+    .landing-header {
+      padding: 2rem 0;
+    }
+    
+    .main-title {
+      font-size: 3.5rem;
+      color: #96DDF2;
+      text-shadow: 0 0 20px #96DDF2;
+      margin-bottom: 1rem;
+    }
+    
+    .subtitle {
+      font-size: 1.2rem;
+      color: #B8860B;
+    }
+    
+    .landing-content {
+      padding: 2rem 0;
+    }
+    
+    .info-card {
+      border: 2px solid #3f2c70;
+      box-shadow: 0 0 15px rgba(150, 221, 242, 0.2);
+    }
+    
+    .feature-card {
+      border: 1px solid #3f2c70;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-5px);
+      border-color: #5a4494;
+      box-shadow: 0 5px 15px rgba(150, 221, 242, 0.3);
+    }
+    
+    .feature-icon {
+      margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+      .main-title {
+        font-size: 2.5rem;
+      }
+      
+      .landing-header {
+        padding: 1rem 0;
+      }
+    }
+  </style>
+</body>
+</html>
