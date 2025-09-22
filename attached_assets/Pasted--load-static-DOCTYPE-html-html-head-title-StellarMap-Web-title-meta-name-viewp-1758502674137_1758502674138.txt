@@ -8,10 +8,11 @@
   <!-- include custom theme -->
   <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
   <!-- include the Font Awesome library for the search icon -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="{% static 'font-awesome-6.2.1/css/all.min.css' %}">
   <!-- include HighlightJS library for the terminal text fields -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai-sublime.min.css" crossorigin="anonymous">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" type="text/css" href="{% static 'highlightjs-11.7.0/styles/default.min.css' %}" disabled="disabled">
+  <link rel="stylesheet" type="text/css" href="{% static 'highlightjs-11.7.0/styles/monokai-sublime.min.css' %}">
+  <script src="{% static 'highlightjs-11.7.0/highlight.min.js' %}"></script>
 </head>
 <body class="bg-color-261D45">
   <div id="app">
@@ -42,7 +43,7 @@
                     @change="toggleNetwork"
                     :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
                   >{{network_selected}}</b-form-checkbox>
-                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address..." value="{{ account|default:'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD' }}">
+                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
                 </div>
               </div>
               <div class="col-auto">
@@ -65,16 +66,16 @@
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card>
-              <b-tab title="Upstream Creator Accounts" active>
+              <b-tab title="Upsteam Creator Accounts" active>
                 <template>
                   <div>
                     <b-table
                       id="table-transition-example"
-                      :items="account_genealogy_items"
-                      :fields="visibleGeneologyFields"
+                      :items="items"
+                      :fields="fields"
                       striped
                       small
-                      primary-key="stellar_account"
+                      primary-key="a"
                       dark
                       :tbody-transition-props="transProps"
                     ></b-table>
@@ -116,13 +117,11 @@
   </div>
 
   <!-- Load required Bootstrap and BootstrapVue CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" type="text/css" href="{% static 'bootstrap-4.6.2/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" type="text/css" href="{% static 'bootstrap-vue-2.23.1/bootstrap-vue.min.css' %}">
   <!-- Load Vue followed by BootstrapVue -->
-  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
-  <!-- Load D3.js for visualization -->
-  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" crossorigin="anonymous"></script>
+  <script src="{% static 'vue-2.6.12/vue.js' %}"></script>
+  <script src="{% static 'bootstrap-vue-2.23.1/bootstrap-vue.min.js' %}" crossorigin="anonymous"></script>
   <!-- Custom VueJS mixin -->
   <script src="{% static 'webApp/js/lineage_table_mixin.js' %}"></script>
   <script>
@@ -130,56 +129,41 @@
       el: '#app',
       mixins: [lineage_table_mixin],
       data: {
-        query_account: '{{ account|default:"GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD" }}',
+        query_account: '',
         loading: false,
         progressValue: 0,
         response: '',
         highlightedJSONResponse: '',
-        network_toggle: {{ network|yesno:"true,false"|default:"false" }},
-        network_selected: '{{ network|default:"testnet" }}',
+        network_toggle: false,
+        network_selected: 'testnet',
         loading_animation: true,
-        account_genealogy_items: {{ account_genealogy_items|safe|default:"[]" }},
-        tree_data: {{ tree_data|safe|default:"{}" }}
       },
       methods: {
         async search() {
           // Set 'loading' to true to show a loading indicator
           this.loading = true;
           this.progressValue = 17;
-          
           try {
-            // Use Django backend for efficient search with caching and validation
-            const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
-            window.location.href = searchUrl;
+            // Fetch data from either the testnet or public Horizon server depending on the value of 'network_selected'
+            const response = await fetch(
+              this.network_selected === 'testnet'
+                ? `https://horizon-testnet.stellar.org/accounts/${this.query_account}`
+                : `https://horizon.stellar.org/accounts/${this.query_account}`
+            );
+            // Store the response text in 'response'
+            this.response = await response.text();
+            this.highlightedJSONResponse = hljs.highlight(this.response, {language: 'json'}).value;
+            this.progressValue = 71;
+            // Set 'loading' to false to hide the loading indicator
+            this.loading = false;
           } catch (e) {
             // If an error occurs, store the error message in 'response'
             this.response = e.message;
-            this.loading = false;
           }
         },
         toggleNetwork() {
           // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
           this.network_selected = this.network_toggle ? 'public' : 'testnet'
-        }
-      },
-      mounted() {
-        // Initialize based on URL parameters if available
-        const urlParams = new URLSearchParams(window.location.search);
-        const accountParam = urlParams.get('account');
-        const networkParam = urlParams.get('network');
-        
-        if (accountParam) {
-          this.query_account = accountParam;
-        }
-        if (networkParam) {
-          this.network_selected = networkParam;
-          this.network_toggle = networkParam === 'public';
-        }
-
-        // Set up highlighting if JSON response exists
-        if (this.account_genealogy_items && this.account_genealogy_items.length > 0) {
-          this.response = JSON.stringify(this.account_genealogy_items, null, 2);
-          this.highlightedJSONResponse = hljs.highlight(this.response, {language: 'json'}).value;
         }
       }
     })
