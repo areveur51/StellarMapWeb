@@ -45,7 +45,7 @@ def search_view(request):
     if not account:
         # Load default test data from test.json
         test_json_path = os.path.join(
-            settings.BASE_DIR, 
+            os.getcwd(),  # Use current working directory instead of BASE_DIR
             'radialTidyTreeApp', 
             'static', 
             'radialTidyTreeApp', 
