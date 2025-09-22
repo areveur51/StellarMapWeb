@@ -15,18 +15,18 @@
 </head>
 <body class="bg-color-261D45">
   <div id="app">
+    <!-- Header section for landing page - outside search container -->
+    <div class="landing-header text-center mb-4">
+      <h1 class="main-title text-light">StellarMap Web</h1>
+      <p class="subtitle text-muted">Visualize Stellar blockchain lineage and account relationships</p>
+    </div>
+
     <div class="top-container">
       <!-- using the verbatim tag to avoid conflicts between Django and Vue.js templates -->
       {% verbatim %}
         <div class="search-container">
           <!-- keeps the elements on the same line and responsive -->
           <div class="container-fluid">
-            
-            <!-- Header section for landing page -->
-            <div class="landing-header text-center mb-4">
-              <h1 class="main-title text-light">StellarMap Web</h1>
-              <p class="subtitle text-muted">Visualize Stellar blockchain lineage and account relationships</p>
-            </div>
 
             <!--  loading bar that is displayed while data is being fetched from the server -->
             <div>
@@ -184,7 +184,8 @@
 
   <style>
     .landing-header {
-      padding: 2rem 0;
+      padding: 3rem 0 2rem 0;
+      background: transparent;
     }
     
     .main-title {
