@@ -41,7 +41,7 @@
                     switch 
                     @change="toggleNetwork"
                     :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
-                  >{{network_selected}}</b-form-checkbox>
+                  >{{ network_selected }}</b-form-checkbox>
                   <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
                 </div>
               </div>
@@ -62,6 +62,7 @@
           {% include "radialTidyTreeApp/radial_tidy_tree.html" %}
         </div>
 
+        {% verbatim %}
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card>
@@ -93,6 +94,7 @@
             </b-tabs>
           </b-card>
         </div>
+        {% endverbatim %}
 
       </div>
     </div>
