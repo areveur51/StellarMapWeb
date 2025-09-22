@@ -41,8 +41,8 @@
                     switch 
                     @change="toggleNetwork"
                     :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
-                  >{{ network_selected }}</b-form-checkbox>
-                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
+                  >{{network_selected}}</b-form-checkbox>
+                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address..." value="{{ account|default:'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD' }}">
                 </div>
               </div>
               <div class="col-auto">
@@ -62,7 +62,6 @@
           {% include "radialTidyTreeApp/radial_tidy_tree.html" %}
         </div>
 
-        {% verbatim %}
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card>
@@ -94,7 +93,6 @@
             </b-tabs>
           </b-card>
         </div>
-        {% endverbatim %}
 
       </div>
     </div>
@@ -137,7 +135,7 @@
         progressValue: 0,
         response: '',
         highlightedJSONResponse: '',
-        network_toggle: {{ network|yesno:"true,false"|default:"false" |safe }},
+        network_toggle: {{ network|yesno:"true,false"|default:"false" }},
         network_selected: '{{ network|default:"testnet" }}',
         loading_animation: true,
         account_genealogy_items: {{ account_genealogy_items|safe|default:"[]" }},
