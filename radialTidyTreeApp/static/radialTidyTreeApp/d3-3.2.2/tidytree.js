@@ -43,25 +43,28 @@ End Globals
 Initial run
  */
 
-d3.json(dataURI, {
-    crossOrigin: "anonymous"
-})
-    .then((json) => {
-        data = json;  //data has json in initial state
-        return json;
-    })
-    .then((json) => {
-        return levelNodes(json);
-    })
-    .then((result) => {
-        hData = result; //captures that flat array levelNodes returns
-        return result
-    })
-    .then((result) => {
-        hData = d3.stratify()(result);
-        chart = makeTree(hData);  //keep chart reference around for updates
-        document.querySelector("body").appendChild(chart);
-    });
+// DISABLED: Automatic JSON loading causes parsing errors when dataURI is empty
+// We now use the renderRadialTree function instead for controlled data rendering
+
+// d3.json(dataURI, {
+//     crossOrigin: "anonymous"
+// })
+//     .then((json) => {
+//         data = json;  //data has json in initial state
+//         return json;
+//     })
+//     .then((json) => {
+//         return levelNodes(json);
+//     })
+//     .then((result) => {
+//         hData = result; //captures that flat array levelNodes returns
+//         return result
+//     })
+//     .then((result) => {
+//         hData = d3.stratify()(result);
+//         chart = makeTree(hData);  //keep chart reference around for updates
+//         document.querySelector("body").appendChild(chart);
+//     });
 
 // preprocess json data
 function levelNodes(data) {
