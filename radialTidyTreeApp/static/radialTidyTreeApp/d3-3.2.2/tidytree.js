@@ -242,3 +242,129 @@ function makeTree(data) {
 
     return svg.node();
 }
+
+// Global function to render radial tree with data
+function renderRadialTree(jsonData) {
+    try {
+        // Clear any existing SVG
+        const existingSvg = document.querySelector('#tree');
+        if (existingSvg) {
+            existingSvg.innerHTML = '';
+        }
+
+        // Handle different data structures
+        let processedData;
+        if (jsonData && typeof jsonData === 'object') {
+            // If it's a hierarchical structure like {name: 'Root', children: [...]}
+            if (jsonData.name || jsonData.children) {
+                processedData = jsonData;
+            } else {
+                // Create a default root structure
+                processedData = {
+                    name: jsonData.stellar_account || 'Root Node',
+                    node_type: jsonData.node_type || 'ACCOUNT',
+                    created: jsonData.created || new Date().toISOString(),
+                    children: jsonData.children || []
+                };
+            }
+        } else {
+            // Fallback data structure
+            processedData = {
+                name: 'Sample Root',
+                node_type: 'ACCOUNT',
+                created: '2015-09-30 13:15:54',
+                children: []
+            };
+        }
+
+        console.log('Processing tree data:', processedData);
+
+        // Create hierarchy from the processed data
+        const root = d3.hierarchy(processedData);
+        
+        // Setup tree layout
+        const width = 800;
+        const height = 800;
+        
+        // Clear existing tree and create new one
+        const treeContainer = d3.select('#tree');
+        if (treeContainer.empty()) {
+            // If no #tree element exists, append to body
+            d3.select('body').append('svg')
+                .attr('id', 'tree')
+                .attr('width', width)
+                .attr('height', height);
+        }
+        
+        const svg = d3.select('#tree')
+            .attr('width', width)
+            .attr('height', height);
+            
+        svg.selectAll('*').remove(); // Clear existing content
+
+        const treeLayout = d3.tree()
+            .size([2 * Math.PI, Math.min(width, height) / 2 - 10]);
+
+        // Apply tree layout
+        treeLayout(root);
+
+        // Create links
+        const links = svg.selectAll('.link')
+            .data(root.links())
+            .enter()
+            .append('path')
+            .attr('class', 'link')
+            .attr('d', d3.linkRadial()
+                .angle(d => d.x)
+                .radius(d => d.y))
+            .style('fill', 'none')
+            .style('stroke', '#555')
+            .style('stroke-width', '2px');
+
+        // Create nodes
+        const nodes = svg.selectAll('.node')
+            .data(root.descendants())
+            .enter()
+            .append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `
+                translate(${Math.cos(d.x - Math.PI / 2) * d.y + width / 2}, 
+                         ${Math.sin(d.x - Math.PI / 2) * d.y + height / 2})
+            `);
+
+        // Add circles for nodes
+        nodes.append('circle')
+            .attr('r', 6)
+            .style('fill', '#69b3a2')
+            .style('stroke', '#333')
+            .style('stroke-width', '2px');
+
+        // Add labels
+        nodes.append('text')
+            .attr('dy', '.35em')
+            .attr('x', d => d.x < Math.PI === !d.children ? 6 : -6)
+            .style('text-anchor', d => d.x < Math.PI === !d.children ? 'start' : 'end')
+            .attr('transform', d => 'rotate(' + (d.x < Math.PI ? d.x - Math.PI / 2 : d.x + Math.PI / 2) * 180 / Math.PI + ')')
+            .text(d => d.data.name || d.data.stellar_account || 'Node')
+            .style('font-size', '12px')
+            .style('fill', '#333');
+
+        console.log('Radial tree rendered successfully');
+        
+    } catch (error) {
+        console.error('Error rendering radial tree:', error);
+        
+        // Show a simple fallback visualization
+        const svg = d3.select('#tree');
+        if (!svg.empty()) {
+            svg.selectAll('*').remove();
+            svg.append('text')
+                .attr('x', 400)
+                .attr('y', 400)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .style('fill', '#666')
+                .text('Tree visualization unavailable');
+        }
+    }
+}
