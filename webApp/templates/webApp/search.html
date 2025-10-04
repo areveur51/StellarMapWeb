@@ -160,6 +160,44 @@
         toggleNetwork() {
           // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
           this.network_selected = this.network_toggle ? 'public' : 'testnet'
+        },
+        updateJSONDisplay() {
+          // Update the JSON display with current data
+          let dataToDisplay = null;
+          
+          if (this.account_genealogy_items && this.account_genealogy_items.length > 0) {
+            // If we have genealogy items, show them
+            dataToDisplay = this.account_genealogy_items;
+          } else if (this.tree_data && Object.keys(this.tree_data).length > 0) {
+            // If no genealogy items but we have tree data, show that
+            dataToDisplay = this.tree_data;
+          }
+          
+          if (dataToDisplay) {
+            this.response = JSON.stringify(dataToDisplay, null, 2);
+            this.highlightedJSONResponse = hljs.highlight(this.response, {language: 'json'}).value;
+          } else {
+            this.response = '';
+            this.highlightedJSONResponse = '';
+          }
+        }
+      },
+      watch: {
+        account_genealogy_items: {
+          handler(newVal) {
+            // Update JSON display whenever account_genealogy_items changes
+            this.updateJSONDisplay();
+          },
+          deep: true,
+          immediate: true
+        },
+        tree_data: {
+          handler(newVal) {
+            // Update JSON display whenever tree_data changes
+            this.updateJSONDisplay();
+          },
+          deep: true,
+          immediate: true
         }
       },
       mounted() {
@@ -175,12 +213,8 @@
           this.network_selected = networkParam;
           this.network_toggle = networkParam === 'public';
         }
-
-        // Set up highlighting if JSON response exists
-        if (this.account_genealogy_items && this.account_genealogy_items.length > 0) {
-          this.response = JSON.stringify(this.account_genealogy_items, null, 2);
-          this.highlightedJSONResponse = hljs.highlight(this.response, {language: 'json'}).value;
-        }
+        
+        // JSON display is automatically updated by the watcher
       }
     })
   </script>
