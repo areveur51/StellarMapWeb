@@ -44,8 +44,9 @@ def search_view(request):
     # Check if this is a default view (no account parameter provided)
     if not account:
         # Load default test data from test.json
+        # Use BASE_DIR.parent since apps are at workspace root, not in StellarMapWeb/
         test_json_path = os.path.join(
-            settings.BASE_DIR, 
+            settings.BASE_DIR.parent, 
             'radialTidyTreeApp', 
             'static', 
             'radialTidyTreeApp', 
