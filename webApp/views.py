@@ -53,12 +53,9 @@ def search_view(request):
             'json', 
             'test.json'
         )
-        print(f"[DEBUG] Loading test.json from: {test_json_path}")
-        print(f"[DEBUG] File exists: {os.path.exists(test_json_path)}")
         try:
             with open(test_json_path, 'r') as f:
                 tree_data = json.load(f)
-            print(f"[DEBUG] Successfully loaded test.json with {len(json.dumps(tree_data))} characters")
             
             # Set default display values from test data
             account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
