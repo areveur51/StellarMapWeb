@@ -1,5 +1,6 @@
 # webApp/tests/test_views.py
 import json
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 
@@ -121,6 +122,27 @@ class SearchViewParameterizedTests(TestCase):
     def setUp(self):
         """Set up test client."""
         self.client = Client()
+    
+    @patch('webApp.views.StellarMapCreatorAccountLineageHelpers')
+    def test_search_view_exception_fallback(self, mock_helpers):
+        """Test that search view gracefully handles exceptions with fallback data."""
+        # Mock the helper to raise an exception
+        mock_instance = mock_helpers.return_value
+        mock_instance.get_account_genealogy.side_effect = Exception("Simulated API error")
+        
+        response = self.client.get('/search/', {
+            'account': 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB',
+            'network': 'testnet'
+        })
+        
+        # Should still return 200 with fallback data
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['account_genealogy_items'], [])
+        
+        # Fallback tree_data should have minimal structure
+        tree_data = response.context['tree_data']
+        self.assertIn('name', tree_data)
+        self.assertEqual(tree_data['name'], 'Root')
     
     def test_search_with_valid_account_testnet(self):
         """Test search with valid Stellar account on testnet."""
