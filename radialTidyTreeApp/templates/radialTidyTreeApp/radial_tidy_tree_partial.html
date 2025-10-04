@@ -1,0 +1,29 @@
+<!-- radialTidyTreeApp/templates/radialTidyTreeApp/radial_tidy_tree_partial.html -->
+{% load static %}
+
+<div id="radial-tree-container">
+    <svg id="tree" width="800" height="800"></svg>
+    
+    <script>
+        // Wait for DOM and all scripts to load before rendering
+        document.addEventListener('DOMContentLoaded', function() {
+            // Securely parse tree data from context (escaped by Django)
+            const treeData = {{ tree_data | safe }};
+            
+            console.log('Processing tree data:', treeData);
+            
+            // Wait for renderRadialTree to be available
+            const renderWhenReady = () => {
+                if (typeof renderRadialTree === 'function') {
+                    renderRadialTree(treeData);
+                    console.log('Radial tree rendered successfully');
+                } else {
+                    // Retry after a short delay if not ready yet
+                    setTimeout(renderWhenReady, 100);
+                }
+            };
+            
+            renderWhenReady();
+        });
+    </script>
+</div>
