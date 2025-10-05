@@ -57,6 +57,19 @@
 
     <!-- This element serves as a container for displaying the results of the search function -->
     <div class="results-container">
+      {% if is_cached or is_refreshing %}
+        <div class="cache-status-indicator" style="text-align: center; padding: 10px; margin-bottom: 10px;">
+          {% if is_cached %}
+            <span class="badge badge-success" style="font-size: 0.9em;">
+              <i class="fas fa-clock"></i> Cached Data (Fresh)
+            </span>
+          {% elif is_refreshing %}
+            <span class="badge badge-warning" style="font-size: 0.9em;">
+              <i class="fas fa-sync fa-spin"></i> Refreshing Data...
+            </span>
+          {% endif %}
+        </div>
+      {% endif %}
       <div class="response-container">
         <div class="radial-tree-visual">
           {% include "radialTidyTreeApp/radial_tidy_tree_partial.html" %}
