@@ -112,14 +112,21 @@ def search_view(request):
     if network not in ['public', 'testnet']:
         raise Http404("Invalid network")
 
-    # 12-hour Cassandra cache strategy
-    cache_helpers = StellarMapCacheHelpers()
-    is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network)
-    
+    # 12-hour Cassandra cache strategy (with fallback for schema migration)
+    is_fresh = False
     is_refreshing = False
     genealogy_data = None
     
-    if is_fresh:
+    try:
+        cache_helpers = StellarMapCacheHelpers()
+        is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network)
+    except Exception as cache_error:
+        # Cache not available yet (schema migration needed), skip cache
+        sentry_sdk.capture_exception(cache_error)
+        is_fresh = False
+        cache_entry = None
+    
+    if is_fresh and cache_entry:
         # Fresh data available (< 12 hours old), return cached JSON immediately
         cached_tree_data = cache_helpers.get_cached_data(cache_entry)
         if cached_tree_data:
@@ -133,8 +140,12 @@ def search_view(request):
     
     if not is_fresh:
         # Stale or missing cache, create PENDING entry to trigger cron jobs
-        cache_helpers.create_pending_entry(account, network)
-        is_refreshing = True
+        try:
+            if cache_helpers:
+                cache_helpers.create_pending_entry(account, network)
+            is_refreshing = True
+        except Exception:
+            pass  # Cache creation failed, continue without it
         
         # Try to fetch data immediately for better UX
         try:
@@ -149,22 +160,36 @@ def search_view(request):
             }
             
             # Update cache with fresh data
-            cache_helpers.update_cache(account, network, tree_data)
+            try:
+                if cache_helpers:
+                    cache_helpers.update_cache(account, network, tree_data)
+            except Exception:
+                pass  # Cache update failed, but we have data
             is_refreshing = False
             
         except Exception as e:
             sentry_sdk.capture_exception(e)
             # Show cached data if available, otherwise fallback
-            if cache_entry and cache_entry.cached_json:
-                cached_tree_data = cache_helpers.get_cached_data(cache_entry)
-                genealogy_data = {
-                    'account_genealogy_items': [],
-                    'tree_data': cached_tree_data or {
-                        'name': 'Root',
-                        'node_type': 'ISSUER',
-                        'children': []
+            if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
+                try:
+                    cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': cached_tree_data or {
+                            'name': 'Root',
+                            'node_type': 'ISSUER',
+                            'children': []
+                        }
                     }
-                }
+                except Exception:
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': {
+                            'name': 'Root',
+                            'node_type': 'ISSUER',
+                            'children': []
+                        }
+                    }
             else:
                 genealogy_data = {
                     'account_genealogy_items': [],
