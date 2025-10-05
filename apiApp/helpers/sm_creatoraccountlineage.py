@@ -8,8 +8,17 @@ from stellar_sdk.exceptions import BaseRequestError
 from apiApp.managers import StellarCreatorAccountLineageManager
 from apiApp.services import AstraDocument
 from django.http import HttpRequest
-from .sm_horizon import StellarMapHorizonAPIParserHelpers, StellarMapHorizonAPIHelpers  # Assume exists
-from .sm_stellarexpert import StellarMapStellarExpertAPIHelpers, StellarMapStellarExpertAPIParserHelpers  # Assume
+from .sm_horizon import StellarMapHorizonAPIParserHelpers, StellarMapHorizonAPIHelpers
+from .sm_stellarexpert import StellarMapStellarExpertAPIHelpers, StellarMapStellarExpertAPIParserHelpers
+from apiApp.models import (
+    PENDING_HORIZON_API_DATASETS,
+    IN_PROGRESS_UPDATING_FROM_RAW_DATA,
+    DONE_UPDATING_FROM_RAW_DATA,
+    IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA,
+    DONE_UPDATING_FROM_OPERATIONS_RAW_DATA,
+    IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
+    DONE_GRANDPARENT_LINEAGE
+)
 
 
 class StellarMapCreatorAccountLineageHelpers:
@@ -21,8 +30,7 @@ class StellarMapCreatorAccountLineageHelpers:
         """Modular update from accounts data."""
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
-                                          'IN_PROGRESS_UPDATING_FROM_RAW_DATA'
-                                          )  # Assume async manager
+                                          IN_PROGRESS_UPDATING_FROM_RAW_DATA)
         astra = AstraDocument()
         astra.set_datastax_url(lin_queryset.horizon_accounts_doc_api_href)
         response = astra.get_document()
@@ -31,12 +39,59 @@ class StellarMapCreatorAccountLineageHelpers:
         req.data = {
             'home_domain': parser.parse_account_home_domain(),
             'xlm_balance': parser.parse_account_native_balance(),
-            'status': 'DONE_UPDATING_FROM_RAW_DATA'
+            'status': DONE_UPDATING_FROM_RAW_DATA
         }
         await manager.async_update_lineage(lin_queryset.id, req)
 
-    # Similar refactoring for other async methods: async_update_from_operations_raw_data, async_make_grandparent_account, etc.
-    # Batched example for assets/flags/directory: Combine into single batch update if possible.
+    @retry(wait=wait_exponential(multiplier=1, max=5),
+           stop=stop_after_attempt(5))
+    async def async_update_from_operations_raw_data(self, client_session,
+                                                     lin_queryset):
+        """Update lineage from operations data to extract creator account."""
+        manager = StellarCreatorAccountLineageManager()
+        await manager.async_update_status(lin_queryset.id,
+                                          IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA)
+        astra = AstraDocument()
+        astra.set_datastax_url(lin_queryset.horizon_accounts_operations_doc_api_href)
+        response = astra.get_document()
+        parser = StellarMapHorizonAPIParserHelpers(response)
+        req = HttpRequest()
+        req.data = {
+            'stellar_creator_account': parser.parse_operations_creator_account(),
+            'created': parser.parse_operations_created_at(),
+            'status': DONE_UPDATING_FROM_OPERATIONS_RAW_DATA
+        }
+        await manager.async_update_lineage(lin_queryset.id, req)
+
+    @retry(wait=wait_exponential(multiplier=1, max=5),
+           stop=stop_after_attempt(5))
+    async def async_make_grandparent_account(self, client_session,
+                                              lin_queryset):
+        """Create grandparent lineage by processing creator account."""
+        manager = StellarCreatorAccountLineageManager()
+        await manager.async_update_status(lin_queryset.id,
+                                          IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE)
+        
+        creator_account = lin_queryset.stellar_creator_account
+        network_name = lin_queryset.network_name
+        
+        if creator_account and creator_account not in ['no_element_funder', 'unknown', '']:
+            existing_lineage = manager.get_queryset(
+                stellar_account=creator_account,
+                network_name=network_name
+            )
+            
+            if not existing_lineage:
+                req = HttpRequest()
+                req.data = {
+                    'stellar_account': creator_account,
+                    'network_name': network_name,
+                    'status': PENDING_HORIZON_API_DATASETS
+                }
+                manager.create_lineage(req)
+        
+        await manager.async_update_status(lin_queryset.id,
+                                          DONE_GRANDPARENT_LINEAGE)
 
     def get_account_genealogy_from_horizon(self, stellar_account, network_name, max_depth=10):
         """

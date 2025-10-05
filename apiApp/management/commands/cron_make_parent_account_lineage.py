@@ -9,7 +9,8 @@ from apiApp.models import (
     PENDING_MAKE_PARENT_LINEAGE,
     IN_PROGRESS_MAKE_PARENT_LINEAGE,
     DONE_MAKE_PARENT_LINEAGE,
-    PENDING_HORIZON_API_DATASETS
+    PENDING_HORIZON_API_DATASETS,
+    RE_INQUIRY
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class Command(BaseCommand):
 
             inquiry_manager = UserInquirySearchHistoryManager()
             inq_queryset = inquiry_manager.get_queryset(
-                status__in=[PENDING_MAKE_PARENT_LINEAGE, 'RE_INQUIRY'])
+                status__in=[PENDING_MAKE_PARENT_LINEAGE, RE_INQUIRY])
 
             if inq_queryset:
                 inquiry_manager.update_inquiry(
