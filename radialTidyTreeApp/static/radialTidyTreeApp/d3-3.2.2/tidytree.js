@@ -333,7 +333,7 @@ function renderRadialTree(jsonData) {
             .attr('r', 5)
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', d => {
-                console.log('Rendering node:', d.data.stellar_account || d.data.asset_code, 'Type:', d.data.node_type);
+                console.log('Rendering node:', d.data.stellar_account || d.data.asset_code || d.data.name, 'Type:', d.data.node_type);
                 return d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
             })
             .style('stroke', d => d.data.node_type === 'ASSET' ? '#e0d700' : '#00FF9C')
@@ -346,7 +346,7 @@ function renderRadialTree(jsonData) {
             .attr('x', d => d.x < Math.PI ? 10 : -10)
             .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
             .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
-            .text(d => d.data.stellar_account || d.data.asset_code || 'Unnamed')
+            .text(d => d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed')
             .style('fill', 'white')
             .style('font-size', '12px');
 
@@ -385,19 +385,19 @@ function renderRadialTree(jsonData) {
             const pathToRoot = getPathToRoot(d);
             const pathLinks = new Set();
             for (let i = 1; i < pathToRoot.length; i++) {
-                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code}`);
+                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
             }
             
             link.style('stroke', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
                 return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
             })
             .style('stroke-width', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
                 return pathLinks.has(linkId) ? '3px' : '1.5px';
             })
             .style('opacity', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
                 return pathLinks.has(linkId) ? 1 : 0.3;
             });
 
@@ -406,7 +406,7 @@ function renderRadialTree(jsonData) {
             let xOffset = 0;
             pathToRoot.forEach((node, i) => {
                 const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-                const breadcrumbText = node.data.stellar_account || node.data.asset_code || 'Root';
+                const breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
                 const textWidth = breadcrumbText.length * 7;
                 
                 breadcrumbContainer.append('rect')
@@ -439,7 +439,7 @@ function renderRadialTree(jsonData) {
                 }
             });
             
-            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || 'Unnamed') + '<br>';
+            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
             if (d.data.node_type === 'ASSET') {
                 tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
                 tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
