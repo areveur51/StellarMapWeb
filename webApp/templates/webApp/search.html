@@ -126,23 +126,26 @@
   <!-- Load tidytree.js for radial tree rendering -->
   <script src="{% static 'radialTidyTreeApp/d3-3.2.2/tidytree.js' %}"></script>
   <!-- Custom VueJS mixin -->
-  <script src="{% static 'webApp/js/lineage_table_mixin.js' %}"></script>
+  {{ tree_data|json_script:"tree-data-json" }}
+  {{ account_genealogy_items|json_script:"account-genealogy-json" }}
+  
+  <script src="{% static 'webApp/js/lineage_table_mixin.js' %}?v=2"></script>
   <script>
     var vm = new Vue({
-      el: '#app',
-      mixins: [lineage_table_mixin],
-      data: {
-        query_account: '{{ account|default:"GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD" }}',
-        loading: false,
-        progressValue: 0,
-        response: '',
-        highlightedJSONResponse: '',
-        network_toggle: {{ network|yesno:"true,false"|default:"false" }},
-        network_selected: '{{ network|default:"testnet" }}',
-        loading_animation: true,
-        account_genealogy_items: {{ account_genealogy_items|safe|default:"[]" }},
-        tree_data: {{ tree_data|safe|default:"{}" }}
-      },
+        el: '#app',
+        mixins: [lineage_table_mixin],
+        data: {
+          query_account: '{{ account|default:"GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD" }}',
+          loading: false,
+          progressValue: 0,
+          response: '',
+          highlightedJSONResponse: '',
+          network_toggle: {% if network %}true{% else %}false{% endif %},
+          network_selected: '{{ network|default:"testnet" }}',
+          loading_animation: true,
+          account_genealogy_items: JSON.parse(document.getElementById('account-genealogy-json').textContent || '[]'),
+          tree_data: JSON.parse(document.getElementById('tree-data-json').textContent || '{}')
+        },
       methods: {
         async search() {
           // Set 'loading' to true to show a loading indicator
