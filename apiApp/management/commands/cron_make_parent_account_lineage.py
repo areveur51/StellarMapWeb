@@ -5,6 +5,8 @@ from django.core.management.base import BaseCommand
 from django.http import HttpRequest
 from apiApp.managers import UserInquirySearchHistoryManager, StellarCreatorAccountLineageManager
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
+from apiApp.helpers.sm_cache import StellarMapCacheHelpers
+from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.models import (
     PENDING_MAKE_PARENT_LINEAGE,
     IN_PROGRESS_MAKE_PARENT_LINEAGE,
@@ -63,6 +65,25 @@ class Command(BaseCommand):
 
                 inquiry_manager.update_inquiry(
                     id=inq_queryset.id, status=DONE_MAKE_PARENT_LINEAGE)
+                
+                # Update cache with fresh tree data after completing lineage collection
+                try:
+                    lineage_helpers = StellarMapCreatorAccountLineageHelpers()
+                    genealogy_df = lineage_helpers.get_account_genealogy(
+                        inq_queryset.stellar_account, inq_queryset.network_name)
+                    tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(genealogy_df)
+                    
+                    cache_helpers = StellarMapCacheHelpers()
+                    cache_helpers.update_cache(
+                        inq_queryset.stellar_account,
+                        inq_queryset.network_name,
+                        tree_data,
+                        DONE_MAKE_PARENT_LINEAGE
+                    )
+                    logger.info(f"Updated cache for {inq_queryset.stellar_account} on {inq_queryset.network_name}")
+                except Exception as cache_error:
+                    logger.error(f"Failed to update cache: {cache_error}")
+                    sentry_sdk.capture_exception(cache_error)
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
