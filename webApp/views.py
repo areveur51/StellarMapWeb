@@ -1,7 +1,6 @@
 # webApp/views.py
 import json
 import os
-import datetime
 from decouple import config
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -9,9 +8,9 @@ from django.conf import settings
 from django.core.cache import cache  # For efficient caching
 from django.http import Http404  # For secure error handling
 import sentry_sdk
-from apiApp.models import StellarCreatorAccountLineage, PENDING_HORIZON_API_DATASETS
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
+from apiApp.helpers.sm_cache import StellarMapCacheHelpers
 
 
 def index_view(request):
@@ -113,59 +112,93 @@ def search_view(request):
     if network not in ['public', 'testnet']:
         raise Http404("Invalid network")
 
-    # Check StellarCreatorAccountLineage table for existing records
-    try:
-        existing_records = StellarCreatorAccountLineage.objects.filter(
-            stellar_account=account,
-            network_name=network
-        ).all()
-        
-        has_records = len(list(existing_records)) > 0
-        
-    except Exception as e:
-        sentry_sdk.capture_exception(e)
-        has_records = False
+    # 12-hour Cassandra cache strategy (with fallback for schema migration)
+    is_fresh = False
+    is_refreshing = False
+    genealogy_data = None
     
-    # If no records exist, create minimal PENDING entry to trigger cron processing
-    if not has_records:
+    try:
+        cache_helpers = StellarMapCacheHelpers()
+        is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network)
+    except Exception as cache_error:
+        # Cache not available yet (schema migration needed), skip cache
+        sentry_sdk.capture_exception(cache_error)
+        is_fresh = False
+        cache_entry = None
+    
+    if is_fresh and cache_entry:
+        # Fresh data available (< 12 hours old), return cached JSON immediately
+        cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+        if cached_tree_data:
+            genealogy_data = {
+                'account_genealogy_items': [],
+                'tree_data': cached_tree_data
+            }
+        else:
+            # Cache entry exists but no JSON, fetch fresh data
+            is_fresh = False
+    
+    if not is_fresh:
+        # Stale or missing cache, create PENDING entry to trigger cron jobs
         try:
-            StellarCreatorAccountLineage.create(
-                stellar_account=account,
-                network_name=network,
-                status=PENDING_HORIZON_API_DATASETS,
-                created_at=datetime.datetime.utcnow(),
-                updated_at=datetime.datetime.utcnow()
-            )
-            sentry_sdk.capture_message(
-                f"Created PENDING entry for {account} on {network}",
-                level='info'
-            )
+            if cache_helpers:
+                cache_helpers.create_pending_entry(account, network)
+            is_refreshing = True
+        except Exception:
+            pass  # Cache creation failed, continue without it
+        
+        # Try to fetch data immediately for better UX
+        try:
+            lineage_helpers = StellarMapCreatorAccountLineageHelpers()
+            genealogy_df = lineage_helpers.get_account_genealogy(account, network)
+            tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(genealogy_df)
+            account_genealogy_items = genealogy_df.to_dict(
+                orient='records') if not genealogy_df.empty else []
+            genealogy_data = {
+                'account_genealogy_items': account_genealogy_items,
+                'tree_data': tree_data
+            }
+            
+            # Update cache with fresh data
+            try:
+                if cache_helpers:
+                    cache_helpers.update_cache(account, network, tree_data)
+            except Exception:
+                pass  # Cache update failed, but we have data
+            is_refreshing = False
+            
         except Exception as e:
             sentry_sdk.capture_exception(e)
-    
-    # Fetch genealogy data from existing records (or empty if just created)
-    genealogy_data = None
-    try:
-        lineage_helpers = StellarMapCreatorAccountLineageHelpers()
-        genealogy_df = lineage_helpers.get_account_genealogy(account, network)
-        tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(genealogy_df)
-        account_genealogy_items = genealogy_df.to_dict(
-            orient='records') if not genealogy_df.empty else []
-        genealogy_data = {
-            'account_genealogy_items': account_genealogy_items,
-            'tree_data': tree_data
-        }
-    except Exception as e:
-        sentry_sdk.capture_exception(e)
-        # Fallback to empty tree
-        genealogy_data = {
-            'account_genealogy_items': [],
-            'tree_data': {
-                'name': account[:8] + '...',
-                'node_type': 'ISSUER',
-                'children': []
-            }
-        }
+            # Show cached data if available, otherwise fallback
+            if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
+                try:
+                    cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': cached_tree_data or {
+                            'name': 'Root',
+                            'node_type': 'ISSUER',
+                            'children': []
+                        }
+                    }
+                except Exception:
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': {
+                            'name': 'Root',
+                            'node_type': 'ISSUER',
+                            'children': []
+                        }
+                    }
+            else:
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': {
+                        'name': 'Root',
+                        'node_type': 'ISSUER',
+                        'children': []
+                    }
+                }
     
     # Ensure genealogy_data is set (fallback safety)
     if genealogy_data is None:
@@ -179,7 +212,7 @@ def search_view(request):
         }
 
     context = {
-        'search_variable': 'Genealogy Results' if has_records else 'Processing...',
+        'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
         'ENV': config('ENV', default='development'),
         'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
         'account_genealogy_items': genealogy_data['account_genealogy_items'],
@@ -188,7 +221,7 @@ def search_view(request):
         'network': network,
         'query_account': account,
         'network_selected': network,
-        'is_cached': False,
-        'is_refreshing': not has_records,
+        'is_cached': is_fresh,
+        'is_refreshing': is_refreshing,
     }
     return render(request, 'webApp/search.html', context)

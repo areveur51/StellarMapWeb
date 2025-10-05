@@ -4,23 +4,29 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
-## October 5, 2025 (Night) - Direct StellarCreatorAccountLineage Search Logic
-- **BREAKING CHANGE**: Refactored search logic to use StellarCreatorAccountLineage table directly
-- Search flow now:
-  1. Queries StellarCreatorAccountLineage table for matching stellar_account and network_name
-  2. If no records exist, creates minimal PENDING entry with status=PENDING_HORIZON_API_DATASETS
-  3. PENDING entry triggers cron jobs to fetch and populate lineage data
-  4. Returns genealogy data from existing records (or empty tree if just created)
-- Removed dependency on UserInquirySearchHistory caching layer for search queries
-- Simplified architecture: one source of truth (StellarCreatorAccountLineage) for all lineage data
-- Cron jobs populate StellarCreatorAccountLineage directly as they process accounts
-- UX indicators: "Genealogy Results" for existing data, "Processing..." for new PENDING entries
-- Production-ready: Clean separation between search queries and cron job processing
-
-## October 5, 2025 (Late Evening) - 12-Hour Database Caching System (DEPRECATED)
-- NOTE: This caching approach was replaced by direct StellarCreatorAccountLineage queries
-- UserInquirySearchHistory model remains available but is no longer used in primary search flow
-- Caching logic moved to optional layer; StellarCreatorAccountLineage is now primary data source
+## October 5, 2025 (Late Evening) - 12-Hour Database Caching System
+- Implemented efficient 12-hour caching strategy for Stellar address searches to minimize API calls
+- Enhanced UserInquirySearchHistory model with new fields:
+  - `cached_json`: Stores complete tree_data JSON for instant retrieval
+  - `last_fetched_at`: Tracks cache freshness for 12-hour window validation
+  - Updated `status` field to use workflow status constants (PENDING_HORIZON_API_DATASETS, etc.)
+- Created StellarMapCacheHelpers class (apiApp/helpers/sm_cache.py) with methods:
+  - `check_cache_freshness()`: Validates if cached data is < 12 hours old
+  - `get_cached_data()`: Retrieves and parses cached JSON
+  - `update_cache()`: Stores fresh tree data after cron job completion
+  - `create_pending_entry()`: Marks stale/missing entries as PENDING to trigger cron processing
+- Updated search_view (webApp/views.py) with intelligent cache flow:
+  - Checks Cassandra DB for fresh cached data first (< 12 hours old)
+  - Returns cached JSON immediately if available (significant performance boost)
+  - Creates PENDING entry for cron jobs if data is stale/missing
+  - Attempts immediate refresh for better UX, falls back to cached data on error
+- Enhanced cron_make_parent_account_lineage to update cache after completing lineage workflow
+- Added UX indicators in search.html template:
+  - Green badge "Cached Data (Fresh)" for data served from cache
+  - Yellow spinner "Refreshing Data..." for stale data being updated
+- Synced Cassandra database schema to support new caching fields
+- Architect-reviewed and approved: No race conditions or data integrity issues observed
+- Production-ready implementation improves performance and reduces API load significantly
 
 ## October 5, 2025 (Evening) - PlantUML Workflow Implementation
 - Implemented complete PlantUML-based cron workflow with 17 status constants in models.py
