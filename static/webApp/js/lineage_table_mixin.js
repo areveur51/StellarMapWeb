@@ -90,7 +90,7 @@ const lineage_table_mixin = {
             // Clear previous SVG to prevent memory leaks
             d3.select(this.$el).selectAll("*").remove();
 
-            const svg = d3.select(this.$el)
+            this.smrt_svg = d3.select(this.$el)
                 .append("svg")
                 .attr("width", this.smrt_width)
                 .attr("height", this.smrt_height)
@@ -103,7 +103,9 @@ const lineage_table_mixin = {
             this.smrt_root.y0 = 0;
 
             // Collapse after the second level (efficiency: limits initial render)
-            this.smrt_root.children.forEach(this.collapse);
+            if (this.smrt_root.children) {
+                this.smrt_root.children.forEach(this.collapse);
+            }
             this.update(this.smrt_root);  // Initial update
         },
 
@@ -112,10 +114,14 @@ const lineage_table_mixin = {
          * @param {object} source - Source node.
          */
         update(source) {
+            if (!this.smrt_svg || !this.smrt_tree || !this.smrt_root) {
+                return;
+            }
+
             const treeData = this.smrt_tree(this.smrt_root);
 
             // Nodes (efficient enter/update/exit pattern)
-            const nodes = svg.selectAll('g.node')
+            const nodes = this.smrt_svg.selectAll('g.node')
                 .data(treeData.descendants(), d => d.id || (d.id = ++this.smrt_counter));
 
             // ... (full D3 node/link code from original, with optimizations like transition chaining)
