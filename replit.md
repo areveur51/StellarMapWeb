@@ -4,7 +4,25 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
-## October 5, 2025
+## October 5, 2025 (Evening) - PlantUML Workflow Implementation
+- Implemented complete PlantUML-based cron workflow with 17 status constants in models.py
+- Added all workflow states: PENDING_HORIZON_API_DATASETS → IN_PROGRESS states → DONE states
+- Implemented missing async methods in sm_creatoraccountlineage.py:
+  - `async_update_from_operations_raw_data`: Extracts creator account from operations data
+  - `async_make_grandparent_account`: Creates lineage records for grandparent accounts
+- Updated all 5 cron management commands to use centralized status constants
+- Implemented `_fetch_and_store_effects` method in cron_collect_account_horizon_data.py
+- Enhanced sm_cron.py helper to accept cron_name parameter and check cron health via database
+- Eliminated all hardcoded status strings across codebase, using imported constants from models.py
+- Verified workflow properly advances through complete PlantUML state machine:
+  1. Horizon data collection: PENDING → collect accounts → operations → effects → DONE_HORIZON_API_DATASETS
+  2. Attribute extraction: DONE_HORIZON_API_DATASETS → DONE_UPDATING_FROM_RAW_DATA
+  3. Creator extraction: DONE_UPDATING_FROM_RAW_DATA → DONE_UPDATING_FROM_OPERATIONS_RAW_DATA
+  4. Grandparent creation: DONE_UPDATING_FROM_OPERATIONS_RAW_DATA → DONE_GRANDPARENT_LINEAGE
+  5. Parent lineage: PENDING_MAKE_PARENT_LINEAGE/RE_INQUIRY → DONE_MAKE_PARENT_LINEAGE
+- Production-ready implementation confirmed by architect review
+
+## October 5, 2025 (Morning)
 - Refactored environment variable naming for technical accuracy
 - Renamed `CASSANDRA_DB_NAME` to `CASSANDRA_KEYSPACE` across all codebase
 - Updated models.py, sm_conn.py, and settings_base.py to use CASSANDRA_KEYSPACE
