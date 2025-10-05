@@ -1,6 +1,8 @@
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 import json
+import re
+from pathlib import Path
 
 
 class RadialTidyTreeVisualizationTest(TestCase):
@@ -40,21 +42,15 @@ class RadialTidyTreeVisualizationTest(TestCase):
         """Test that the visualization page loads correctly"""
         response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '<div id="tree"')
+        self.assertContains(response, 'id="tree"')
 
     def test_test_json_data_structure(self):
         """Test that test.json contains valid hierarchical data"""
         import os
-        from django.conf import settings
+        from pathlib import Path
         
-        test_json_path = os.path.join(
-            settings.BASE_DIR,
-            'radialTidyTreeApp',
-            'static',
-            'radialTidyTreeApp',
-            'json',
-            'test.json'
-        )
+        # Get the test.json from the radialTidyTreeApp static directory
+        test_json_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'json' / 'test.json'
         
         with open(test_json_path, 'r') as f:
             data = json.load(f)
@@ -80,17 +76,10 @@ class RadialTidyTreeVisualizationTest(TestCase):
 
     def test_node_types_present(self):
         """Test that both ISSUER and ASSET node types exist in test data"""
-        import os
-        from django.conf import settings
+        from pathlib import Path
         
-        test_json_path = os.path.join(
-            settings.BASE_DIR,
-            'radialTidyTreeApp',
-            'static',
-            'radialTidyTreeApp',
-            'json',
-            'test.json'
-        )
+        # Get the test.json from the radialTidyTreeApp static directory
+        test_json_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'json' / 'test.json'
         
         with open(test_json_path, 'r') as f:
             data = json.load(f)
@@ -141,7 +130,7 @@ class RadialTidyTreeVisualizationTest(TestCase):
     def test_d3_library_loaded(self):
         """Test that D3.js library is loaded on the page"""
         response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
-        self.assertContains(response, 'd3.min.js')
+        self.assertContains(response, 'd3.v7.min.js')
 
     def test_tidytree_script_loaded(self):
         """Test that tidytree.js script is loaded on the page"""
@@ -159,10 +148,14 @@ class RadialTidyTreeVisualizationTest(TestCase):
         
         # Check that tree_data is in the template context
         self.assertIn('tree_data', response.context)
-        tree_data = response.context['tree_data']
+        tree_data_json = response.context['tree_data']
         
-        # Verify it's a valid hierarchical structure
-        self.assertIn('children', tree_data)
+        # Parse the JSON string back to Python object
+        tree_data = json.loads(tree_data_json)
+        
+        # Must be valid hierarchical data, not error
+        self.assertIn('children', tree_data, "Tree data must contain valid hierarchical structure")
+        self.assertNotIn('error', tree_data, "Tree data should not be error payload - test.json must be loaded")
 
     def test_radial_tree_function_called(self):
         """Test that renderRadialTree function is called with data"""
@@ -260,3 +253,94 @@ class RadialTidyTreeVisualizationTest(TestCase):
         # The tidytree.js should set width and height (928x928)
         # This is tested implicitly by checking the script is loaded
         self.assertContains(response, 'tidytree.js')
+    
+    def test_color_scheme_constants_in_tidytree_js(self):
+        """Test that tidytree.js contains correct color scheme for ASSET and ISSUER nodes"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify ASSET color (yellow #fcec04)
+        self.assertIn('#fcec04', tidytree_content, "ASSET nodes should use yellow color #fcec04")
+        
+        # Verify ISSUER color (purple #3f2c70)
+        self.assertIn('#3f2c70', tidytree_content, "ISSUER nodes should use purple color #3f2c70")
+        
+        # Verify color assignment logic based on node_type
+        self.assertIn('node_type', tidytree_content, "Color logic should check node_type")
+        self.assertIn('ASSET', tidytree_content, "Should differentiate ASSET node type")
+    
+    def test_tooltip_structure_for_issuer_nodes(self):
+        """Test that tooltip HTML includes all required ISSUER node fields"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify ISSUER tooltip fields
+        issuer_fields = ['Created', 'Home Domain', 'XLM Balance', 'Creator']
+        for field in issuer_fields:
+            self.assertIn(field, tidytree_content, 
+                         f"Tooltip should display '{field}' for ISSUER nodes")
+    
+    def test_tooltip_structure_for_asset_nodes(self):
+        """Test that tooltip HTML includes all required ASSET node fields"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify ASSET tooltip fields
+        asset_fields = ['Issuer', 'Asset Type', 'Balance']
+        for field in asset_fields:
+            self.assertIn(field, tidytree_content, 
+                         f"Tooltip should display '{field}' for ASSET nodes")
+    
+    def test_radial_tree_layout_implementation(self):
+        """Test that radial tree layout uses d3.tree with radial positioning"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify radial tree layout implementation
+        self.assertIn('d3.tree()', tidytree_content, "Should use d3.tree() for layout")
+        self.assertIn('2 * Math.PI', tidytree_content, "Should use full circle (2π) for radial layout")
+        self.assertIn('d3.linkRadial()', tidytree_content, "Should use d3.linkRadial() for radial links")
+    
+    def test_svg_centering_with_transform(self):
+        """Test that SVG uses transform to center the radial tree"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify centering transform
+        self.assertIn('translate', tidytree_content, "Should use translate for centering")
+        self.assertIn('width / 2', tidytree_content, "Should center at half width")
+        self.assertIn('height / 2', tidytree_content, "Should center at half height")
+    
+    def test_hover_event_handlers_implemented(self):
+        """Test that mouseover and mouseout event handlers are implemented for tooltips"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify hover event handlers
+        self.assertIn('mouseover', tidytree_content, "Should have mouseover event handler")
+        self.assertIn('mouseout', tidytree_content, "Should have mouseout event handler")
+        self.assertIn('showTooltip', tidytree_content, "Should have showTooltip function")
+        self.assertIn('hideTooltip', tidytree_content, "Should have hideTooltip function")
+    
+    def test_node_circle_radius_attribute(self):
+        """Test that nodes are rendered as circles with proper radius"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify circle rendering
+        self.assertIn('append(\'circle\')', tidytree_content, "Should append circle elements for nodes")
+        self.assertIn('attr(\'r\'', tidytree_content, "Should set radius attribute for circles")

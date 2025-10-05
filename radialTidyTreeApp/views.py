@@ -7,15 +7,22 @@ from django.conf import settings
 def radial_tidy_tree_view(request):
     """Radial tidy tree view that loads test JSON data and renders D3 visualization"""
     
-    # Load test JSON data
-    test_json_path = os.path.join(
-        settings.BASE_DIR, 
-        'radialTidyTreeApp', 
-        'static', 
-        'radialTidyTreeApp', 
-        'json', 
-        'test.json'
-    )
+    # Load test JSON data - try multiple paths to handle different environments
+    possible_paths = [
+        os.path.join(settings.BASE_DIR, 'radialTidyTreeApp', 'static', 'radialTidyTreeApp', 'json', 'test.json'),
+        os.path.join(settings.BASE_DIR.parent, 'radialTidyTreeApp', 'static', 'radialTidyTreeApp', 'json', 'test.json'),
+        os.path.join(os.path.dirname(__file__), 'static', 'radialTidyTreeApp', 'json', 'test.json'),
+    ]
+    
+    test_json_path = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            test_json_path = path
+            break
+    
+    if not test_json_path:
+        # Fall back to first path for error reporting
+        test_json_path = possible_paths[0]
     
     try:
         with open(test_json_path, 'r') as f:
