@@ -6,6 +6,7 @@ from apiApp.helpers.sm_async import StellarMapAsyncHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
+from apiApp.models import DONE_UPDATING_FROM_OPERATIONS_RAW_DATA, DONE_GRANDPARENT_LINEAGE
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class Command(BaseCommand):
             async_helpers = StellarMapAsyncHelpers()
             lineage_manager = StellarCreatorAccountLineageManager()
             lin_queryset = lineage_manager.get_all_queryset(
-                status__in=['DONE_UPDATING_FROM_OPERATIONS_RAW_DATA'])
+                status__in=[DONE_UPDATING_FROM_OPERATIONS_RAW_DATA])
 
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
             async_helpers.execute_async(

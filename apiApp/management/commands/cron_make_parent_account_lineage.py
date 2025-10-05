@@ -5,6 +5,12 @@ from django.core.management.base import BaseCommand
 from django.http import HttpRequest
 from apiApp.managers import UserInquirySearchHistoryManager, StellarCreatorAccountLineageManager
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
+from apiApp.models import (
+    PENDING_MAKE_PARENT_LINEAGE,
+    IN_PROGRESS_MAKE_PARENT_LINEAGE,
+    DONE_MAKE_PARENT_LINEAGE,
+    PENDING_HORIZON_API_DATASETS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,33 +36,32 @@ class Command(BaseCommand):
 
             inquiry_manager = UserInquirySearchHistoryManager()
             inq_queryset = inquiry_manager.get_queryset(
-                status__in=['PENDING_MAKE_PARENT_LINEAGE', 'RE_INQUIRY'])
+                status__in=[PENDING_MAKE_PARENT_LINEAGE, 'RE_INQUIRY'])
 
             if inq_queryset:
                 inquiry_manager.update_inquiry(
                     id=inq_queryset.id,
-                    status='IN_PROGRESS_MAKE_PARENT_LINEAGE')
+                    status=IN_PROGRESS_MAKE_PARENT_LINEAGE)
 
                 lineage_manager = StellarCreatorAccountLineageManager()
                 lin_queryset = lineage_manager.get_queryset(
                     stellar_account=inq_queryset.stellar_account,
                     network_name=inq_queryset.network_name)
 
-                PENDING = 'PENDING_HORIZON_API_DATASETS'
                 if lin_queryset:
                     lineage_manager.update_status(id=lin_queryset.id,
-                                                  status=PENDING)
+                                                  status=PENDING_HORIZON_API_DATASETS)
                 else:
                     request = HttpRequest()
                     request.data = {
                         'stellar_account': inq_queryset.stellar_account,
                         'network_name': inq_queryset.network_name,
-                        'status': PENDING
+                        'status': PENDING_HORIZON_API_DATASETS
                     }
                     lineage_manager.create_lineage(request)
 
                 inquiry_manager.update_inquiry(
-                    id=inq_queryset.id, status='DONE_MAKE_PARENT_LINEAGE')
+                    id=inq_queryset.id, status=DONE_MAKE_PARENT_LINEAGE)
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
