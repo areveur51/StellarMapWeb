@@ -344,3 +344,70 @@ class RadialTidyTreeVisualizationTest(TestCase):
         # Verify circle rendering
         self.assertIn('append(\'circle\')', tidytree_content, "Should append circle elements for nodes")
         self.assertIn('attr(\'r\'', tidytree_content, "Should set radius attribute for circles")
+    
+    def test_purple_links_default_color(self):
+        """Test that links use purple color (#3f2c70) by default"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify purple link color
+        self.assertIn("'#3f2c70'", tidytree_content, "Links should use purple color #3f2c70")
+        self.assertIn("stroke", tidytree_content, "Should set stroke style for links")
+    
+    def test_red_hover_path_highlighting(self):
+        """Test that hover interaction changes path to red (#ff0000)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify red hover color
+        self.assertIn("'#ff0000'", tidytree_content, "Hovered path should be highlighted in red #ff0000")
+        self.assertIn("getPathToRoot", tidytree_content, "Should have getPathToRoot function for path highlighting")
+    
+    def test_breadcrumb_container_exists(self):
+        """Test that breadcrumb container is created for displaying node path"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify breadcrumb implementation
+        self.assertIn('breadcrumbContainer', tidytree_content, "Should have breadcrumbContainer for displaying path")
+        self.assertIn('breadcrumb-container', tidytree_content, "Should have breadcrumb-container class")
+    
+    def test_semi_transparent_tooltip_background(self):
+        """Test that tooltip background uses semi-transparent node color (rgba)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify semi-transparent backgrounds
+        self.assertIn('rgba(252, 236, 4, 0.9)', tidytree_content, "Should use semi-transparent yellow for ASSET tooltip")
+        self.assertIn('rgba(63, 44, 112, 0.9)', tidytree_content, "Should use semi-transparent purple for ISSUER tooltip")
+        self.assertIn('backgroundColor', tidytree_content, "Should set backgroundColor based on node type")
+    
+    def test_breadcrumb_color_coding(self):
+        """Test that breadcrumbs use color-coded rectangles matching node types"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify breadcrumb color logic
+        self.assertIn('breadcrumbColor', tidytree_content, "Should have breadcrumbColor variable")
+        self.assertIn("append('rect')", tidytree_content, "Should append rect elements for breadcrumb backgrounds")
+    
+    def test_path_highlighting_opacity_changes(self):
+        """Test that non-hovered links reduce opacity when hovering over a node"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify opacity changes
+        self.assertIn('.style(\'opacity\'', tidytree_content, "Should change opacity during hover")
+        self.assertIn('pathLinks', tidytree_content, "Should check if link is in hovered path using pathLinks Set")

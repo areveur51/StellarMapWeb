@@ -382,29 +382,25 @@ function renderRadialTree(jsonData) {
             const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
             const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
             
+            const pathToRoot = getPathToRoot(d);
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code}`);
+            }
+            
             link.style('stroke', linkData => {
-                const pathToRoot = getPathToRoot(d);
-                const isInPath = pathToRoot.some(node => 
-                    node === linkData.target || node === linkData.source
-                );
-                return isInPath ? '#ff0000' : '#3f2c70';
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
             })
             .style('stroke-width', linkData => {
-                const pathToRoot = getPathToRoot(d);
-                const isInPath = pathToRoot.some(node => 
-                    node === linkData.target || node === linkData.source
-                );
-                return isInPath ? '3px' : '1.5px';
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                return pathLinks.has(linkId) ? '3px' : '1.5px';
             })
             .style('opacity', linkData => {
-                const pathToRoot = getPathToRoot(d);
-                const isInPath = pathToRoot.some(node => 
-                    node === linkData.target || node === linkData.source
-                );
-                return isInPath ? 1 : 0.3;
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code}`;
+                return pathLinks.has(linkId) ? 1 : 0.3;
             });
 
-            const pathToRoot = getPathToRoot(d);
             breadcrumbContainer.selectAll('*').remove();
             
             let xOffset = 0;
