@@ -249,20 +249,16 @@ function makeTree(data) {
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
     try {
-        // Clear any existing SVG
         const existingSvg = document.querySelector('#tree');
         if (existingSvg) {
             existingSvg.innerHTML = '';
         }
 
-        // Handle different data structures
         let processedData;
         if (jsonData && typeof jsonData === 'object') {
-            // If it's a hierarchical structure like {name: 'Root', children: [...]}
-            if (jsonData.name || jsonData.children) {
+            if (jsonData.name || jsonData.children || jsonData.stellar_account) {
                 processedData = jsonData;
             } else {
-                // Create a default root structure
                 processedData = {
                     name: jsonData.stellar_account || 'Root Node',
                     node_type: jsonData.node_type || 'ACCOUNT',
@@ -271,7 +267,6 @@ function renderRadialTree(jsonData) {
                 };
             }
         } else {
-            // Fallback data structure
             processedData = {
                 name: 'Sample Root',
                 node_type: 'ACCOUNT',
@@ -282,82 +277,119 @@ function renderRadialTree(jsonData) {
 
         console.log('Processing tree data:', processedData);
 
-        // Create hierarchy from the processed data
-        const root = d3.hierarchy(processedData);
-        
-        // Setup tree layout
-        const width = 800;
-        const height = 800;
-        
-        // Clear existing tree and create new one
+        const width = 928;
+        const height = width;
+        const radius = width / 2 - 120;
+
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
-            // If no #tree element exists, append to body
-            d3.select('body').append('svg')
-                .attr('id', 'tree')
-                .attr('width', width)
-                .attr('height', height);
+            d3.select('body').append('svg').attr('id', 'tree');
         }
         
         const svg = d3.select('#tree')
             .attr('width', width)
             .attr('height', height);
             
-        svg.selectAll('*').remove(); // Clear existing content
+        svg.selectAll('*').remove();
 
-        const treeLayout = d3.tree()
-            .size([2 * Math.PI, Math.min(width, height) / 2 - 10]);
+        const g = svg.append('g')
+            .attr('transform', `translate(${width / 2},${height / 2})`);
 
-        // Apply tree layout
-        treeLayout(root);
+        const tree = d3.tree()
+            .size([2 * Math.PI, radius])
+            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
 
-        // Create links
-        const links = svg.selectAll('.link')
+        const root = d3.hierarchy(processedData);
+        console.log('Tree has', root.children ? root.children.length : 0, 'children');
+
+        tree(root);
+
+        const link = g.selectAll('.link')
             .data(root.links())
-            .enter()
-            .append('path')
+            .enter().append('path')
             .attr('class', 'link')
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
                 .radius(d => d.y))
-            .style('fill', 'none')
-            .style('stroke', '#555')
-            .style('stroke-width', '2px');
+            .style('stroke', '#ccc')
+            .style('stroke-width', '1.5px')
+            .style('fill', 'none');
 
-        // Create nodes
-        const nodes = svg.selectAll('.node')
+        const node = g.selectAll('.node')
             .data(root.descendants())
-            .enter()
-            .append('g')
+            .enter().append('g')
             .attr('class', 'node')
-            .attr('transform', d => `
-                translate(${Math.cos(d.x - Math.PI / 2) * d.y + width / 2}, 
-                         ${Math.sin(d.x - Math.PI / 2) * d.y + height / 2})
-            `);
+            .attr('transform', d => {
+                const angle = (d.x * 180 / Math.PI) - 90;
+                return `rotate(${angle})translate(${d.y},0)`;
+            });
 
-        // Add circles for nodes
-        nodes.append('circle')
-            .attr('r', 6)
-            .style('fill', '#69b3a2')
-            .style('stroke', '#333')
-            .style('stroke-width', '2px');
+        node.append('circle')
+            .attr('r', 5)
+            .attr('data-node-type', d => d.data.node_type)
+            .style('fill', d => {
+                console.log('Rendering node:', d.data.stellar_account || d.data.asset_code, 'Type:', d.data.node_type);
+                return d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+            })
+            .style('stroke', d => d.data.node_type === 'ASSET' ? '#e0d700' : '#00FF9C')
+            .style('stroke-width', '1px')
+            .on('mouseover', function(event, d) { showTooltip(event, d); })
+            .on('mouseout', function(event, d) { hideTooltip(); });
 
-        // Add labels
-        nodes.append('text')
-            .attr('dy', '.35em')
-            .attr('x', d => d.x < Math.PI === !d.children ? 6 : -6)
-            .style('text-anchor', d => d.x < Math.PI === !d.children ? 'start' : 'end')
-            .attr('transform', d => 'rotate(' + (d.x < Math.PI ? d.x - Math.PI / 2 : d.x + Math.PI / 2) * 180 / Math.PI + ')')
-            .text(d => d.data.name || d.data.stellar_account || 'Node')
-            .style('font-size', '12px')
-            .style('fill', '#333');
+        node.append('text')
+            .attr('dy', '.31em')
+            .attr('x', d => d.x < Math.PI ? 10 : -10)
+            .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
+            .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
+            .text(d => d.data.stellar_account || d.data.asset_code || 'Unnamed')
+            .style('fill', 'white')
+            .style('font-size', '12px');
+
+        let tooltip = d3.select('body').select('.tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0)
+                .style('position', 'absolute')
+                .style('background', 'rgba(0, 0, 0, 0.8)')
+                .style('color', 'white')
+                .style('padding', '7px')
+                .style('border-radius', '4px')
+                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
+                .style('font', '10px sans-serif')
+                .style('width', '196px')
+                .style('word-wrap', 'break-word')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+        }
+
+        function showTooltip(event, d) {
+            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || 'Unnamed') + '<br>';
+            if (d.data.node_type === 'ASSET') {
+                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
+                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
+                tooltipHTML += '<b>Balance:</b> ' + (d.data.balance || '0') + '<br>';
+            } else {
+                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
+                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
+                tooltipHTML += '<b>XLM Balance:</b> ' + (d.data.xlm_balance || '0') + '<br>';
+                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
+            }
+            tooltip.html(tooltipHTML)
+                .style('opacity', 0.9)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+        }
+
+        function hideTooltip() {
+            tooltip.style('opacity', 0);
+        }
 
         console.log('Radial tree rendered successfully');
         
     } catch (error) {
         console.error('Error rendering radial tree:', error);
         
-        // Show a simple fallback visualization
         const svg = d3.select('#tree');
         if (!svg.empty()) {
             svg.selectAll('*').remove();
