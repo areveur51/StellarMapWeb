@@ -1,7 +1,7 @@
 # apiApp/helpers/sm_cache.py
 import datetime
 import json
-from apiApp.models import UserInquirySearchHistory, PENDING_HORIZON_API_DATASETS, DONE_MAKE_PARENT_LINEAGE
+from apiApp.models import UserInquirySearchHistory, PENDING_MAKE_PARENT_LINEAGE, DONE_MAKE_PARENT_LINEAGE
 
 
 class StellarMapCacheHelpers:
@@ -100,7 +100,12 @@ class StellarMapCacheHelpers:
     
     def create_pending_entry(self, stellar_account, network_name):
         """
-        Create or update entry with PENDING status to trigger cron job processing.
+        Create or update entry with PENDING_MAKE_PARENT_LINEAGE status to trigger cron job processing.
+        
+        This triggers the cron_make_parent_account_lineage workflow which will:
+        1. Create StellarCreatorAccountLineage record with PENDING_HORIZON_API_DATASETS
+        2. Process through complete PlantUML workflow
+        3. Update cache with fresh data when complete
         
         Args:
             stellar_account (str): Stellar account address
@@ -114,7 +119,8 @@ class StellarMapCacheHelpers:
                 stellar_account=stellar_account,
                 network_name=network_name
             )
-            cache_entry.status = PENDING_HORIZON_API_DATASETS
+            cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
+            cache_entry.updated_at = datetime.datetime.utcnow()
             cache_entry.save()
             return cache_entry
             
@@ -122,7 +128,7 @@ class StellarMapCacheHelpers:
             cache_entry = UserInquirySearchHistory.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
-                status=PENDING_HORIZON_API_DATASETS,
+                status=PENDING_MAKE_PARENT_LINEAGE,
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow()
             )

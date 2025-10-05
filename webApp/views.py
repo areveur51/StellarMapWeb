@@ -116,6 +116,8 @@ def search_view(request):
     is_fresh = False
     is_refreshing = False
     genealogy_data = None
+    cache_helpers = None
+    cache_entry = None
     
     try:
         cache_helpers = StellarMapCacheHelpers()
@@ -126,79 +128,62 @@ def search_view(request):
         is_fresh = False
         cache_entry = None
     
-    if is_fresh and cache_entry:
-        # Fresh data available (< 12 hours old), return cached JSON immediately
+    # Return cached data immediately if fresh
+    if is_fresh and cache_entry and cache_helpers:
         cached_tree_data = cache_helpers.get_cached_data(cache_entry)
         if cached_tree_data:
             genealogy_data = {
                 'account_genealogy_items': [],
                 'tree_data': cached_tree_data
             }
+            # Data is fresh and available, skip refresh logic
         else:
-            # Cache entry exists but no JSON, fetch fresh data
+            # Cache entry exists but no JSON, treat as stale
             is_fresh = False
     
-    if not is_fresh:
+    # Handle stale or missing cache
+    if not is_fresh and genealogy_data is None:
         # Stale or missing cache, create PENDING entry to trigger cron jobs
         try:
             if cache_helpers:
                 cache_helpers.create_pending_entry(account, network)
-            is_refreshing = True
-        except Exception:
-            pass  # Cache creation failed, continue without it
-        
-        # Try to fetch data immediately for better UX
-        try:
-            lineage_helpers = StellarMapCreatorAccountLineageHelpers()
-            genealogy_df = lineage_helpers.get_account_genealogy(account, network)
-            tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(genealogy_df)
-            account_genealogy_items = genealogy_df.to_dict(
-                orient='records') if not genealogy_df.empty else []
-            genealogy_data = {
-                'account_genealogy_items': account_genealogy_items,
-                'tree_data': tree_data
-            }
-            
-            # Update cache with fresh data
-            try:
-                if cache_helpers:
-                    cache_helpers.update_cache(account, network, tree_data)
-            except Exception:
-                pass  # Cache update failed, but we have data
-            is_refreshing = False
-            
+                is_refreshing = True
         except Exception as e:
             sentry_sdk.capture_exception(e)
-            # Show cached data if available, otherwise fallback
-            if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
-                try:
-                    cached_tree_data = cache_helpers.get_cached_data(cache_entry)
-                    genealogy_data = {
-                        'account_genealogy_items': [],
-                        'tree_data': cached_tree_data or {
-                            'name': 'Root',
-                            'node_type': 'ISSUER',
-                            'children': []
-                        }
-                    }
-                except Exception:
-                    genealogy_data = {
-                        'account_genealogy_items': [],
-                        'tree_data': {
-                            'name': 'Root',
-                            'node_type': 'ISSUER',
-                            'children': []
-                        }
-                    }
-            else:
+            is_refreshing = False
+        
+        # Check if there's any cached data (even if stale) to show while processing
+        if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
+            try:
+                cached_tree_data = cache_helpers.get_cached_data(cache_entry)
                 genealogy_data = {
                     'account_genealogy_items': [],
-                    'tree_data': {
-                        'name': 'Root',
+                    'tree_data': cached_tree_data or {
+                        'name': account,
                         'node_type': 'ISSUER',
                         'children': []
                     }
                 }
+            except Exception:
+                # No cached data available, show processing state
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': {
+                        'name': account,
+                        'node_type': 'ISSUER',
+                        'children': []
+                    }
+                }
+        else:
+            # No cached data at all, show processing state with account info
+            genealogy_data = {
+                'account_genealogy_items': [],
+                'tree_data': {
+                    'name': account,
+                    'node_type': 'ISSUER',
+                    'children': []
+                }
+            }
     
     # Ensure genealogy_data is set (fallback safety)
     if genealogy_data is None:
@@ -221,6 +206,7 @@ def search_view(request):
         'network': network,
         'query_account': account,
         'network_selected': network,
+        'radial_tidy_tree_variable': genealogy_data['tree_data'],  # Required for JS visualization
         'is_cached': is_fresh,
         'is_refreshing': is_refreshing,
     }
