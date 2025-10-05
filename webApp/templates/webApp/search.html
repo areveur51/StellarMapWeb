@@ -131,6 +131,10 @@
   
   <script src="{% static 'webApp/js/lineage_table_mixin.js' %}?v=2"></script>
   <script>
+    const treeDataEl = document.getElementById('tree-data-json');
+    const genealogyEl = document.getElementById('account-genealogy-json');
+    const parsedTreeData = JSON.parse(treeDataEl.textContent || '{}');
+    
     var vm = new Vue({
         el: '#app',
         mixins: [lineage_table_mixin],
@@ -143,8 +147,8 @@
           network_toggle: {% if network %}true{% else %}false{% endif %},
           network_selected: '{{ network|default:"testnet" }}',
           loading_animation: true,
-          account_genealogy_items: JSON.parse(document.getElementById('account-genealogy-json').textContent || '[]'),
-          tree_data: JSON.parse(document.getElementById('tree-data-json').textContent || '{}')
+          account_genealogy_items: JSON.parse(genealogyEl.textContent || '[]'),
+          tree_data: parsedTreeData
         },
       methods: {
         async search() {
@@ -167,27 +171,16 @@
           this.network_selected = this.network_toggle ? 'public' : 'testnet'
         },
         updateJSONDisplay() {
-          // Update the JSON display with current data
-          console.log('updateJSONDisplay called');
-          console.log('account_genealogy_items:', this.account_genealogy_items);
-          console.log('tree_data:', this.tree_data);
-          
           let dataToDisplay = null;
           
           if (this.account_genealogy_items && this.account_genealogy_items.length > 0) {
-            // If we have genealogy items, show them
-            console.log('Using account_genealogy_items');
             dataToDisplay = this.account_genealogy_items;
           } else if (this.tree_data && Object.keys(this.tree_data).length > 0) {
-            // If no genealogy items but we have tree_data, show that
-            console.log('Using tree_data');
             dataToDisplay = this.tree_data;
           }
           
           if (dataToDisplay) {
             this.response = JSON.stringify(dataToDisplay, null, 2);
-            console.log('JSON response length:', this.response.length);
-            // Try to use HighlightJS if available, otherwise show plain JSON
             try {
               if (typeof hljs !== 'undefined') {
                 this.highlightedJSONResponse = hljs.highlight(this.response, {language: 'json'}).value;
@@ -195,11 +188,9 @@
                 this.highlightedJSONResponse = this.response;
               }
             } catch (e) {
-              console.error('HighlightJS error:', e);
               this.highlightedJSONResponse = this.response;
             }
           } else {
-            console.log('No data to display');
             this.response = '';
             this.highlightedJSONResponse = '';
           }

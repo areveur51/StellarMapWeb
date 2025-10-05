@@ -5,25 +5,28 @@
     <svg id="tree" width="800" height="800"></svg>
     
     <script>
-        // Wait for DOM and all scripts to load before rendering
-        document.addEventListener('DOMContentLoaded', function() {
-            // Securely parse tree data from context (escaped by Django)
-            const treeData = {{ tree_data | safe }};
-            
-            console.log('Processing tree data:', treeData);
-            
-            // Wait for renderRadialTree to be available
-            const renderWhenReady = () => {
-                if (typeof renderRadialTree === 'function') {
-                    renderRadialTree(treeData);
-                    console.log('Radial tree rendered successfully');
-                } else {
-                    // Retry after a short delay if not ready yet
-                    setTimeout(renderWhenReady, 100);
-                }
-            };
-            
-            renderWhenReady();
-        });
+        // Use the tree data from the parent Vue component via json_script
+        // The tree-data-json element is created in the parent template
+        const renderTreeWhenReady = () => {
+            const treeDataEl = document.getElementById('tree-data-json');
+            if (treeDataEl && typeof renderRadialTree === 'function') {
+                const treeData = JSON.parse(treeDataEl.textContent);
+                console.log('Processing tree data:', treeData);
+                console.log('Tree has', treeData.children ? treeData.children.length : 0, 'children');
+                renderRadialTree(treeData);
+                console.log('Radial tree rendered successfully');
+            } else {
+                // Retry after a short delay if not ready yet
+                setTimeout(renderTreeWhenReady, 100);
+            }
+        };
+        
+        // Wait for DOM to be ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', renderTreeWhenReady);
+        } else {
+            // DOM is already loaded
+            renderTreeWhenReady();
+        }
     </script>
 </div>
