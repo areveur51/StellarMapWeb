@@ -1,0 +1,135 @@
+{
+    "node_type": "ISSUER",
+    "created": "2015-09-30 13:15:54",
+    "stellar_account": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+    "creator_account": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+    "home_domain": "no_element_home_domain",
+    "xlm_balance": 112.1995620727539,
+    "children": [
+        {
+            "node_type": "ISSUER",
+            "created": "2015-10-01 00:15:01",
+            "stellar_account": "GBEZOC5U4TVH7ZY5N3FLYHTCZSI6VFGTULG7PBITLF5ZEBPJXFT46YZM",
+            "creator_account": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+            "home_domain": "no_element_home_domain",
+            "xlm_balance": 259580240.0,
+            "children": [
+                {
+                    "node_type": "ISSUER",
+                    "created": "2015-10-01 20:26:34",
+                    "stellar_account": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+                    "creator_account": "GBEZOC5U4TVH7ZY5N3FLYHTCZSI6VFGTULG7PBITLF5ZEBPJXFT46YZM",
+                    "home_domain": "no_element_home_domain",
+                    "xlm_balance": 3.0,
+                    "children": [
+                        {
+                            "node_type": "ISSUER",
+                            "created": "2015-11-02 18:26:57",
+                            "stellar_account": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+                            "creator_account": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+                            "home_domain": "no_element_home_domain",
+                            "xlm_balance": 58.9934196472168,
+                            "children": [
+                                {
+                                    "node_type": "ISSUER",
+                                    "created": "2015-11-03 18:53:23",
+                                    "stellar_account": "GB6YPGW5JFMMP2QB2USQ33EUWTXVL4ZT5ITUNCY3YKVWOJPP57CANOF3",
+                                    "creator_account": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+                                    "home_domain": "no_element_home_domain",
+                                    "xlm_balance": 0.0,
+                                    "children": [],
+                                    "auth_clawback_enabled": false,
+                                    "auth_immutable": false,
+                                    "auth_required": false,
+                                    "auth_revocable": false
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "AKN",
+                                    "asset_issuer": "GACSHAJ2XBNKRNJEVDAII6E2EAASIAMDBCLJ3VKSZEWK3KC7Y7DPXUFX",
+                                    "balance": "10811803.8394964",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "MOBI",
+                                    "asset_issuer": "GA6HCMBLTZS5VYYBCATRBRZ3BZJMAFUDKYYF6AH6MVCMGWMRDNSWJPIH",
+                                    "balance": "2545793.2982844",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "SHX",
+                                    "asset_issuer": "GDSTRSHXHGJ7ZIVRBXEYE5Q74XUVCUSEKEBR7UCHEUUEK72N7I7KJ6JH",
+                                    "balance": "668190634.1602427",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "SIX",
+                                    "asset_issuer": "GDMS6EECOH6MBMCP3FYRYEVRBIV3TQGLOFQIPVAITBRJUMTI6V7A2X6Z",
+                                    "balance": "512733.3091004",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "SLT",
+                                    "asset_issuer": "GCKA6K5PCQ6PNF5RQBF7PQDJWRHO6UOGFMRLK3DYHDOI244V47XKQ4GP",
+                                    "balance": "14255.9851644",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                },
+                                {
+                                    "node_type": "ASSET",
+                                    "asset_type": "credit_alphanum4",
+                                    "asset_code": "TFC",
+                                    "asset_issuer": "GDS3XDJAA4VY6MJYASIGSIMPHZ7AQNZ54RKLWT7MWCOU5YKYEVCNLVS3",
+                                    "balance": "3200414.0933938",
+                                    "limit": "922337203685.4775807",
+                                    "is_authorized": true,
+                                    "is_authorized_to_maintain_liabilities": true,
+                                    "is_clawback_enabled": null
+                                }
+                            ],
+                            "auth_clawback_enabled": false,
+                            "auth_immutable": false,
+                            "auth_required": false,
+                            "auth_revocable": false
+                        }
+                    ],
+                    "auth_clawback_enabled": false,
+                    "auth_immutable": false,
+                    "auth_required": false,
+                    "auth_revocable": false
+                }
+            ],
+            "auth_clawback_enabled": false,
+            "auth_immutable": false,
+            "auth_required": false,
+            "auth_revocable": false
+        }
+    ],
+    "auth_clawback_enabled": false,
+    "auth_immutable": false,
+    "auth_required": false,
+    "auth_revocable": false
+}
