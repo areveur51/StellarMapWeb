@@ -277,9 +277,12 @@ function renderRadialTree(jsonData) {
 
         console.log('Processing tree data:', processedData);
 
-        const width = 1200;
-        const height = width;
-        const radius = width / 2 - 100;
+        const container = document.querySelector('.visualization-container') || document.body;
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || window.innerWidth;
+        const height = containerRect.height || window.innerHeight;
+        const size = Math.min(width, height);
+        const radius = size / 2 - 100;
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
@@ -289,13 +292,13 @@ function renderRadialTree(jsonData) {
         const svg = d3.select('#tree')
             .attr('width', '100%')
             .attr('height', '100%')
-            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('viewBox', `0 0 ${size} ${size}`)
             .attr('preserveAspectRatio', 'xMidYMid meet');
             
         svg.selectAll('*').remove();
 
         const g = svg.append('g')
-            .attr('transform', `translate(${width / 2},${height / 2})`);
+            .attr('transform', `translate(${size / 2},${size / 2})`);
 
         const breadcrumbContainer = svg.append('g')
             .attr('class', 'breadcrumb-container')

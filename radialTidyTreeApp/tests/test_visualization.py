@@ -318,8 +318,7 @@ class RadialTidyTreeVisualizationTest(TestCase):
         
         # Verify centering transform
         self.assertIn('translate', tidytree_content, "Should use translate for centering")
-        self.assertIn('width / 2', tidytree_content, "Should center at half width")
-        self.assertIn('height / 2', tidytree_content, "Should center at half height")
+        self.assertIn('size / 2', tidytree_content, "Should center at half of calculated size")
     
     def test_hover_event_handlers_implemented(self):
         """Test that mouseover and mouseout event handlers are implemented for tooltips"""
@@ -411,3 +410,132 @@ class RadialTidyTreeVisualizationTest(TestCase):
         # Verify opacity changes
         self.assertIn('.style(\'opacity\'', tidytree_content, "Should change opacity during hover")
         self.assertIn('pathLinks', tidytree_content, "Should check if link is in hovered path using pathLinks Set")
+
+
+class ResponsiveDesignTest(TestCase):
+    """Test suite for responsive design across different screen sizes"""
+    
+    def test_responsive_css_in_template(self):
+        """Test that template includes responsive CSS"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify viewport meta tag
+        self.assertContains(response, 'name="viewport"', msg_prefix="Should have viewport meta tag for mobile")
+        self.assertContains(response, 'width=device-width', msg_prefix="Should set viewport width to device width")
+        
+        # Verify responsive CSS classes
+        self.assertContains(response, 'page-container', msg_prefix="Should have page-container class")
+        self.assertContains(response, 'visualization-container', msg_prefix="Should have visualization-container class")
+        
+        # Verify flexbox layout for full height
+        self.assertContains(response, 'height: 100%', msg_prefix="Should use 100% height for full viewport")
+        
+    def test_dynamic_viewport_calculation(self):
+        """Test that JavaScript calculates dimensions based on viewport"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify dynamic dimension calculation
+        self.assertIn('getBoundingClientRect', tidytree_content, "Should calculate container dimensions dynamically")
+        self.assertIn('window.innerWidth', tidytree_content, "Should fallback to window dimensions if needed")
+        self.assertIn('window.innerHeight', tidytree_content, "Should fallback to window height if needed")
+        
+    def test_mobile_small_screen_320x568(self):
+        """Test visualization works on small mobile screens (iPhone SE)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify responsive sizing uses Math.min for square layout
+        self.assertIn('Math.min', tidytree_content, "Should use Math.min to ensure square layout on all screens")
+        
+    def test_mobile_medium_screen_375x667(self):
+        """Test visualization works on medium mobile screens (iPhone 8)"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify media query for mobile
+        self.assertContains(response, '@media (max-width: 768px)', msg_prefix="Should have mobile media query")
+        
+    def test_mobile_large_screen_414x896(self):
+        """Test visualization works on large mobile screens (iPhone 11 Pro Max)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify viewBox for scalability
+        self.assertIn('viewBox', tidytree_content, "Should use viewBox for responsive SVG scaling")
+        self.assertIn('preserveAspectRatio', tidytree_content, "Should preserve aspect ratio on all screens")
+        
+    def test_tablet_ipad_768x1024(self):
+        """Test visualization works on iPad (768x1024)"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify SVG fills container
+        self.assertContains(response, 'width: 100%', msg_prefix="SVG should fill 100% width on tablets")
+        self.assertContains(response, 'height: 100%', msg_prefix="SVG should fill 100% height on tablets")
+        
+    def test_tablet_ipad_pro_834x1112(self):
+        """Test visualization works on iPad Pro 10.5" (834x1112)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify radius calculation adapts to size
+        self.assertIn('radius = size / 2', tidytree_content, "Radius should adapt based on viewport size")
+        
+    def test_tablet_ipad_pro_large_1024x1366(self):
+        """Test visualization works on iPad Pro 12.9" (1024x1366)"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify flexbox centers content
+        self.assertContains(response, 'align-items: center', msg_prefix="Should center visualization on large tablets")
+        self.assertContains(response, 'justify-content: center', msg_prefix="Should center horizontally on large tablets")
+        
+    def test_desktop_hd_1280x720(self):
+        """Test visualization works on HD desktop screens (1280x720)"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify page container uses full viewport
+        self.assertContains(response, 'page-container', msg_prefix="Should have page container for desktop layout")
+        
+    def test_desktop_full_hd_1920x1080(self):
+        """Test visualization works on Full HD screens (1920x1080)"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify size calculation for large screens
+        self.assertIn('const size = Math.min(width, height)', tidytree_content, 
+                     "Should calculate size to fit both dimensions on large screens")
+        
+    def test_desktop_2k_2560x1440(self):
+        """Test visualization works on 2K desktop screens (2560x1440)"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify responsive font sizing
+        self.assertContains(response, 'clamp', msg_prefix="Should use clamp for responsive font sizing on all screens")
+        
+    def test_svg_responsive_attributes(self):
+        """Test that SVG has proper responsive attributes"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Verify SVG responsive setup
+        self.assertIn('.attr(\'width\', \'100%\')', tidytree_content, "SVG width should be 100%")
+        self.assertIn('.attr(\'height\', \'100%\')', tidytree_content, "SVG height should be 100%")
+        self.assertIn('xMidYMid meet', tidytree_content, "Should center and scale SVG content")
+        
+    def test_container_overflow_hidden(self):
+        """Test that container prevents scroll bars on all screen sizes"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify overflow handling
+        self.assertContains(response, 'overflow: hidden', msg_prefix="Should hide overflow to prevent scroll bars")
