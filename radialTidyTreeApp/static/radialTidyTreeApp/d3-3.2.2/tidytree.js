@@ -295,6 +295,10 @@ function renderRadialTree(jsonData) {
         const g = svg.append('g')
             .attr('transform', `translate(${width / 2},${height / 2})`);
 
+        const breadcrumbContainer = svg.append('g')
+            .attr('class', 'breadcrumb-container')
+            .attr('transform', 'translate(20, 20)');
+
         const tree = d3.tree()
             .size([2 * Math.PI, radius])
             .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
@@ -311,9 +315,10 @@ function renderRadialTree(jsonData) {
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
                 .radius(d => d.y))
-            .style('stroke', '#ccc')
+            .style('stroke', '#3f2c70')
             .style('stroke-width', '1.5px')
-            .style('fill', 'none');
+            .style('fill', 'none')
+            .style('opacity', 0.6);
 
         const node = g.selectAll('.node')
             .data(root.descendants())
@@ -351,19 +356,93 @@ function renderRadialTree(jsonData) {
                 .attr('class', 'tooltip')
                 .style('opacity', 0)
                 .style('position', 'absolute')
-                .style('background', 'rgba(0, 0, 0, 0.8)')
-                .style('color', 'white')
-                .style('padding', '7px')
-                .style('border-radius', '4px')
+                .style('color', 'black')
+                .style('padding', '10px')
+                .style('border-radius', '6px')
                 .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
-                .style('font', '10px sans-serif')
-                .style('width', '196px')
+                .style('font', '12px sans-serif')
+                .style('width', '250px')
                 .style('word-wrap', 'break-word')
                 .style('pointer-events', 'none')
                 .style('z-index', '1000');
         }
 
+        function getPathToRoot(node) {
+            const path = [];
+            let current = node;
+            while (current) {
+                path.unshift(current);
+                current = current.parent;
+            }
+            return path;
+        }
+
         function showTooltip(event, d) {
+            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
+            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
+            
+            link.style('stroke', linkData => {
+                const pathToRoot = getPathToRoot(d);
+                const isInPath = pathToRoot.some(node => 
+                    node === linkData.target || node === linkData.source
+                );
+                return isInPath ? '#ff0000' : '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const pathToRoot = getPathToRoot(d);
+                const isInPath = pathToRoot.some(node => 
+                    node === linkData.target || node === linkData.source
+                );
+                return isInPath ? '3px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const pathToRoot = getPathToRoot(d);
+                const isInPath = pathToRoot.some(node => 
+                    node === linkData.target || node === linkData.source
+                );
+                return isInPath ? 1 : 0.3;
+            });
+
+            const pathToRoot = getPathToRoot(d);
+            breadcrumbContainer.selectAll('*').remove();
+            
+            let xOffset = 0;
+            pathToRoot.forEach((node, i) => {
+                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+                const breadcrumbText = node.data.stellar_account || node.data.asset_code || 'Root';
+                const textWidth = breadcrumbText.length * 7;
+                
+                breadcrumbContainer.append('rect')
+                    .attr('x', xOffset)
+                    .attr('y', 0)
+                    .attr('width', textWidth + 20)
+                    .attr('height', 25)
+                    .attr('fill', breadcrumbColor)
+                    .attr('rx', 4);
+                
+                breadcrumbContainer.append('text')
+                    .attr('x', xOffset + 10)
+                    .attr('y', 17)
+                    .text(breadcrumbText)
+                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold');
+                
+                xOffset += textWidth + 25;
+                
+                if (i < pathToRoot.length - 1) {
+                    breadcrumbContainer.append('text')
+                        .attr('x', xOffset)
+                        .attr('y', 17)
+                        .text('>')
+                        .style('fill', 'white')
+                        .style('font-size', '14px')
+                        .style('font-weight', 'bold');
+                    xOffset += 20;
+                }
+            });
+            
             let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || 'Unnamed') + '<br>';
             if (d.data.node_type === 'ASSET') {
                 tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
@@ -376,13 +455,21 @@ function renderRadialTree(jsonData) {
                 tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
             }
             tooltip.html(tooltipHTML)
-                .style('opacity', 0.9)
+                .style('background', backgroundColor)
+                .style('color', textColor)
+                .style('opacity', 1)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 28) + 'px');
         }
 
         function hideTooltip() {
             tooltip.style('opacity', 0);
+            
+            link.style('stroke', '#3f2c70')
+                .style('stroke-width', '1.5px')
+                .style('opacity', 0.6);
+            
+            breadcrumbContainer.selectAll('*').remove();
         }
 
         console.log('Radial tree rendered successfully');
