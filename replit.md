@@ -4,6 +4,13 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
+## October 5, 2025
+- Refactored environment variable naming for technical accuracy
+- Renamed `CASSANDRA_DB_NAME` to `CASSANDRA_KEYSPACE` across all codebase
+- Updated models.py, sm_conn.py, and settings_base.py to use CASSANDRA_KEYSPACE
+- Verified Astra DB connection working with new secret naming convention
+- Database tables (stellar_creator_account_lineage, user_inquiry_search_history, management_cron_health) confirmed accessible
+
 ## September 21, 2025
 - Successfully resolved complex dependency chain from new webApp/views.py file
 - Installed missing packages: pandas, stellar-sdk  
