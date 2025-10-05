@@ -42,7 +42,7 @@
                     @change="toggleNetwork"
                     :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
                   >{{network_selected}}</b-form-checkbox>
-                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address..." value="{{ account|default:'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD' }}">
+                  <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
                 </div>
               </div>
               <div class="col-auto">
