@@ -1,6 +1,7 @@
 # apiApp/helpers/sm_cron.py
 import logging
 import sentry_sdk
+from apiApp.models import ManagementCronHealth
 
 
 class StellarMapCronHelpers:
@@ -8,29 +9,67 @@ class StellarMapCronHelpers:
     Helper class for cron job management and monitoring.
     """
     
-    def __init__(self):
-        """Initialize cron helpers."""
+    def __init__(self, cron_name: str):
+        """Initialize cron helpers with cron_name."""
+        self.cron_name = cron_name
         self.logger = logging.getLogger(__name__)
     
-    def log_cron_start(self, cron_name: str):
+    def log_cron_start(self):
         """Log cron job start."""
         try:
-            self.logger.info(f"Starting cron job: {cron_name}")
+            self.logger.info(f"Starting cron job: {self.cron_name}")
         except Exception as e:
             sentry_sdk.capture_exception(e)
             
-    def log_cron_end(self, cron_name: str):
+    def log_cron_end(self):
         """Log cron job completion.""" 
         try:
-            self.logger.info(f"Completed cron job: {cron_name}")
+            self.logger.info(f"Completed cron job: {self.cron_name}")
         except Exception as e:
             sentry_sdk.capture_exception(e)
             
-    def check_cron_health(self, cron_name: str) -> bool:
+    def check_cron_health(self) -> bool:
         """Check if cron job is healthy."""
         try:
-            # Basic health check logic
+            cron_health = ManagementCronHealth.objects.filter(
+                cron_name=self.cron_name
+            ).first()
+            
+            if cron_health:
+                return 'UNHEALTHY' not in cron_health.status
             return True
         except Exception as e:
             sentry_sdk.capture_exception(e)
             return False
+    
+    def check_all_crons_health(self) -> dict:
+        """Check health of all cron jobs."""
+        try:
+            cron_statuses = {}
+            cron_healths = ManagementCronHealth.objects.all()
+            
+            for cron_health in cron_healths:
+                cron_statuses[cron_health.cron_name] = {
+                    'status': cron_health.status,
+                    'created_at': cron_health.created_at,
+                    'reason': cron_health.reason
+                }
+            
+            return cron_statuses
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            return {}
+    
+    def set_crons_healthy(self):
+        """Reset unhealthy crons to healthy status."""
+        try:
+            cron_health = ManagementCronHealth.objects.filter(
+                cron_name=self.cron_name
+            ).first()
+            
+            if cron_health:
+                cron_health.status = 'HEALTHY'
+                cron_health.reason = 'Reset after buffer period'
+                cron_health.save()
+        except Exception as e:
+            sentry_sdk.capture_exception(e)

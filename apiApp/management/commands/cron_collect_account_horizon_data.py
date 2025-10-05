@@ -12,6 +12,15 @@ from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
 from apiApp.helpers.sm_utils import StellarMapParsingUtilityHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
 from apiApp.services import AstraDocument
+from apiApp.models import (
+    PENDING_HORIZON_API_DATASETS,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+    DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+    DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
+    DONE_HORIZON_API_DATASETS
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +47,15 @@ class Command(BaseCommand):
 
             lineage_manager = StellarCreatorAccountLineageManager()
             lin_queryset = lineage_manager.get_queryset(status__in=[
-                'PENDING_HORIZON_API_DATASETS',
-                'DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS',
-                'DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS',
-                'DONE_COLLECTING_HORIZON_API_DATASETS_EFFECTS'
+                PENDING_HORIZON_API_DATASETS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
             ])
 
             lin_in_progress_qs = lineage_manager.get_queryset(status__in=[
-                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS',
-                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS',
-                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS'
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS
             ])
 
             if lin_queryset and not lin_in_progress_qs:
@@ -94,7 +102,7 @@ class Command(BaseCommand):
         try:
             lineage_manager.update_status(
                 id=lin_queryset.id,
-                status='IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS')
+                status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS)
 
             sm_horizon_helpers = StellarMapHorizonAPIHelpers(
                 horizon_url=horizon_url, account_id=account_id)
@@ -118,7 +126,7 @@ class Command(BaseCommand):
             request = HttpRequest()
             request.data = {
                 'horizon_accounts_doc_api_href': res_dict.get("href"),
-                'status': 'DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS'
+                'status': DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS
             }
             lineage_manager.update_lineage(id=lin_queryset.id, request=request)
         except Exception as e:
@@ -135,7 +143,7 @@ class Command(BaseCommand):
         try:
             lineage_manager.update_status(
                 id=lin_queryset.id,
-                status='IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS'
+                status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
             )
 
             sm_horizon_helpers = StellarMapHorizonAPIHelpers(
@@ -162,14 +170,55 @@ class Command(BaseCommand):
             request.data = {
                 'horizon_accounts_operations_doc_api_href':
                 res_dict.get("href"),
-                'status': 'DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS'
+                'status': DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
             }
             lineage_manager.update_lineage(id=lin_queryset.id, request=request)
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise ValueError(f'Error fetching operations: {e}')
 
-    # _fetch_and_store_effects similar to above
+    @retry(wait=wait_random_exponential(multiplier=1, max=71),
+           stop=stop_after_attempt(7))
+    def _fetch_and_store_effects(self, lineage_manager, lin_queryset,
+                                 horizon_url: str, account_id: str,
+                                 network_name: str, cron_name: str):
+        """Helper: Fetch/store effects with retry/timeout."""
+        try:
+            lineage_manager.update_status(
+                id=lin_queryset.id,
+                status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS
+            )
+
+            sm_horizon_helpers = StellarMapHorizonAPIHelpers(
+                horizon_url=horizon_url, account_id=account_id)
+            sm_horizon_helpers.set_cron_name(cron_name=cron_name)
+            effects_dict = sm_horizon_helpers.get_account_effects()
+
+            ext_horiz_eff = f"{horizon_url}/accounts/{account_id}/effects"
+
+            doc_id = self._get_or_create_doc_id(
+                lin_queryset.horizon_accounts_effects_doc_api_href)
+
+            astra_doc = AstraDocument()
+            astra_doc.set_document_id(document_id=doc_id)
+            astra_doc.set_collections_name(
+                collections_name='horizon_effects')
+            res_dict = astra_doc.patch_document(stellar_account=account_id,
+                                                network_name=network_name,
+                                                external_url=ext_horiz_eff,
+                                                raw_data=effects_dict,
+                                                cron_name=cron_name)
+
+            request = HttpRequest()
+            request.data = {
+                'horizon_accounts_effects_doc_api_href':
+                res_dict.get("href"),
+                'status': DONE_HORIZON_API_DATASETS
+            }
+            lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise ValueError(f'Error fetching effects: {e}')
 
     def _get_or_create_doc_id(self, href: str | None) -> str:
         """Helper: Extract or generate doc ID securely."""
