@@ -277,9 +277,9 @@ function renderRadialTree(jsonData) {
 
         console.log('Processing tree data:', processedData);
 
-        const width = 928;
+        const width = 1200;
         const height = width;
-        const radius = width / 2 - 120;
+        const radius = width / 2 - 100;
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
@@ -287,8 +287,10 @@ function renderRadialTree(jsonData) {
         }
         
         const svg = d3.select('#tree')
-            .attr('width', width)
-            .attr('height', height);
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
             
         svg.selectAll('*').remove();
 
@@ -301,7 +303,9 @@ function renderRadialTree(jsonData) {
 
         const tree = d3.tree()
             .size([2 * Math.PI, radius])
-            .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+            .separation((a, b) => {
+                return (a.parent === b.parent ? 2 : 3) / (a.depth + 1);
+            });
 
         const root = d3.hierarchy(processedData);
         console.log('Tree has', root.children ? root.children.length : 0, 'children');
@@ -332,23 +336,22 @@ function renderRadialTree(jsonData) {
         node.append('circle')
             .attr('r', 5)
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', d => {
-                console.log('Rendering node:', d.data.stellar_account || d.data.asset_code || d.data.name, 'Type:', d.data.node_type);
-                return d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-            })
-            .style('stroke', d => d.data.node_type === 'ASSET' ? '#e0d700' : '#00FF9C')
-            .style('stroke-width', '1px')
+            .style('fill', '#3f2c70')
+            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
+            .style('stroke-width', '2px')
             .on('mouseover', function(event, d) { showTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTooltip(); });
 
         node.append('text')
             .attr('dy', '.31em')
-            .attr('x', d => d.x < Math.PI ? 10 : -10)
+            .attr('x', d => d.x < Math.PI ? 12 : -12)
             .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
             .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
             .text(d => d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed')
             .style('fill', 'white')
-            .style('font-size', '12px');
+            .style('font-size', '13px')
+            .style('font-weight', '500')
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {
