@@ -59,14 +59,17 @@ class BaseModel(DjangoCassandraModel):
 
 class UserInquirySearchHistory(BaseModel):
     """
-    Model for user inquiry history.
+    Model for user inquiry history with 12-hour caching.
 
-    Prevents duplicates by primary key; status choices for security.
+    Prevents duplicates by primary key; tracks cache freshness for efficient searches.
+    Stores cached_json for immediate display if data is fresh (< 12 hours).
     """
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
     network_name = cassandra_columns.Text(primary_key=True, max_length=9)
-    status = cassandra_columns.Text(max_length=63,
-                                    default=PENDING)  # Secure default
+    status = cassandra_columns.Text(max_length=127,
+                                    default=PENDING_HORIZON_API_DATASETS)  # Workflow status
+    cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
+    last_fetched_at = cassandra_columns.DateTime()  # Tracks cache freshness
 
     class Meta:
         get_pk_field = 'stellar_account'
