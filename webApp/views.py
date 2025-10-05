@@ -10,6 +10,7 @@ from django.http import Http404  # For secure error handling
 import sentry_sdk
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
+from apiApp.helpers.sm_cache import StellarMapCacheHelpers
 
 
 def index_view(request):
@@ -111,43 +112,91 @@ def search_view(request):
     if network not in ['public', 'testnet']:
         raise Http404("Invalid network")
 
-    # Efficient caching: Key by params, 5min timeout
-    cache_key = f"genealogy_{account}_{network}"
-    genealogy_data = cache.get(cache_key)
-    if not genealogy_data:
+    # 12-hour Cassandra cache strategy
+    cache_helpers = StellarMapCacheHelpers()
+    is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network)
+    
+    is_refreshing = False
+    genealogy_data = None
+    
+    if is_fresh:
+        # Fresh data available (< 12 hours old), return cached JSON immediately
+        cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+        if cached_tree_data:
+            genealogy_data = {
+                'account_genealogy_items': [],
+                'tree_data': cached_tree_data
+            }
+        else:
+            # Cache entry exists but no JSON, fetch fresh data
+            is_fresh = False
+    
+    if not is_fresh:
+        # Stale or missing cache, create PENDING entry to trigger cron jobs
+        cache_helpers.create_pending_entry(account, network)
+        is_refreshing = True
+        
+        # Try to fetch data immediately for better UX
         try:
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
-            genealogy_df = lineage_helpers.get_account_genealogy(
-                account, network)
-            tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(
-                genealogy_df)
+            genealogy_df = lineage_helpers.get_account_genealogy(account, network)
+            tree_data = lineage_helpers.generate_tidy_radial_tree_genealogy(genealogy_df)
             account_genealogy_items = genealogy_df.to_dict(
                 orient='records') if not genealogy_df.empty else []
             genealogy_data = {
                 'account_genealogy_items': account_genealogy_items,
                 'tree_data': tree_data
             }
-            cache.set(cache_key, genealogy_data, 300)  # Cache for efficiency
+            
+            # Update cache with fresh data
+            cache_helpers.update_cache(account, network, tree_data)
+            is_refreshing = False
+            
         except Exception as e:
             sentry_sdk.capture_exception(e)
-            genealogy_data = {
-                'account_genealogy_items': [],
-                'tree_data': {
-                    'name': 'Root',
-                    'node_type': 'ISSUER',
-                    'children': []
-                }  # Graceful fallback
+            # Show cached data if available, otherwise fallback
+            if cache_entry and cache_entry.cached_json:
+                cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': cached_tree_data or {
+                        'name': 'Root',
+                        'node_type': 'ISSUER',
+                        'children': []
+                    }
+                }
+            else:
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': {
+                        'name': 'Root',
+                        'node_type': 'ISSUER',
+                        'children': []
+                    }
+                }
+    
+    # Ensure genealogy_data is set (fallback safety)
+    if genealogy_data is None:
+        genealogy_data = {
+            'account_genealogy_items': [],
+            'tree_data': {
+                'name': 'Root',
+                'node_type': 'ISSUER',
+                'children': []
             }
+        }
 
     context = {
-        'search_variable': 'Live Search Results',
+        'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
         'ENV': config('ENV', default='development'),
         'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
         'account_genealogy_items': genealogy_data['account_genealogy_items'],
-        'tree_data': genealogy_data['tree_data'],  # Dict for template
-        'account': account,  # Template expects 'account' not 'query_account'
-        'network': network,  # Template expects 'network' not 'network_selected'
-        'query_account': account,  # For form persistence
-        'network_selected': network,  # For form persistence
+        'tree_data': genealogy_data['tree_data'],
+        'account': account,
+        'network': network,
+        'query_account': account,
+        'network_selected': network,
+        'is_cached': is_fresh,
+        'is_refreshing': is_refreshing,
     }
     return render(request, 'webApp/search.html', context)
