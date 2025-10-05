@@ -35,6 +35,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'django_cassandra_engine',  # Must be first for Cassandra support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,6 +49,10 @@ INSTALLED_APPS = [
 
 # Cassandra Configuration
 CASSANDRA_DB_NAME = config('CASSANDRA_DB_NAME', default='stellarmapweb')
+ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
+
+# Path to secure connect bundle
+SECURE_CONNECT_BUNDLE_PATH = BASE_DIR.parent / 'secure-connect-stellarmapwebastradb.zip'
 
 DATABASES = {
     'default': {
@@ -57,14 +62,14 @@ DATABASES = {
     'cassandra': {
         'ENGINE': 'django_cassandra_engine',
         'NAME': CASSANDRA_DB_NAME,
+        'USER': 'token',  # Literal string 'token' for Astra DB
+        'PASSWORD': ASTRA_DB_TOKEN,  # Your Astra token
         'OPTIONS': {
-            'replication': {
-                'strategy_class': 'SimpleStrategy',
-                'replication_factor': 1
-            },
             'connection': {
+                'cloud': {
+                    'secure_connect_bundle': str(SECURE_CONNECT_BUNDLE_PATH)
+                },
                 'retry_connect': True,
-                'consistency': 'ONE'
             }
         }
     }
