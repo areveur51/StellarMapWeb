@@ -11,7 +11,7 @@ import sentry_sdk
 
 logger = logging.getLogger(__name__)
 APP_PATH = config('APP_PATH')
-CASSANDRA_DB_NAME = config('CASSANDRA_DB_NAME')
+CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE')
 # CASSANDRA_HOST no longer needed with cloud connection
 # Removed CLIENT_ID and CLIENT_SECRET - now using ASTRA_DB_TOKEN for authentication
 
@@ -70,7 +70,7 @@ class CassandraConnectionsHelpers:
         self.cluster = Cluster(cloud=self.cloud_config,
                                auth_provider=self.auth_provider,
                                )
-        self.session = self.cluster.connect(CASSANDRA_DB_NAME)
+        self.session = self.cluster.connect(CASSANDRA_KEYSPACE)
         # Set up row factory for efficient dict rows - will be configured when needed
 
     def execute_cql(self, cql: str):

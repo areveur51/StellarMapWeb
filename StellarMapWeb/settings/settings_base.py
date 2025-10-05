@@ -48,7 +48,7 @@ INSTALLED_APPS = [
 ]
 
 # Cassandra Configuration
-CASSANDRA_DB_NAME = config('CASSANDRA_DB_NAME', default='stellarmapweb')
+CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE', default='stellarmapweb')
 ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
 
 # Path to secure connect bundle
@@ -61,7 +61,7 @@ DATABASES = {
     },
     'cassandra': {
         'ENGINE': 'django_cassandra_engine',
-        'NAME': CASSANDRA_DB_NAME,
+        'NAME': CASSANDRA_KEYSPACE,
         'USER': 'token',  # Literal string 'token' for Astra DB
         'PASSWORD': ASTRA_DB_TOKEN,  # Your Astra token
         'OPTIONS': {

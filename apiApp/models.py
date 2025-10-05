@@ -21,7 +21,7 @@ class BaseModel(DjangoCassandraModel):
     """
     Abstract base model with common fields/timestamps.
     """
-    __keyspace__ = settings.CASSANDRA_DB_NAME
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
     id = cassandra_columns.UUID(primary_key=True, default=uuid.uuid4)
     created_at = cassandra_columns.DateTime()
     updated_at = cassandra_columns.DateTime()
