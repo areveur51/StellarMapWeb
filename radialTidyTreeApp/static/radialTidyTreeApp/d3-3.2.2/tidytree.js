@@ -282,7 +282,7 @@ function renderRadialTree(jsonData) {
         const width = containerRect.width || window.innerWidth;
         const height = containerRect.height || window.innerHeight;
         const size = Math.min(width, height);
-        const radius = size / 2 - 30;
+        const radius = size / 2 - 100;
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
