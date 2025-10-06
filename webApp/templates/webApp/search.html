@@ -134,6 +134,11 @@
                         <span v-if="data.value" class="text-danger" v-text="truncateText(data.value, 50)"></span>
                         <span v-else class="text-success">No errors</span>
                       </template>
+                      <template #cell(actions)="row">
+                        <b-button size="sm" variant="info" @click="showStageJson(row.item)" title="View JSON">
+                          <i class="fas fa-code"></i>
+                        </b-button>
+                      </template>
                     </b-table>
                     <div class="text-muted" style="font-size: 0.8em; margin-top: 10px;">
                       Auto-refreshes every 5 seconds
@@ -173,6 +178,27 @@
         </div>
       </template>
     </b-sidebar>
+
+    {% verbatim %}
+    <!-- Stage JSON Viewer Modal -->
+    <b-modal
+      v-model="showStageJsonModal"
+      title="Stage Execution Data"
+      size="lg"
+      ok-only
+      ok-title="Close"
+      header-bg-variant="dark"
+      header-text-variant="light"
+      body-bg-variant="dark"
+      body-text-variant="light"
+      footer-bg-variant="dark"
+      footer-text-variant="light"
+    >
+      <div v-if="selectedStageData">
+        <pre v-html="highlightedStageJSON" style="background-color: #23241f; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto;"></pre>
+      </div>
+    </b-modal>
+    {% endverbatim %}
   </div>
 
   <!-- Load required Bootstrap and BootstrapVue CSS -->
@@ -234,8 +260,12 @@
             { key: 'cron_name', label: 'Cron Job', sortable: true },
             { key: 'status', label: 'Status', sortable: true },
             { key: 'execution_time_seconds', label: 'Time', sortable: true },
-            { key: 'error_message', label: 'Error', sortable: false }
-          ]
+            { key: 'error_message', label: 'Error', sortable: false },
+            { key: 'actions', label: 'JSON', sortable: false }
+          ],
+          showStageJsonModal: false,
+          selectedStageData: null,
+          highlightedStageJSON: ''
         },
       methods: {
         async search() {
@@ -373,6 +403,20 @@
           if (!text) return '';
           if (text.length <= length) return text;
           return text.substring(0, length) + '...';
+        },
+        showStageJson(stageData) {
+          this.selectedStageData = stageData;
+          const stageJSON = JSON.stringify(stageData, null, 2);
+          try {
+            if (typeof hljs !== 'undefined') {
+              this.highlightedStageJSON = hljs.highlight(stageJSON, {language: 'json'}).value;
+            } else {
+              this.highlightedStageJSON = stageJSON;
+            }
+          } catch (e) {
+            this.highlightedStageJSON = stageJSON;
+          }
+          this.showStageJsonModal = true;
         }
       },
       watch: {
