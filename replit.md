@@ -1,106 +1,6 @@
 # Overview
 
-StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API and Stellar Expert, stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity.
-
-# Recent Changes
-
-## October 2025 - Critical Cache Reset & Pending Accounts Bug Fixes
-- **Fixed Cache Reset Bug**: The `create_pending_entry()` method in `sm_cache.py` was incorrectly resetting status to PENDING every time a user searched for the same address, effectively restarting the pipeline even when it was already running
-  - **Root Cause**: Method always set `status = PENDING_MAKE_PARENT_LINEAGE` without checking if pipeline was already active
-  - **Solution**: Added check for active statuses (PENDING/IN_PROGRESS/RE_INQUIRY) - if pipeline is running, return existing entry without modification
-  - **Impact**: Users can now refresh/re-search without interrupting active pipeline processing; 12-hour cache strategy works as designed
-- **Fixed Pending Accounts Display Bug**: Template was showing empty array despite backend correctly querying database
-  - **Root Cause**: `fetch_pending_accounts()` helper function attempted to import non-existent status constants (IN_PROGRESS_COLLECTING_SE_DIRECTORY, DONE_SE_DIRECTORY, IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT, DONE_STELLAR_CREATOR_ACCOUNT), causing silent import failure and empty array return
-  - **Solution**: Updated imports to use only existing status constants from `apiApp/models.py` (17 valid constants covering all pipeline stages)
-  - **Result**: Pending Accounts tab now correctly displays all records with PENDING/IN_PROGRESS/DONE statuses from BOTH StellarAccountSearchCache AND StellarCreatorAccountLineage tables
-- **Enhanced Pending Accounts Tab**: Created centralized `fetch_pending_accounts()` helper function used by both default view and account search view
-  - Shows records from BOTH `StellarAccountSearchCache` (3 statuses) AND `StellarCreatorAccountLineage` (13+ statuses)
-  - Added `table` field to distinguish which table each record comes from
-  - Provides complete visibility into entire Fast Pipeline processing workflow (Stage 1 pending → Stage 2 collecting Horizon data → Stages 3-8 enrichment)
-  - Users can monitor exactly which stage each address is in
-- **Files Updated**: apiApp/helpers/sm_cache.py, webApp/views.py
-
-## October 2025 - Fast Pipeline Architecture (Option A)
-- **Performance Optimization**: Consolidated 9 staggered cron jobs into single sequential pipeline running every 2 minutes
-- **Speed Improvement**: Reduced per-address processing time from 10-20 minutes to ~2-3 minutes (7-10x faster)
-- **Architecture Change**: 
-  - **Before**: 9 separate cron jobs running every 5-10 minutes with offsets (job 1 → wait 5 min → job 2 → wait 5 min → etc.)
-  - **After**: All 8 data collection stages run together in one pipeline cycle (`run_data_collection_pipeline()`)
-  - Pipeline executes: parent lineage → horizon data → attributes → assets → flags → SE directory → creator → grandparent
-- **Rate Limiting Strategy**: 2-minute delay between processing different user searches instead of delays between workflow stages
-  - Same total API calls (just reordered for speed)
-  - Better user experience (results in minutes instead of 20+ minutes)
-  - Natural rate limiting respects API quotas
-- **Cache Strategy Unchanged**: 12-hour cache expiry and RE_INQUIRY handling still work as designed
-- **Implementation**: Modified `run_cron_jobs.py` to call `run_data_collection_pipeline()` function that executes all stages sequentially
-- **Files Updated**: run_cron_jobs.py
-
-## October 2025 - Comprehensive Address Validation Testing
-- **Multi-Layer Validation Tests**: Created comprehensive test suite across all application layers
-  - **Validator Tests**: 18 comprehensive edge case tests covering empty strings, special characters, whitespace, wrong length (55/57 chars), wrong prefix (A/F/lowercase g), Unicode, mixed case, and numeric-only addresses
-  - **View Layer Tests**: 12 tests ensuring invalid addresses return proper error responses without database writes
-  - **Model Layer Validation**: Enhanced `StellarAccountSearchCache.save()` to use full `StellarMapValidatorHelpers` validation (56 chars, G-prefix, crypto check) instead of just length check
-  - **Cache Helper Tests**: Created test stubs for cache operations validation
-- **Defense-in-Depth Strategy**: Invalid addresses blocked at multiple layers:
-  1. **View Layer**: Validates before processing HTTP requests
-  2. **Model Layer**: Validates before saving to Cassandra database
-  3. **Validator**: Comprehensive regex + cryptographic validation using Stellar SDK
-- **Test Coverage**: 28/37 validation tests passing (validator and view layers fully tested, model layer tests have mocking complexity but validation logic works)
-- **Files Updated**: apiApp/models.py, apiApp/tests/tests_sm_validator.py, webApp/tests/test_search_view_validation.py, apiApp/tests/test_model_address_validation.py, apiApp/tests/test_cache_helper_validation.py
-
-## October 2025 - User Experience Improvements
-- **Graceful Error Handling**: Invalid Stellar addresses now show friendly error messages instead of throwing 404 errors
-  - Invalid address format displays: "Invalid Stellar account address format. Must be 56 characters starting with G."
-  - Invalid network displays: "Invalid network. Must be 'public' or 'testnet'."
-  - Users see error information in the search interface instead of Django 404 page
-- **Default Search Pending Accounts**: Fixed default search page (no account parameter) to populate Pending Accounts tab
-  - Users can now see all pending/in-progress accounts immediately on page load
-  - Provides visibility into active cron job processing
-- **Browser Cache Prevention**: Added Cache-Control headers to all search responses
-  - Headers: `Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0`
-  - Prevents browser from caching stale or corrupted data
-  - Ensures users always see fresh data from database
-- **Files Updated**: webApp/views.py
-
-## October 2025 - Data Corruption Bug Fix
-- **Fixed critical bug in StellarAccountSearchCacheManager**: The `update_inquiry()` method was incorrectly querying by non-existent `id` field instead of composite partition key (stellar_account, network_name)
-- **Root Cause**: When cron job called `inquiry_manager.update_inquiry(id=inq_queryset.id, ...)`, it caused Cassandra ORM to create corrupted records with single-character values (e.g., stellar_account='G', network_name='D')
-- **Solution**: 
-  - Updated `StellarAccountSearchCacheManager.update_inquiry()` to accept `stellar_account` and `network_name` parameters
-  - Fixed `cron_make_parent_account_lineage.py` to pass correct partition key fields instead of non-existent `id`
-- **Impact**: Eliminated data corruption; all cache entries now created with full, valid Stellar account addresses and network names
-- **Files Updated**: apiApp/managers.py, apiApp/management/commands/cron_make_parent_account_lineage.py
-
-## October 2025 - Cassandra Table Schema Fix
-- **Fixed table name mismatch**: Updated models to use `__table_name__` attribute to match production table names.
-  - `StellarAccountSearchCache`: Now uses `stellar_account_search_cache` table with PRIMARY KEY ((stellar_account, network_name))
-  - `StellarCreatorAccountLineage`: Now uses `stellar_creator_account_lineage` table with PRIMARY KEY ((id), stellar_account, network_name)
-  - Dropped old `user_inquiry_search_history` table
-- **Root Cause**: django-cassandra-engine ignores Meta.db_table setting, requires explicit `__table_name__` attribute
-- **Impact**: Search functionality and Pending Accounts UI now work correctly with production database schema
-- **Files Updated**: apiApp/models.py, webApp/views.py
-
-## October 2025 - Automated Cron Jobs & Pending Accounts UI
-- **Automated Cron Execution**: Implemented background cron worker (`run_cron_jobs.py`) that runs automatically when app starts.
-  - Runs all 9 cron jobs on schedule (every 5-10 minutes with staggered offsets)
-  - Replaces manual cron execution with automatic background processing
-  - Logs all job execution status to console
-- **Cron Job Prioritization**: Updated `cron_make_parent_account_lineage.py` to prioritize new user searches:
-  - PENDING_MAKE_PARENT_LINEAGE entries processed first (new searches)
-  - RE_INQUIRY entries processed second (12-hour cache refreshes)
-  - Ensures new user searches get fastest response
-- **New "Pending Accounts" UI Tab**: Added visibility into cron job activity
-  - Displays all PENDING/IN_PROGRESS/RE_INQUIRY accounts in JSON format
-  - Real-time Vue.js watcher for automatic updates
-  - Located between "Account Lineage" and "TOML" tabs in search interface
-
-## October 2025 - Critical Field Name Fix
-- **Fixed Cassandra schema mismatch**: Updated all code references from `network` to `network_name` to match production database column name.
-- **Impact**: This was preventing search functionality from creating PENDING cache entries in the database.
-- **Files Updated**: 
-  - Core: apiApp/models.py, apiApp/helpers/sm_cache.py, webApp/views.py
-  - Tests: All test files updated for consistency (8 files total)
-- **Result**: Search now correctly creates PENDING entries that trigger the cron workflow for data collection.
+StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API and Stellar Expert, stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a fast, optimized data collection pipeline capable of processing an address in 2-3 minutes, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
 
 # User Preferences
 
@@ -112,46 +12,42 @@ Preferred communication style: Simple, everyday language.
 - **Django 4.2.7** with a multi-app architecture: `apiApp` (API/data management), `webApp` (user interface), and `radialTidyTreeApp` (visualization components).
 
 ## Database Architecture
-- **Primary Storage**: Astra DB (DataStax Cassandra) for production, utilizing `django-cassandra-engine`.
-- **Local Development**: SQLite for local environments.
+- **Primary Storage**: Astra DB (DataStax Cassandra) for production using `django-cassandra-engine`. SQLite for local development.
 - **Database Routing**: Custom `DatabaseAppsRouter` for directing apps to appropriate databases.
-- **ORM**: Combines Django ORM with direct Cassandra integration.
-- **Schema Design**: Cassandra models are designed with explicit composite primary keys and clustering keys for efficient querying, including timestamp management (`created_at`, `updated_at`).
-- **Caching**: Implemented a 12-hour caching strategy for Stellar address searches using `StellarAccountSearchCache` to minimize API calls and improve performance.
+- **ORM**: Combines Django ORM with direct Cassandra integration, explicitly using `__table_name__` for Cassandra models.
+- **Schema Design**: Cassandra models use composite primary keys and clustering keys for efficient querying and include `created_at` and `updated_at` timestamps.
+- **Caching**: 12-hour caching strategy for Stellar address searches using `StellarAccountSearchCache` to minimize API calls.
 
 ## Data Collection Pipeline
-- **Asynchronous Processing**: Extensive use of async/await for API interactions.
-- **Scheduled Tasks**: Django management commands with cron scheduling for automated data collection.
-- **API Integration**: Uses Horizon API for core Stellar data and Stellar Expert for enhanced account information.
-- **Retry Logic**: `Tenacity` library ensures robust API calls.
-- **Rate Limiting**: Staggered cron jobs prevent API rate limit violations.
-- **Workflow Management**: Comprehensive PlantUML-based cron workflow with 17 status constants (`PENDING`, `IN_PROGRESS`, `DONE` states) for tracking data collection and processing.
+- **Fast Pipeline Architecture**: Consolidated 9 staggered cron jobs into a single sequential pipeline running every 2 minutes, reducing processing time to ~2-3 minutes per address.
+- **Automated Execution**: Background cron worker (`run_cron_jobs.py`) runs automatically, orchestrating 8 data collection stages.
+- **Workflow Management**: Comprehensive cron workflow with 17 status constants (`PENDING`, `IN_PROGRESS`, `DONE`, `RE_INQUIRY`, `FAILED`) for tracking data collection.
+- **Stuck Record Recovery**: Automatic detection and recovery system for stuck records, resetting them to `PENDING` or marking as `FAILED` after multiple retries.
+- **API Integration**: Uses Horizon API and Stellar Expert with asynchronous interactions (`async/await`).
+- **Retry Logic**: `Tenacity` library for robust API calls.
+- **Prioritization**: New user searches (`PENDING_MAKE_PARENT_LINEAGE`) are prioritized over cache refreshes (`RE_INQUIRY`).
 
 ## Frontend Architecture
 - **Templating**: Django templates enhanced with Vue.js components for interactivity.
-- **Visualization**: D3.js is used for rendering radial tree diagrams.
+- **Visualization**: D3.js for interactive radial tree diagrams.
 - **Responsive Design**: Bootstrap-based interface.
-- **Component System**: Modular Vue.js components for reusable UI elements, including dedicated tabs for Search Cache and Account Lineage data display.
+- **User Experience**: Graceful error handling for invalid Stellar addresses, default display of pending accounts, and prevention of browser caching using `Cache-Control` headers.
+- **Pending Accounts UI**: Real-time Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
 
 ## Security and Monitoring
-- **Environment Configuration**: `Decouple` library for secure environment variable management (e.g., `CASSANDRA_KEYSPACE`).
-- **Error Tracking**: Sentry integration for comprehensive error monitoring.
-- **Input Validation**: Stellar SDK for cryptographic address validation.
+- **Environment Configuration**: `Decouple` library for secure environment variable management.
+- **Error Tracking**: Sentry integration for error monitoring.
+- **Input Validation**: Multi-layer address validation using Stellar SDK regex and cryptographic checks at the view, model, and validator layers.
 - **HTTPS Enforcement**: Production settings enforce SSL/TLS.
-
-## Cron Job Architecture
-- **Health Monitoring**: Dedicated system monitors cron job status.
-- **Sequential Processing**: Jobs are staggered to prevent resource conflicts.
-- **Status Tracking**: Each job tracks its progress through defined status states via `ManagementCronHealth` model.
 
 # External Dependencies
 
 ## Blockchain APIs
-- **Horizon API**: Official Stellar network API.
-- **Stellar Expert**: Third-party service for Stellar network insights.
+- **Horizon API**: Official Stellar network API for core data.
+- **Stellar Expert**: Third-party service for enhanced Stellar account information.
 
 ## Database Services
-- **Astra DB**: DataStax managed Cassandra service.
+- **Astra DB**: DataStax managed Cassandra service for production.
 - **Cassandra**: Distributed NoSQL database.
 
 ## Monitoring and Development
@@ -161,13 +57,13 @@ Preferred communication style: Simple, everyday language.
 ## Key Libraries
 - **stellar-sdk**: Python SDK for Stellar blockchain.
 - **django-cassandra-engine**: Django integration for Cassandra.
-- **tenacity**: Retry library.
+- **tenacity**: Retry library for robust operations.
 - **pandas**: Data manipulation.
-- **requests**: HTTP library.
+- **requests**: HTTP client.
 - **aiohttp**: Asynchronous HTTP client.
 
 ## Frontend Dependencies
 - **D3.js**: Data visualization library.
-- **Vue.js**: JavaScript framework.
-- **Bootstrap**: CSS framework.
+- **Vue.js**: JavaScript framework for interactive UI.
+- **Bootstrap**: CSS framework for responsive design.
 - **jQuery**: JavaScript library.
