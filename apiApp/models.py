@@ -68,7 +68,7 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     WARNING: Cassandra ORM uses lowercase model name as table, ignoring db_table setting!
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
-    __table_name__ = 'user_inquiry_search_history'  # Production table name
+    __table_name__ = 'stellar_account_search_cache'  # Production table name
     
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
     network_name = cassandra_columns.Text(primary_key=True, max_length=9)
