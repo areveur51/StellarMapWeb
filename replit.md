@@ -4,6 +4,19 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
+## October 6, 2025 - Request Status Tab Implementation
+- Added new "Request Status" b-tab to search.html template for visibility into UserInquirySearchHistory entries
+- Displays database entry details in JSON format with syntax highlighting
+- Shows key fields: stellar_account, network, status, last_fetched_at, created_at, updated_at, has_cached_data, cache_status
+- Implemented Vue.js integration with:
+  - `request_status_data` property for JSON data binding
+  - `highlightedRequestStatus` property for syntax-highlighted display
+  - `updateRequestStatusDisplay()` method for JSON formatting with HighlightJS
+  - Watcher to automatically update display when data changes
+- Context data prepared in webApp/views.py with comprehensive status information
+- Positioned between "JSON" and "TOML" tabs for easy access to request state
+- Enables users to monitor cache freshness and workflow status for searched accounts
+
 ## October 5, 2025 (Late Evening) - 12-Hour Database Caching System
 - Implemented efficient 12-hour caching strategy for Stellar address searches to minimize API calls
 - Enhanced UserInquirySearchHistory model with new fields:

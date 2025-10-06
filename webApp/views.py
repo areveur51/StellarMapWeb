@@ -196,6 +196,28 @@ def search_view(request):
             }
         }
 
+    # Prepare request status data for display
+    request_status_data = {}
+    if cache_entry:
+        request_status_data = {
+            'stellar_account': cache_entry.stellar_account if hasattr(cache_entry, 'stellar_account') else account,
+            'network': cache_entry.network if hasattr(cache_entry, 'network') else network,
+            'status': cache_entry.status if hasattr(cache_entry, 'status') else 'UNKNOWN',
+            'last_fetched_at': cache_entry.last_fetched_at.isoformat() if hasattr(cache_entry, 'last_fetched_at') and cache_entry.last_fetched_at else None,
+            'created_at': cache_entry.created_at.isoformat() if hasattr(cache_entry, 'created_at') and cache_entry.created_at else None,
+            'updated_at': cache_entry.updated_at.isoformat() if hasattr(cache_entry, 'updated_at') and cache_entry.updated_at else None,
+            'has_cached_data': bool(cache_entry.cached_json) if hasattr(cache_entry, 'cached_json') else False,
+            'cache_status': 'FRESH' if is_fresh else ('REFRESHING' if is_refreshing else 'STALE'),
+        }
+    else:
+        request_status_data = {
+            'stellar_account': account,
+            'network': network,
+            'status': 'NOT_FOUND',
+            'cache_status': 'NO_CACHE_ENTRY',
+            'message': 'No database entry found for this account/network combination'
+        }
+
     context = {
         'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
         'ENV': config('ENV', default='development'),
@@ -209,5 +231,6 @@ def search_view(request):
         'radial_tidy_tree_variable': genealogy_data['tree_data'],  # Required for JS visualization
         'is_cached': is_fresh,
         'is_refreshing': is_refreshing,
+        'request_status_data': request_status_data,
     }
     return render(request, 'webApp/search.html', context)

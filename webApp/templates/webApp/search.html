@@ -97,6 +97,9 @@
               <b-tab title="JSON">
                 <pre v-html="highlightedJSONResponse"></pre>
               </b-tab>
+              <b-tab title="Request Status">
+                <pre v-html="highlightedRequestStatus"></pre>
+              </b-tab>
               <b-tab title="TOML">
                 <b-card-text>TOML outputs</b-card-text>
               </b-tab>
@@ -141,12 +144,15 @@
   <!-- Custom VueJS mixin -->
   {{ tree_data|json_script:"tree-data-json" }}
   {{ account_genealogy_items|json_script:"account-genealogy-json" }}
+  {{ request_status_data|json_script:"request-status-json" }}
   
   <script src="{% static 'webApp/js/lineage_table_mixin.js' %}?v=2"></script>
   <script>
     const treeDataEl = document.getElementById('tree-data-json');
     const genealogyEl = document.getElementById('account-genealogy-json');
+    const requestStatusEl = document.getElementById('request-status-json');
     const parsedTreeData = JSON.parse(treeDataEl.textContent || '{}');
+    const parsedRequestStatus = JSON.parse(requestStatusEl.textContent || '{}');
     
     var vm = new Vue({
         el: '#app',
@@ -157,11 +163,13 @@
           progressValue: 0,
           response: '',
           highlightedJSONResponse: '',
+          highlightedRequestStatus: '',
           network_toggle: {% if network %}true{% else %}false{% endif %},
           network_selected: '{{ network|default:"testnet" }}',
           loading_animation: true,
           account_genealogy_items: JSON.parse(genealogyEl.textContent || '[]'),
-          tree_data: parsedTreeData
+          tree_data: parsedTreeData,
+          request_status_data: parsedRequestStatus
         },
       methods: {
         async search() {
@@ -207,6 +215,22 @@
             this.response = '';
             this.highlightedJSONResponse = '';
           }
+        },
+        updateRequestStatusDisplay() {
+          if (this.request_status_data && Object.keys(this.request_status_data).length > 0) {
+            const statusJSON = JSON.stringify(this.request_status_data, null, 2);
+            try {
+              if (typeof hljs !== 'undefined') {
+                this.highlightedRequestStatus = hljs.highlight(statusJSON, {language: 'json'}).value;
+              } else {
+                this.highlightedRequestStatus = statusJSON;
+              }
+            } catch (e) {
+              this.highlightedRequestStatus = statusJSON;
+            }
+          } else {
+            this.highlightedRequestStatus = '';
+          }
         }
       },
       watch: {
@@ -222,6 +246,14 @@
           handler(newVal) {
             // Update JSON display whenever tree_data changes
             this.updateJSONDisplay();
+          },
+          deep: true,
+          immediate: true
+        },
+        request_status_data: {
+          handler(newVal) {
+            // Update request status display whenever request_status_data changes
+            this.updateRequestStatusDisplay();
           },
           deep: true,
           immediate: true
