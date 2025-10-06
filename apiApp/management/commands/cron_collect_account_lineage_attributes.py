@@ -6,7 +6,7 @@ from apiApp.helpers.sm_async import StellarMapAsyncHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
-from apiApp.models import DONE_HORIZON_API_DATASETS, DONE_UPDATING_FROM_RAW_DATA
+from apiApp.models import DONE_HORIZON_API_DATASETS, IN_PROGRESS_UPDATING_FROM_RAW_DATA, DONE_UPDATING_FROM_RAW_DATA
 
 logger = logging.getLogger(__name__)
 
@@ -30,26 +30,26 @@ class Command(BaseCommand):
                 logger.warning(f"{cron_name} unhealthy; skipping.")
                 return
 
-            async_helpers = StellarMapAsyncHelpers()
             lineage_manager = StellarCreatorAccountLineageManager()
-            lin_queryset = lineage_manager.get_all_queryset(
-                status__in=[DONE_HORIZON_API_DATASETS])
+            lin_queryset = lineage_manager.get_queryset(status=DONE_HORIZON_API_DATASETS)
             
             if not lin_queryset:
-                self.stdout.write(f"{cron_name}: No records to process")
                 logger.info(f"{cron_name}: No records to process")
                 return
 
+            lineage_manager.update_status(
+                id=lin_queryset.id,
+                status=IN_PROGRESS_UPDATING_FROM_RAW_DATA)
+
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
+            async_helpers = StellarMapAsyncHelpers()
             async_helpers.execute_async(
-                lin_queryset,
+                [lin_queryset],
                 lineage_helpers.async_update_from_accounts_raw_data)
             
-            self.stdout.write(f"{cron_name}: Processed {len(lin_queryset)} records")
-            logger.info(f"{cron_name}: Processed {len(lin_queryset)} records")
+            self.stdout.write(self.style.SUCCESS(f'Successfully ran {cron_name}'))
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
             logger.error(f"{cron_name} failed: {e}")
-            self.stderr.write(f"{cron_name} ERROR: {e}")
             raise

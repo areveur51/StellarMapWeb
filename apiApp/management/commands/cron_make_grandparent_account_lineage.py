@@ -6,7 +6,7 @@ from apiApp.helpers.sm_async import StellarMapAsyncHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
-from apiApp.models import DONE_UPDATING_FROM_OPERATIONS_RAW_DATA, DONE_GRANDPARENT_LINEAGE
+from apiApp.models import DONE_UPDATING_FROM_OPERATIONS_RAW_DATA, IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE, DONE_GRANDPARENT_LINEAGE
 
 logger = logging.getLogger(__name__)
 
@@ -27,23 +27,26 @@ class Command(BaseCommand):
                 logger.warning(f"{cron_name} unhealthy; skipping.")
                 return
 
-            async_helpers = StellarMapAsyncHelpers()
             lineage_manager = StellarCreatorAccountLineageManager()
-            lin_queryset = lineage_manager.get_all_queryset(
-                status__in=[DONE_UPDATING_FROM_OPERATIONS_RAW_DATA])
+            lin_queryset = lineage_manager.get_queryset(status=DONE_UPDATING_FROM_OPERATIONS_RAW_DATA)
 
             if not lin_queryset:
                 logger.info(f"{cron_name}: No records to process")
                 return
 
+            lineage_manager.update_status(
+                id=lin_queryset.id,
+                status=IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE)
+
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
+            async_helpers = StellarMapAsyncHelpers()
             async_helpers.execute_async(
-                lin_queryset, lineage_helpers.async_make_grandparent_account)
+                [lin_queryset],
+                lineage_helpers.async_make_grandparent_account)
             
-            logger.info(f"{cron_name}: Processed {len(lin_queryset)} records")
+            self.stdout.write(self.style.SUCCESS(f'Successfully ran {cron_name}'))
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
             logger.error(f"{cron_name} failed: {e}")
-            self.stderr.write(f"{cron_name} ERROR: {e}")
             raise
