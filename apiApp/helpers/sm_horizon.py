@@ -35,6 +35,11 @@ class StellarMapHorizonAPIHelpers(RetryMixin):
         super().__init__()
         self.server = Server(horizon_url=horizon_url)
         self.account_id = account_id
+        self.cron_name = None
+    
+    def set_cron_name(self, cron_name: str):
+        """Set cron name for error reporting."""
+        self.cron_name = cron_name
 
     @RetryMixin.retry_decorator
     def get_base_accounts(self) -> dict:
@@ -53,12 +58,20 @@ class StellarMapHorizonAPIHelpers(RetryMixin):
             sentry_sdk.capture_exception(e)
             raise
 
-    # Similar for get_account_operations, get_account_effects
-    # Example:
     @RetryMixin.retry_decorator
     def get_account_operations(self) -> dict:
+        """Fetch account operations."""
         try:
             return self.server.operations().for_account(self.account_id).call()
+        except BaseRequestError as e:
+            sentry_sdk.capture_exception(e)
+            raise
+    
+    @RetryMixin.retry_decorator
+    def get_account_effects(self) -> dict:
+        """Fetch account effects."""
+        try:
+            return self.server.effects().for_account(self.account_id).call()
         except BaseRequestError as e:
             sentry_sdk.capture_exception(e)
             raise
