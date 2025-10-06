@@ -146,14 +146,9 @@ def search_view(request):
         # Stale or missing cache, create PENDING entry to trigger cron jobs
         try:
             if cache_helpers:
-                print(f"DEBUG: Creating PENDING entry for {account}/{network}")
                 cache_entry = cache_helpers.create_pending_entry(account, network)
-                print(f"DEBUG: Created cache_entry: {cache_entry}, status: {cache_entry.status if cache_entry else 'None'}")
                 is_refreshing = True
-            else:
-                print(f"DEBUG: cache_helpers is None, skipping PENDING entry creation")
         except Exception as e:
-            print(f"DEBUG: Exception creating PENDING entry: {e}")
             sentry_sdk.capture_exception(e)
             is_refreshing = False
         
@@ -203,9 +198,7 @@ def search_view(request):
 
     # Prepare request status data for display
     request_status_data = {}
-    print(f"DEBUG: Preparing request_status_data, cache_entry is {'None' if cache_entry is None else 'NOT None'}")
     if cache_entry:
-        print(f"DEBUG: cache_entry found, status={cache_entry.status if hasattr(cache_entry, 'status') else 'NO STATUS'}")
         request_status_data = {
             'stellar_account': cache_entry.stellar_account if hasattr(cache_entry, 'stellar_account') else account,
             'network': cache_entry.network_name if hasattr(cache_entry, 'network_name') else network,
@@ -217,7 +210,6 @@ def search_view(request):
             'cache_status': 'FRESH' if is_fresh else ('REFRESHING' if is_refreshing else 'STALE'),
         }
     else:
-        print(f"DEBUG: cache_entry is None, showing NOT_FOUND")
         request_status_data = {
             'stellar_account': account,
             'network': network,

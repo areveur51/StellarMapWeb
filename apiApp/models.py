@@ -74,6 +74,7 @@ class StellarAccountSearchCache(BaseModel):
     class Meta:
         get_pk_field = 'stellar_account'
         ordering = ['-created_at']  # Efficient ordering
+        db_table = 'user_inquiry_search_history'  # Keep original table name for compatibility
 
 
 class StellarCreatorAccountLineage(BaseModel):
