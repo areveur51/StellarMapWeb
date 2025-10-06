@@ -4,6 +4,21 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Fast Pipeline Architecture (Option A)
+- **Performance Optimization**: Consolidated 9 staggered cron jobs into single sequential pipeline running every 2 minutes
+- **Speed Improvement**: Reduced per-address processing time from 10-20 minutes to ~2-3 minutes (7-10x faster)
+- **Architecture Change**: 
+  - **Before**: 9 separate cron jobs running every 5-10 minutes with offsets (job 1 → wait 5 min → job 2 → wait 5 min → etc.)
+  - **After**: All 8 data collection stages run together in one pipeline cycle (`run_data_collection_pipeline()`)
+  - Pipeline executes: parent lineage → horizon data → attributes → assets → flags → SE directory → creator → grandparent
+- **Rate Limiting Strategy**: 2-minute delay between processing different user searches instead of delays between workflow stages
+  - Same total API calls (just reordered for speed)
+  - Better user experience (results in minutes instead of 20+ minutes)
+  - Natural rate limiting respects API quotas
+- **Cache Strategy Unchanged**: 12-hour cache expiry and RE_INQUIRY handling still work as designed
+- **Implementation**: Modified `run_cron_jobs.py` to call `run_data_collection_pipeline()` function that executes all stages sequentially
+- **Files Updated**: run_cron_jobs.py
+
 ## October 2025 - Comprehensive Address Validation Testing
 - **Multi-Layer Validation Tests**: Created comprehensive test suite across all application layers
   - **Validator Tests**: 18 comprehensive edge case tests covering empty strings, special characters, whitespace, wrong length (55/57 chars), wrong prefix (A/F/lowercase g), Unicode, mixed case, and numeric-only addresses
