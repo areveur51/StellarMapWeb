@@ -38,11 +38,12 @@ Preferred communication style: Simple, everyday language.
 - **User Experience**: Graceful error handling for invalid Stellar addresses, default display of pending accounts, and prevention of browser caching using `Cache-Control` headers.
 - **Pending Accounts UI**: Real-time Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
 - **Auto-Refresh**: Vue.js polling system refreshes Pending Accounts tab every 5 seconds via `/api/pending-accounts/` endpoint, with immediate initial fetch and proper cleanup on component destruction.
+- **Stages Monitoring**: Real-time pipeline progress tracking showing execution time, status, and errors for each of the 8 stages (Stage 1: Make Parent Lineage, Stage 2: Collect Horizon Data, Stages 3-8: Lineage enrichment) per address via `/api/stage-executions/` endpoint with 5-second auto-refresh in dedicated Stages tab.
 
 ## Security and Monitoring
 
-### Security Testing Framework
-- **Comprehensive Security Test Suite**: 90+ security tests across 6 test modules covering all attack vectors and validation points.
+### Testing Framework
+- **Comprehensive Test Suite**: 107+ tests across 7 test modules covering security, functionality, and monitoring.
 - **Test Modules**:
   - `test_validator_security.py`: 16 tests for enhanced validator with ValidationError enforcement
   - `test_security_injection_prevention.py`: NoSQL injection, XSS, command injection, path traversal
@@ -50,6 +51,7 @@ Preferred communication style: Simple, everyday language.
   - `test_security_configuration.py`: Secrets management, environment variables, secure defaults
   - `test_security_frontend.py`: XSS prevention, CSRF protection, clickjacking prevention
   - `test_failed_status_handling.py`: Terminal status exclusion from cron processing
+  - `test_stage_executions.py`: 17 tests for pipeline stage monitoring (model validation, API security, stage tracking, cron integration)
 - **Test Coverage Areas**:
   - ValidationError enforcement for malicious input (shell chars, path traversal, null bytes, invalid checksums)
   - Injection Prevention (NoSQL injection, XSS, command injection, path traversal)
