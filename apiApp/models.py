@@ -31,6 +31,7 @@ IN_PROGRESS_MAKE_PARENT_LINEAGE = 'IN_PROGRESS_MAKE_PARENT_LINEAGE'
 DONE_MAKE_PARENT_LINEAGE = 'DONE_MAKE_PARENT_LINEAGE'
 RE_INQUIRY = 'RE_INQUIRY'
 FAILED = 'FAILED'
+INVALID_HORIZON_STELLAR_ADDRESS = 'INVALID_HORIZON_STELLAR_ADDRESS'
 
 # Stuck record detection thresholds (in minutes)
 # Records exceeding these durations in a given status are considered stuck

@@ -19,7 +19,8 @@ from apiApp.models import (
     IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
     DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
     IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
-    DONE_HORIZON_API_DATASETS
+    DONE_HORIZON_API_DATASETS,
+    INVALID_HORIZON_STELLAR_ADDRESS
 )
 
 logger = logging.getLogger(__name__)
@@ -100,6 +101,7 @@ class Command(BaseCommand):
                                   horizon_url: str, account_id: str,
                                   network_name: str, cron_name: str):
         """Helper: Fetch/store accounts with retry/timeout."""
+        from stellar_sdk.exceptions import NotFoundError, BaseRequestError
         try:
             lineage_manager.update_status(
                 id=lin_queryset.id,
@@ -130,6 +132,27 @@ class Command(BaseCommand):
                 'status': DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS
             }
             lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+        except (NotFoundError, BaseRequestError) as e:
+            if 'NotFoundError' in str(type(e).__name__) or '404' in str(e):
+                logger.warning(f"Invalid Stellar address on Horizon: {account_id} on {network_name}")
+                request = HttpRequest()
+                request.data = {
+                    'status': INVALID_HORIZON_STELLAR_ADDRESS,
+                    'last_error': f'Horizon API validation failed: Account not found on {network_name} network'
+                }
+                lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+                
+                from apiApp.managers import StellarAccountSearchCacheManager
+                cache_manager = StellarAccountSearchCacheManager()
+                cache_manager.update_inquiry(
+                    stellar_account=account_id,
+                    network_name=network_name,
+                    status=INVALID_HORIZON_STELLAR_ADDRESS
+                )
+                logger.info(f"Marked {account_id} as INVALID_HORIZON_STELLAR_ADDRESS")
+            else:
+                sentry_sdk.capture_exception(e)
+                raise ValueError(f'Error fetching accounts: {e}')
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise ValueError(f'Error fetching accounts: {e}')
