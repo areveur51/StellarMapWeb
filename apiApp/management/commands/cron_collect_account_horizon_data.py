@@ -46,17 +46,18 @@ class Command(BaseCommand):
                 return
 
             lineage_manager = StellarCreatorAccountLineageManager()
-            lin_queryset = lineage_manager.get_queryset(status__in=[
-                PENDING_HORIZON_API_DATASETS,
-                DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-                DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
-            ])
+            
+            lin_queryset = (
+                lineage_manager.get_queryset(status=PENDING_HORIZON_API_DATASETS) or
+                lineage_manager.get_queryset(status=DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS) or
+                lineage_manager.get_queryset(status=DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS)
+            )
 
-            lin_in_progress_qs = lineage_manager.get_queryset(status__in=[
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS
-            ])
+            lin_in_progress_qs = (
+                lineage_manager.get_queryset(status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS) or
+                lineage_manager.get_queryset(status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS) or
+                lineage_manager.get_queryset(status=IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS)
+            )
 
             if lin_queryset and not lin_in_progress_qs:
                 self._process_lineage_record(lin_queryset, cron_name)
