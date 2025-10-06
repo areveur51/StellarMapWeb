@@ -65,8 +65,10 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     Stores cached_json for immediate display if data is fresh (< 12 hours).
     
     NOTE: Does NOT inherit from BaseModel to match existing table schema.
+    WARNING: Cassandra ORM uses lowercase model name as table, ignoring db_table setting!
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'user_inquiry_search_history'  # Production table name
     
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
     network_name = cassandra_columns.Text(primary_key=True, max_length=9)
@@ -86,7 +88,6 @@ class StellarAccountSearchCache(DjangoCassandraModel):
 
     class Meta:
         get_pk_field = 'stellar_account'
-        db_table = 'user_inquiry_search_history'  # Keep original table name for compatibility
 
 
 class StellarCreatorAccountLineage(DjangoCassandraModel):
