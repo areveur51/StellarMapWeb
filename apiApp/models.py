@@ -200,3 +200,51 @@ class ManagementCronHealth(DjangoCassandraModel):
     def __str__(self):
         """Admin display string."""
         return f"Cron: {self.cron_name} | Status: {self.status}"
+
+
+class StellarAccountStageExecution(DjangoCassandraModel):
+    """
+    Model for tracking stage execution progress per address.
+    
+    Tracks each cron job execution for a specific stellar account,
+    enabling real-time pipeline monitoring in the Stages tab.
+    
+    PRIMARY KEY ((stellar_account, network_name), created_at, stage_number)
+    - Partition key: (stellar_account, network_name) for efficient per-address queries
+    - Clustering key: created_at DESC for chronological ordering
+    - Clustering key: stage_number for stage ordering
+    
+    NOTE: Does NOT inherit from BaseModel to match Cassandra patterns.
+    """
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'stellar_account_stage_execution'
+    
+    stellar_account = cassandra_columns.Text(partition_key=True, max_length=56)
+    network_name = cassandra_columns.Text(partition_key=True, max_length=9)
+    created_at = cassandra_columns.DateTime(primary_key=True, clustering_order="DESC")
+    stage_number = cassandra_columns.Integer(primary_key=True)
+    cron_name = cassandra_columns.Text(max_length=127)
+    status = cassandra_columns.Text(max_length=63)
+    execution_time_ms = cassandra_columns.Integer(default=0)
+    error_message = cassandra_columns.Text()
+    updated_at = cassandra_columns.DateTime()
+    
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps on save with validation."""
+        from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+        
+        # Validate stellar_account format
+        if not StellarMapValidatorHelpers.validate_stellar_account_address(self.stellar_account):
+            raise ValueError(f"Invalid stellar_account: '{self.stellar_account}'")
+        
+        # Validate network_name
+        if self.network_name not in ['public', 'testnet']:
+            raise ValueError(f"Invalid network_name: '{self.network_name}'")
+        
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        return super().save(*args, **kwargs)
+    
+    class Meta:
+        get_pk_field = 'stellar_account'
