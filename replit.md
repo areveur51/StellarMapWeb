@@ -40,11 +40,12 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Refresh**: Vue.js polling system refreshes Pending Accounts tab every 5 seconds via `/api/pending-accounts/` endpoint, with immediate initial fetch and proper cleanup on component destruction.
 - **Stages Monitoring**: Real-time pipeline progress tracking showing execution time, status, and errors for each of the 8 stages (Stage 1: Make Parent Lineage, Stage 2: Collect Horizon Data, Stages 3-8: Lineage enrichment) per address via `/api/stage-executions/` endpoint with 5-second auto-refresh in dedicated Stages tab.
 - **Immediate Stage Initialization**: All 8 pipeline stages are created instantly when a new address is searched, appearing immediately in the Stages tab with PENDING status before processing begins; helper functions `initialize_stage_executions()` and `update_stage_execution()` ensure consistent stage lifecycle management with no duplicates.
+- **Interactive JSON Viewer**: Stages tab includes clickable JSON icon in Actions column that opens modal popup displaying complete stage execution data as formatted, syntax-highlighted JSON with dark theme styling using highlight.js; gracefully falls back to plain JSON if highlight.js unavailable.
 
 ## Security and Monitoring
 
 ### Testing Framework
-- **Comprehensive Test Suite**: 107+ tests across 7 test modules covering security, functionality, and monitoring.
+- **Comprehensive Test Suite**: 122+ tests across 8 test modules covering security, functionality, and monitoring.
 - **Test Modules**:
   - `test_validator_security.py`: 16 tests for enhanced validator with ValidationError enforcement
   - `test_security_injection_prevention.py`: NoSQL injection, XSS, command injection, path traversal
@@ -53,6 +54,7 @@ Preferred communication style: Simple, everyday language.
   - `test_security_frontend.py`: XSS prevention, CSRF protection, clickjacking prevention
   - `test_failed_status_handling.py`: Terminal status exclusion from cron processing
   - `test_stage_executions.py`: 17 tests for pipeline stage monitoring (model validation, API security, stage tracking, cron integration)
+  - `test_stage_json_viewer.py`: 15 tests for interactive JSON viewer (template rendering, API data integrity, JSON formatting, security)
 - **Test Coverage Areas**:
   - ValidationError enforcement for malicious input (shell chars, path traversal, null bytes, invalid checksums)
   - Injection Prevention (NoSQL injection, XSS, command injection, path traversal)
