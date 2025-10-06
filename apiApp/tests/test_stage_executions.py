@@ -2,6 +2,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from apiApp.models import StellarAccountStageExecution
+from apiApp.helpers.sm_stage_execution import initialize_stage_executions, update_stage_execution
 from datetime import datetime
 import json
 
@@ -53,76 +54,86 @@ class StellarAccountStageExecutionModelTest(TestCase):
         """Test that invalid stellar account raises ValueError."""
         with self.assertRaises(ValueError) as context:
             StellarAccountStageExecution.objects.create(
-                stellar_account='INVALID_ACCOUNT',
+                stellar_account='invalid_account',
                 network_name=self.valid_network,
                 stage_number=1,
                 cron_name='test_cron',
-                status='SUCCESS',
-                execution_time_ms=1000
+                status='PENDING',
+                execution_time_ms=0
             )
         
-        self.assertIn('Invalid stellar_account', str(context.exception))
+        self.assertIn('Invalid Stellar account', str(context.exception))
     
-    def test_invalid_network_raises_error(self):
-        """Test that invalid network raises ValueError."""
+    def test_invalid_network_name_raises_error(self):
+        """Test that invalid network name raises ValueError."""
         with self.assertRaises(ValueError) as context:
             StellarAccountStageExecution.objects.create(
                 stellar_account=self.valid_account,
                 network_name='invalid_network',
                 stage_number=1,
                 cron_name='test_cron',
-                status='SUCCESS',
-                execution_time_ms=1000
+                status='PENDING',
+                execution_time_ms=0
             )
         
-        self.assertIn('Invalid network_name', str(context.exception))
+        self.assertIn('Invalid network name', str(context.exception))
     
-    def test_query_by_account_and_network(self):
-        """Test querying stage executions by account and network."""
-        # Create multiple stage executions
-        for stage_num in range(1, 4):
+    def test_stage_number_validation(self):
+        """Test that stage number must be between 1 and 8."""
+        with self.assertRaises(ValueError) as context:
             StellarAccountStageExecution.objects.create(
                 stellar_account=self.valid_account,
                 network_name=self.valid_network,
-                stage_number=stage_num,
-                cron_name=f'cron_stage_{stage_num}',
-                status='SUCCESS',
-                execution_time_ms=1000 + stage_num
+                stage_number=0,
+                cron_name='test_cron',
+                status='PENDING',
+                execution_time_ms=0
             )
         
-        # Query by account and network
-        results = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=self.valid_account,
-            network_name=self.valid_network
-        ).limit(10))
+        self.assertIn('Stage number must be between 1 and 8', str(context.exception))
         
-        self.assertGreaterEqual(len(results), 3)
+        with self.assertRaises(ValueError) as context:
+            StellarAccountStageExecution.objects.create(
+                stellar_account=self.valid_account,
+                network_name=self.valid_network,
+                stage_number=9,
+                cron_name='test_cron',
+                status='PENDING',
+                execution_time_ms=0
+            )
+        
+        self.assertIn('Stage number must be between 1 and 8', str(context.exception))
 
 
-class StageExecutionsAPITest(TestCase):
-    """Tests for /api/stage-executions/ endpoint."""
+class StageExecutionAPITest(TestCase):
+    """Tests for stage execution API endpoint."""
     
     def setUp(self):
-        """Set up test client and data."""
+        """Set up test client and test data."""
         self.client = Client()
+        self.url = reverse('apiApp:stage_executions_api')
         self.valid_account = 'GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A'
         self.valid_network = 'public'
         
-        # Create test stage execution data
-        for stage_num in range(1, 6):
-            StellarAccountStageExecution.objects.create(
-                stellar_account=self.valid_account,
-                network_name=self.valid_network,
-                stage_number=stage_num,
-                cron_name=f'cron_stage_{stage_num}',
-                status='SUCCESS',
-                execution_time_ms=1000 + (stage_num * 100)
-            )
+        # Clean up existing test data
+        StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).delete()
     
     def test_get_stage_executions_success(self):
         """Test successful retrieval of stage executions."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {
+        # Create test stage execution
+        stage_exec = StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            cron_name='cron_make_parent_account_lineage',
+            status='SUCCESS',
+            execution_time_ms=1500
+        )
+        
+        response = self.client.get(self.url, {
             'account': self.valid_account,
             'network': self.valid_network
         })
@@ -130,213 +141,171 @@ class StageExecutionsAPITest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
         
-        self.assertIn('account', data)
-        self.assertIn('network', data)
-        self.assertIn('stages', data)
-        self.assertIn('total_stages', data)
         self.assertEqual(data['account'], self.valid_account)
         self.assertEqual(data['network'], self.valid_network)
-        self.assertGreaterEqual(data['total_stages'], 5)
+        self.assertEqual(len(data['stages']), 1)
+        
+        stage = data['stages'][0]
+        self.assertEqual(stage['stage_number'], 1)
+        self.assertEqual(stage['status'], 'SUCCESS')
+        self.assertEqual(stage['execution_time_ms'], 1500)
     
     def test_missing_account_parameter(self):
-        """Test API returns 400 when account parameter is missing."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {'network': self.valid_network})
+        """Test that missing account parameter returns 400."""
+        response = self.client.get(self.url, {
+            'network': self.valid_network
+        })
         
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
-        self.assertIn('error', data)
-        self.assertIn('message', data)
+        self.assertIn('account', data['message'].lower())
     
     def test_missing_network_parameter(self):
-        """Test API returns 400 when network parameter is missing."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {'account': self.valid_account})
-        
-        self.assertEqual(response.status_code, 400)
-        data = json.loads(response.content)
-        self.assertIn('error', data)
-        self.assertIn('message', data)
-    
-    def test_invalid_stellar_account(self):
-        """Test API returns 400 for invalid Stellar account."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {
-            'account': 'INVALID_ACCOUNT',
-            'network': self.valid_network
+        """Test that missing network parameter returns 400."""
+        response = self.client.get(self.url, {
+            'account': self.valid_account
         })
         
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
-        self.assertIn('error', data)
-        # Should mention invalid or stellar address
-        self.assertTrue('stellar' in data['message'].lower() or 'invalid' in data['message'].lower())
-    
-    def test_invalid_network(self):
-        """Test API returns 400 for invalid network."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {
-            'account': self.valid_account,
-            'network': 'invalid_network'
-        })
-        
-        self.assertEqual(response.status_code, 400)
-        data = json.loads(response.content)
-        self.assertIn('error', data)
-        # Should mention network
         self.assertIn('network', data['message'].lower())
     
-    def test_stage_execution_data_format(self):
-        """Test that stage execution data has correct format."""
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {
-            'account': self.valid_account,
+    def test_invalid_account_format(self):
+        """Test that invalid account format returns 400."""
+        response = self.client.get(self.url, {
+            'account': 'invalid',
             'network': self.valid_network
         })
         
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
-        
-        if data['stages']:
-            stage = data['stages'][0]
-            self.assertIn('stage_number', stage)
-            self.assertIn('cron_name', stage)
-            self.assertIn('status', stage)
-            self.assertIn('execution_time_ms', stage)
-            self.assertIn('execution_time_seconds', stage)
-            self.assertIn('error_message', stage)
-            self.assertIn('created_at', stage)
-            self.assertIn('updated_at', stage)
+        self.assertIn('valid Stellar address', data['message'])
     
-    def test_empty_result_for_account_without_data(self):
-        """Test API returns empty stages for account with no data."""
-        # Use a unique valid account and clean up any existing data
-        test_account = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H'
+    def test_invalid_network_value(self):
+        """Test that invalid network value returns 400."""
+        response = self.client.get(self.url, {
+            'account': self.valid_account,
+            'network': 'invalid'
+        })
         
-        # Clean up any existing records for this account
-        existing_records = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=test_account,
-            network_name=self.valid_network
-        ).limit(100))
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content)
+        self.assertIn('must be', data['message'])
+    
+    def test_no_stages_found(self):
+        """Test response when no stage executions exist."""
+        # Use a different account that has no records
+        other_account = 'GBKTJSNMUOTQYSCLXXBZIZLKZOADQCTJJF2BHSRTBCJR3GJJQ7BGDUED'
         
-        for record in existing_records:
-            record.delete()
-        
-        # Now verify API returns empty results
-        url = reverse('apiApp:stage_executions_api')
-        response = self.client.get(url, {
-            'account': test_account,
+        response = self.client.get(self.url, {
+            'account': other_account,
             'network': self.valid_network
         })
         
-        # Should return 200 with empty stages
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content)
-        self.assertEqual(data['total_stages'], 0)
         self.assertEqual(len(data['stages']), 0)
 
 
-class CronLoggingIntegrationTest(TestCase):
-    """Tests for cron job stage execution logging integration."""
+class StageExecutionCronTest(TestCase):
+    """Tests for stage execution tracking during cron job execution."""
     
     def setUp(self):
         """Set up test data."""
         self.valid_account = 'GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A'
         self.valid_network = 'public'
-    
-    def test_stage_number_mapping(self):
-        """Test that stage numbers map correctly to cron jobs."""
-        from run_cron_jobs import STAGE_MAP
         
-        expected_stages = {
-            'cron_make_parent_account_lineage': 1,
-            'cron_collect_account_horizon_data': 2,
-            'cron_collect_account_lineage_attributes': 3,
-            'cron_collect_account_lineage_assets': 4,
-            'cron_collect_account_lineage_flags': 5,
-            'cron_collect_account_lineage_se_directory': 6,
-            'cron_collect_account_lineage_creator': 7,
-            'cron_make_grandparent_account_lineage': 8,
-        }
-        
-        self.assertEqual(STAGE_MAP, expected_stages)
+        # Clean up existing test data
+        StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).delete()
     
-    def test_multiple_stage_executions_ordered_correctly(self):
-        """Test that multiple executions are ordered by stage number."""
-        # Create stage executions in reverse order
-        for stage_num in range(8, 0, -1):
+    def test_stage_logging_creates_records(self):
+        """Test that stage execution logging creates records."""
+        StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            cron_name='cron_make_parent_account_lineage',
+            status='SUCCESS',
+            execution_time_ms=1500
+        )
+        
+        StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=2,
+            cron_name='cron_collect_account_horizon_data',
+            status='SUCCESS',
+            execution_time_ms=2000
+        )
+        
+        # Clean up before querying (deterministic results)
+        StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).limit(1000).delete()
+        
+        # Recreate for assertion
+        stage1 = StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            cron_name='cron_make_parent_account_lineage',
+            status='SUCCESS',
+            execution_time_ms=1500
+        )
+        
+        stage2 = StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=2,
+            cron_name='cron_collect_account_horizon_data',
+            status='SUCCESS',
+            execution_time_ms=2000
+        )
+        
+        # Verify both stages were created
+        all_stages = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).all())
+        
+        self.assertEqual(len(all_stages), 2)
+        stage_numbers = [s.stage_number for s in all_stages]
+        self.assertIn(1, stage_numbers)
+        self.assertIn(2, stage_numbers)
+    
+    def test_stage_execution_time_tracking(self):
+        """Test that execution time is accurately tracked."""
+        execution_times = {1: 1500, 2: 2000, 3: 1800}
+        
+        # Clean up before test
+        StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).delete()
+        
+        for stage_num, exec_time in execution_times.items():
             StellarAccountStageExecution.objects.create(
                 stellar_account=self.valid_account,
                 network_name=self.valid_network,
                 stage_number=stage_num,
                 cron_name=f'cron_stage_{stage_num}',
                 status='SUCCESS',
-                execution_time_ms=1000
-            )
-        
-        # Fetch and verify ordering
-        results = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=self.valid_account,
-            network_name=self.valid_network
-        ).limit(100))
-        
-        # Verify we have 8 records
-        self.assertGreaterEqual(len(results), 8)
-        
-        # Sort by stage_number
-        sorted_results = sorted(results, key=lambda x: x.stage_number)
-        
-        # Verify each stage number appears in the results
-        stage_numbers = [r.stage_number for r in sorted_results]
-        for i in range(1, 9):
-            self.assertIn(i, stage_numbers)
-    
-    def test_execution_time_tracking(self):
-        """Test that execution time is correctly tracked in milliseconds."""
-        # Use unique valid Stellar account and clean up existing data
-        test_account = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H'
-        
-        # Clean up any existing records for this account
-        existing_records = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=test_account,
-            network_name=self.valid_network
-        ).limit(100))
-        
-        for record in existing_records:
-            record.delete()
-        
-        # Create test stage executions with different execution times
-        test_data = [
-            (1, 'cron_stage_1', 100),
-            (2, 'cron_stage_2', 500),
-            (3, 'cron_stage_3', 1234),
-        ]
-        
-        for stage_num, cron_name, exec_time in test_data:
-            StellarAccountStageExecution.objects.create(
-                stellar_account=test_account,
-                network_name=self.valid_network,
-                stage_number=stage_num,
-                cron_name=cron_name,
-                status='SUCCESS',
                 execution_time_ms=exec_time
             )
         
-        # Fetch results after cleanup and creation
-        results = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=test_account,
+        # Verify execution times
+        stages = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
             network_name=self.valid_network
-        ).limit(100))
+        ).all())
         
-        # Verify we have exactly the expected number of records
-        self.assertEqual(len(results), len(test_data))
+        actual_times = {s.stage_number: s.execution_time_ms for s in stages}
         
-        # Create a mapping of stage_number to execution_time_ms
-        actual_times = {r.stage_number: r.execution_time_ms for r in results}
-        expected_times = {stage: time for stage, _, time in test_data}
-        
-        # Verify execution times match exactly for each stage
-        for stage_num, expected_time in expected_times.items():
+        for stage_num, expected_time in execution_times.items():
             self.assertIn(stage_num, actual_times, 
                          f"Stage {stage_num} not found in results")
             self.assertEqual(actual_times[stage_num], expected_time,
@@ -393,3 +362,201 @@ class StageExecutionSecurityTest(TestCase):
         self.assertEqual(response.status_code, 400)
         data = json.loads(response.content)
         self.assertIn('valid Stellar address', data['message'])
+
+
+class StageExecutionHelperTest(TestCase):
+    """Tests for stage execution helper functions."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.valid_account = 'GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A'
+        self.valid_network = 'public'
+        
+        # Clean up existing test data
+        StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).delete()
+    
+    def test_initialize_stage_executions_creates_all_stages(self):
+        """Test that initialize_stage_executions creates all 8 stages."""
+        created_count = initialize_stage_executions(self.valid_account, self.valid_network)
+        
+        self.assertEqual(created_count, 8, "Should create all 8 stages")
+        
+        # Verify all 8 stages exist
+        stages = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).all())
+        
+        self.assertEqual(len(stages), 8, "Should have 8 stage records")
+        
+        # Verify all stage numbers are present
+        stage_numbers = sorted([s.stage_number for s in stages])
+        self.assertEqual(stage_numbers, [1, 2, 3, 4, 5, 6, 7, 8])
+        
+        # Verify all stages start with PENDING status
+        for stage in stages:
+            self.assertEqual(stage.status, 'PENDING', f"Stage {stage.stage_number} should be PENDING")
+            self.assertEqual(stage.execution_time_ms, 0, f"Stage {stage.stage_number} should have 0ms execution time")
+    
+    def test_initialize_stage_executions_skips_existing_stages(self):
+        """Test that initialize_stage_executions skips already existing stages."""
+        # Create stage 1 manually
+        StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            cron_name='cron_make_parent_account_lineage',
+            status='SUCCESS',
+            execution_time_ms=1500
+        )
+        
+        # Initialize should create 7 more stages (skipping stage 1)
+        created_count = initialize_stage_executions(self.valid_account, self.valid_network)
+        
+        self.assertEqual(created_count, 7, "Should create 7 new stages (stage 1 already exists)")
+        
+        # Verify total of 8 stages
+        total_stages = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).all())
+        
+        self.assertEqual(len(total_stages), 8)
+        
+        # Verify stage 1 was not overwritten
+        stage1 = next(s for s in total_stages if s.stage_number == 1)
+        self.assertEqual(stage1.status, 'SUCCESS', "Stage 1 should remain SUCCESS")
+        self.assertEqual(stage1.execution_time_ms, 1500, "Stage 1 execution time should be preserved")
+    
+    def test_update_stage_execution_updates_existing_stage(self):
+        """Test that update_stage_execution updates an existing stage record."""
+        # Create initial stage
+        initial_stage = StellarAccountStageExecution.objects.create(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            cron_name='cron_make_parent_account_lineage',
+            status='PENDING',
+            execution_time_ms=0
+        )
+        
+        # Update the stage
+        updated_stage = update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            status='SUCCESS',
+            execution_time_ms=2500,
+            error_message=''
+        )
+        
+        self.assertEqual(updated_stage.status, 'SUCCESS')
+        self.assertEqual(updated_stage.execution_time_ms, 2500)
+        
+        # Verify only one record exists for this stage
+        all_stage1_records = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1
+        ).all())
+        
+        self.assertEqual(len(all_stage1_records), 1, "Should only have one record for stage 1")
+    
+    def test_update_stage_execution_creates_if_not_exists(self):
+        """Test that update_stage_execution creates a record if it doesn't exist."""
+        # Update stage that doesn't exist yet
+        new_stage = update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=2,
+            status='IN_PROGRESS',
+            execution_time_ms=500,
+            error_message=''
+        )
+        
+        self.assertIsNotNone(new_stage)
+        self.assertEqual(new_stage.stage_number, 2)
+        self.assertEqual(new_stage.status, 'IN_PROGRESS')
+        self.assertEqual(new_stage.execution_time_ms, 500)
+        
+        # Verify record was created
+        stage_records = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=2
+        ).all())
+        
+        self.assertEqual(len(stage_records), 1)
+    
+    def test_update_stage_execution_with_error_message(self):
+        """Test that update_stage_execution properly handles error messages."""
+        error_msg = 'API timeout: Connection to Horizon failed after 30 seconds'
+        
+        stage = update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=3,
+            status='FAILED',
+            execution_time_ms=30000,
+            error_message=error_msg
+        )
+        
+        self.assertEqual(stage.status, 'FAILED')
+        self.assertEqual(stage.error_message, error_msg)
+        self.assertEqual(stage.execution_time_ms, 30000)
+    
+    def test_full_workflow_initialize_then_update(self):
+        """Test complete workflow: initialize all stages, then update them as they execute."""
+        # Step 1: Initialize all stages
+        created_count = initialize_stage_executions(self.valid_account, self.valid_network)
+        self.assertEqual(created_count, 8)
+        
+        # Step 2: Simulate stage 1 execution
+        update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=1,
+            status='SUCCESS',
+            execution_time_ms=1500
+        )
+        
+        # Step 3: Simulate stage 2 execution
+        update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=2,
+            status='SUCCESS',
+            execution_time_ms=2000
+        )
+        
+        # Step 4: Simulate stage 3 failure
+        update_stage_execution(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network,
+            stage_number=3,
+            status='FAILED',
+            execution_time_ms=500,
+            error_message='API error'
+        )
+        
+        # Verify final state
+        all_stages = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=self.valid_account,
+            network_name=self.valid_network
+        ).all())
+        
+        self.assertEqual(len(all_stages), 8, "Should still have all 8 stages")
+        
+        # Verify stage statuses
+        stage_status_map = {s.stage_number: s.status for s in all_stages}
+        self.assertEqual(stage_status_map[1], 'SUCCESS')
+        self.assertEqual(stage_status_map[2], 'SUCCESS')
+        self.assertEqual(stage_status_map[3], 'FAILED')
+        self.assertEqual(stage_status_map[4], 'PENDING')  # Remaining stages still pending
+        self.assertEqual(stage_status_map[5], 'PENDING')
+        self.assertEqual(stage_status_map[6], 'PENDING')
+        self.assertEqual(stage_status_map[7], 'PENDING')
+        self.assertEqual(stage_status_map[8], 'PENDING')

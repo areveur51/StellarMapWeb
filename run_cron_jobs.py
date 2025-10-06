@@ -10,6 +10,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'StellarMapWeb.settings')
 django.setup()
 
 from apiApp.models import StellarAccountStageExecution, StellarCreatorAccountLineage, StellarAccountSearchCache
+from apiApp.helpers.sm_stage_execution import update_stage_execution
 
 # Stage mapping: cron command -> stage number
 STAGE_MAP = {
@@ -51,14 +52,13 @@ def log_stage_execution(command, status, execution_time_ms, error_message=None):
         except Exception as e:
             print(f"Warning: Could not query cache records: {e}")
         
-        # Log execution for each address
+        # Log execution for each address (update existing or create new)
         for stellar_account, network_name in addresses_to_log:
             try:
-                StellarAccountStageExecution.objects.create(
+                update_stage_execution(
                     stellar_account=stellar_account,
                     network_name=network_name,
                     stage_number=stage_number,
-                    cron_name=command,
                     status=status,
                     execution_time_ms=execution_time_ms,
                     error_message=error_message or ''

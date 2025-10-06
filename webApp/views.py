@@ -11,6 +11,7 @@ import sentry_sdk
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
 from apiApp.helpers.sm_cache import StellarMapCacheHelpers
+from apiApp.helpers.sm_stage_execution import initialize_stage_executions
 
 
 def index_view(request):
@@ -332,6 +333,12 @@ def search_view(request):
             if cache_helpers:
                 cache_entry = cache_helpers.create_pending_entry(account, network_name=network)
                 is_refreshing = True
+                
+                # Initialize all stage execution records for tracking
+                try:
+                    initialize_stage_executions(account, network)
+                except Exception as stage_init_error:
+                    sentry_sdk.capture_exception(stage_init_error)
         except Exception as e:
             sentry_sdk.capture_exception(e)
             is_refreshing = False
