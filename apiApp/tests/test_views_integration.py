@@ -152,7 +152,7 @@ class SearchViewIntegrationTest(TestCase):
         """Test that search_view includes cache_entry in context."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.status = DONE_MAKE_PARENT_LINEAGE
         mock_entry.cached_json = json.dumps({"test": "data"})
         
@@ -232,7 +232,7 @@ class SearchViewIntegrationTest(TestCase):
         """Test that search_view refreshes cache_entry after create_pending_entry."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.status = PENDING_MAKE_PARENT_LINEAGE
         
         mock_cache_objects.get.return_value = mock_entry

@@ -27,7 +27,7 @@ class StellarMapCacheHelpersTest(TestCase):
         """Test that fresh cache data (< 12 hours) is correctly identified."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.last_fetched_at = datetime.datetime.utcnow()
         mock_entry.cached_json = json.dumps({"test": "data"})
         
@@ -50,7 +50,7 @@ class StellarMapCacheHelpersTest(TestCase):
         """Test that stale cache data (> 12 hours) is correctly identified."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.last_fetched_at = datetime.datetime.utcnow() - datetime.timedelta(hours=13)
         
         mock_objects.get.return_value = mock_entry
@@ -68,7 +68,7 @@ class StellarMapCacheHelpersTest(TestCase):
         """Test that entries without last_fetched_at are treated as stale."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.last_fetched_at = None
         
         mock_objects.get.return_value = mock_entry
@@ -101,7 +101,7 @@ class StellarMapCacheHelpersTest(TestCase):
         
         mock_new_entry = Mock()
         mock_new_entry.stellar_account = self.test_account
-        mock_new_entry.network = self.test_network
+        mock_new_entry.network_name = self.test_network
         mock_new_entry.status = PENDING_MAKE_PARENT_LINEAGE
         mock_new_entry.save = Mock()
         
@@ -119,7 +119,7 @@ class StellarMapCacheHelpersTest(TestCase):
         """Test updating an existing entry to PENDING status."""
         mock_existing = Mock()
         mock_existing.stellar_account = self.test_account
-        mock_existing.network = self.test_network
+        mock_existing.network_name = self.test_network
         mock_existing.status = DONE_MAKE_PARENT_LINEAGE
         mock_existing.save = Mock()
         
@@ -146,7 +146,7 @@ class StellarMapCacheHelpersTest(TestCase):
         
         mock_new_entry = Mock()
         mock_new_entry.stellar_account = self.test_account
-        mock_new_entry.network = self.test_network
+        mock_new_entry.network_name = self.test_network
         mock_new_entry.cached_json = json.dumps(tree_data)
         mock_new_entry.save = Mock()
         
@@ -166,7 +166,7 @@ class StellarMapCacheHelpersTest(TestCase):
         """Test updating cache for an existing entry."""
         mock_existing = Mock()
         mock_existing.stellar_account = self.test_account
-        mock_existing.network = self.test_network
+        mock_existing.network_name = self.test_network
         mock_existing.status = PENDING_MAKE_PARENT_LINEAGE
         mock_existing.save = Mock()
         

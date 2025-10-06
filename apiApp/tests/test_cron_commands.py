@@ -52,7 +52,7 @@ class CronCommandsIntegrationTest(TestCase):
         """Test that cron_collect_account_horizon_data makes Horizon API calls."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.status = PENDING_HORIZON_API_DATASETS
         
         mock_cache_objects.filter.return_value = [mock_entry]

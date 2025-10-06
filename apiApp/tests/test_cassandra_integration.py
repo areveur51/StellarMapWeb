@@ -52,7 +52,7 @@ class CassandraRealIntegrationTest(TestCase):
         # Create entry
         cache_entry = StellarAccountSearchCache()
         cache_entry.stellar_account = self.test_account
-        cache_entry.network = self.test_network
+        cache_entry.network_name = self.test_network
         cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
         cache_entry.save()
         
@@ -63,7 +63,7 @@ class CassandraRealIntegrationTest(TestCase):
         )
         
         self.assertEqual(retrieved.stellar_account, self.test_account)
-        self.assertEqual(retrieved.network, self.test_network)
+        self.assertEqual(retrieved.network_name, self.test_network)
         self.assertEqual(retrieved.status, PENDING_MAKE_PARENT_LINEAGE)
         self.assertIsNotNone(retrieved.created_at)
         self.assertIsNotNone(retrieved.updated_at)
@@ -73,7 +73,7 @@ class CassandraRealIntegrationTest(TestCase):
         # Create initial entry
         cache_entry = StellarAccountSearchCache()
         cache_entry.stellar_account = self.test_account
-        cache_entry.network = self.test_network
+        cache_entry.network_name = self.test_network
         cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
         cache_entry.save()
         
@@ -102,14 +102,14 @@ class CassandraRealIntegrationTest(TestCase):
         # Create public network entry
         public_entry = StellarAccountSearchCache()
         public_entry.stellar_account = self.test_account
-        public_entry.network = "public"
+        public_entry.network_name = "public"
         public_entry.status = PENDING_MAKE_PARENT_LINEAGE
         public_entry.save()
         
         # Create testnet entry
         testnet_entry = StellarAccountSearchCache()
         testnet_entry.stellar_account = self.test_account
-        testnet_entry.network = "testnet"
+        testnet_entry.network_name = "testnet"
         testnet_entry.status = DONE_MAKE_PARENT_LINEAGE
         testnet_entry.save()
         
@@ -223,7 +223,7 @@ class CassandraRealIntegrationTest(TestCase):
         """Test that timestamps are automatically set on save()."""
         cache_entry = StellarAccountSearchCache()
         cache_entry.stellar_account = self.test_account
-        cache_entry.network = self.test_network
+        cache_entry.network_name = self.test_network
         cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
         
         # Before save, timestamps should not exist
@@ -249,7 +249,7 @@ class CassandraRealIntegrationTest(TestCase):
         
         cache_entry = StellarAccountSearchCache()
         cache_entry.stellar_account = self.test_account
-        cache_entry.network = self.test_network
+        cache_entry.network_name = self.test_network
         cache_entry.cached_json = json.dumps(tree_data)
         cache_entry.save()
         

@@ -29,7 +29,7 @@ class CassandraModelIntegrationTest(TestCase):
         """Test StellarAccountSearchCache uses composite primary key (stellar_account, network)."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.status = PENDING_MAKE_PARENT_LINEAGE
         mock_entry.created_at = datetime.datetime.utcnow()
         mock_entry.updated_at = datetime.datetime.utcnow()
@@ -43,14 +43,14 @@ class CassandraModelIntegrationTest(TestCase):
         )
         
         self.assertEqual(entry.stellar_account, self.test_account)
-        self.assertEqual(entry.network, self.test_network)
+        self.assertEqual(entry.network_name, self.test_network)
         mock_objects.create.assert_called_once()
 
     def test_search_cache_timestamp_management(self):
         """Test that StellarAccountSearchCache auto-manages timestamps."""
         cache_entry = StellarAccountSearchCache()
         cache_entry.stellar_account = self.test_account
-        cache_entry.network = self.test_network
+        cache_entry.network_name = self.test_network
         cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
         
         # Call the save() method to trigger timestamp setting logic
@@ -142,7 +142,7 @@ class CassandraModelIntegrationTest(TestCase):
         """Test updating an existing StellarAccountSearchCache entry."""
         mock_entry = Mock()
         mock_entry.stellar_account = self.test_account
-        mock_entry.network = self.test_network
+        mock_entry.network_name = self.test_network
         mock_entry.status = PENDING_MAKE_PARENT_LINEAGE
         mock_entry.cached_json = None
         
