@@ -69,7 +69,7 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     __keyspace__ = settings.CASSANDRA_KEYSPACE
     
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
-    network = cassandra_columns.Text(primary_key=True, max_length=9)
+    network_name = cassandra_columns.Text(primary_key=True, max_length=9)
     status = cassandra_columns.Text(max_length=127,
                                     default=PENDING_HORIZON_API_DATASETS)  # Workflow status
     cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
