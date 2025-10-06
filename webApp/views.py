@@ -286,14 +286,16 @@ def search_view(request):
             return str(ts)
         
         # Query each status separately (Cassandra limitation with IN + ALLOW FILTERING)
-        for status in pending_statuses:
+        for status_val in pending_statuses:
             try:
-                records = StellarAccountSearchCache.objects.filter(status=status).all()
+                # Note: Cassandra ORM doesn't SELECT status field when filtering by it
+                # So we use the status_val from our loop instead
+                records = StellarAccountSearchCache.objects.filter(status=status_val).all()
                 for record in records:
                     record_data = {
                         'stellar_account': record.stellar_account,
                         'network_name': record.network_name,
-                        'status': record.status,
+                        'status': status_val,  # Use loop variable since Cassandra doesn't SELECT it
                         'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
                         'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
                         'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
