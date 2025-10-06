@@ -106,6 +106,8 @@ class StellarAccountSearchCache(DjangoCassandraModel):
                                     default=PENDING_HORIZON_API_DATASETS)  # Workflow status
     cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
     last_fetched_at = cassandra_columns.DateTime()  # Tracks cache freshness
+    retry_count = cassandra_columns.Integer(default=0)  # Number of recovery attempts
+    last_error = cassandra_columns.Text()  # Last error message for troubleshooting
     created_at = cassandra_columns.DateTime()
     updated_at = cassandra_columns.DateTime()
 

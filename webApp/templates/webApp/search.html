@@ -275,6 +275,17 @@
           } catch (e) {
             this.highlightedPendingAccounts = pendingJSON;
           }
+        },
+        async fetchPendingAccounts() {
+          try {
+            const response = await fetch('/api/pending-accounts/');
+            if (response.ok) {
+              const data = await response.json();
+              this.pending_accounts_data = data;
+            }
+          } catch (e) {
+            console.error('Error fetching pending accounts:', e);
+          }
         }
       },
       watch: {
@@ -333,7 +344,18 @@
           this.network_toggle = networkParam === 'public';
         }
         
+        // Set up auto-refresh for pending accounts every 5 seconds
+        this.pendingAccountsInterval = setInterval(() => {
+          this.fetchPendingAccounts();
+        }, 5000);
+        
         // JSON display is automatically updated by the watcher
+      },
+      beforeDestroy() {
+        // Clean up interval when component is destroyed
+        if (this.pendingAccountsInterval) {
+          clearInterval(this.pendingAccountsInterval);
+        }
       }
     })
   </script>

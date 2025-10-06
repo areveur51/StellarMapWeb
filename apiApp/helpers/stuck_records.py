@@ -15,6 +15,7 @@ from apiApp.models import (
     MAX_RETRY_ATTEMPTS,
     FAILED,
     PENDING_HORIZON_API_DATASETS,
+    PENDING_MAKE_PARENT_LINEAGE,
 )
 
 
@@ -37,19 +38,45 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
     stuck_records = []
     now = datetime.datetime.utcnow()
     
+    # Define which statuses belong to which table
+    cache_statuses = ['PENDING_MAKE_PARENT_LINEAGE', 'IN_PROGRESS_MAKE_PARENT_LINEAGE', 'RE_INQUIRY']
+    
     try:
         # Check each status defined in thresholds
         for status, threshold_minutes in STUCK_THRESHOLDS.items():
             threshold_delta = datetime.timedelta(minutes=threshold_minutes)
             cutoff_time = now - threshold_delta
             
+            # Check StellarAccountSearchCache for cache-related statuses
+            if status in cache_statuses:
+                try:
+                    records = StellarAccountSearchCache.objects.filter(status=status).all()
+                    
+                    for record in records:
+                        if record.updated_at and record.updated_at < cutoff_time:
+                            age_delta = now - record.updated_at
+                            age_minutes = int(age_delta.total_seconds() / 60)
+                            
+                            stuck_records.append({
+                                'table': 'StellarAccountSearchCache',
+                                'record': record,
+                                'status': status,
+                                'age_minutes': age_minutes,
+                                'threshold_minutes': threshold_minutes,
+                                'stellar_account': record.stellar_account,
+                                'network_name': record.network_name,
+                                'retry_count': record.retry_count if hasattr(record, 'retry_count') else 0,
+                            })
+                except Exception as e:
+                    sentry_sdk.capture_exception(e)
+                    continue
+            
+            # Check StellarCreatorAccountLineage for all statuses
             try:
-                # Query StellarCreatorAccountLineage for this status
                 records = StellarCreatorAccountLineage.objects.filter(status=status).all()
                 
                 for record in records:
                     if record.updated_at and record.updated_at < cutoff_time:
-                        # Calculate how long it's been stuck
                         age_delta = now - record.updated_at
                         age_minutes = int(age_delta.total_seconds() / 60)
                         
@@ -73,16 +100,16 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
     return stuck_records
 
 
-def reset_stuck_record(record: StellarCreatorAccountLineage, reason: str = "Auto-recovery") -> bool:
+def reset_stuck_record(record, reason: str = "Auto-recovery") -> bool:
     """
     Reset a stuck record to retry processing.
     
     Strategy:
-    1. If retry_count < MAX_RETRY_ATTEMPTS: Reset to PENDING_HORIZON_API_DATASETS
+    1. If retry_count < MAX_RETRY_ATTEMPTS: Reset to appropriate PENDING status
     2. If retry_count >= MAX_RETRY_ATTEMPTS: Mark as FAILED
     
     Args:
-        record: The stuck StellarCreatorAccountLineage record to reset
+        record: The stuck record (StellarAccountSearchCache or StellarCreatorAccountLineage)
         reason: Reason for the reset (for logging)
     
     Returns:
@@ -91,6 +118,13 @@ def reset_stuck_record(record: StellarCreatorAccountLineage, reason: str = "Auto
     try:
         current_status = record.status
         current_retry_count = record.retry_count if hasattr(record, 'retry_count') else 0
+        table_name = record.__class__.__name__
+        
+        # Determine correct PENDING status based on table
+        if isinstance(record, StellarAccountSearchCache):
+            pending_status = PENDING_MAKE_PARENT_LINEAGE
+        else:
+            pending_status = PENDING_HORIZON_API_DATASETS
         
         # Check if we've exceeded retry limit
         if current_retry_count >= MAX_RETRY_ATTEMPTS:
@@ -100,9 +134,10 @@ def reset_stuck_record(record: StellarCreatorAccountLineage, reason: str = "Auto
             record.save()
             
             sentry_sdk.capture_message(
-                f"Record marked as FAILED after {MAX_RETRY_ATTEMPTS} retries",
+                f"{table_name} record marked as FAILED after {MAX_RETRY_ATTEMPTS} retries",
                 level='warning',
                 extras={
+                    'table': table_name,
                     'stellar_account': record.stellar_account,
                     'network_name': record.network_name,
                     'final_status': current_status,
@@ -111,20 +146,21 @@ def reset_stuck_record(record: StellarCreatorAccountLineage, reason: str = "Auto
             )
             return True
         
-        # Reset to PENDING to restart pipeline
-        record.status = PENDING_HORIZON_API_DATASETS
+        # Reset to PENDING to restart processing
+        record.status = pending_status
         record.retry_count = current_retry_count + 1
         record.last_error = f"{reason}: Reset from {current_status} (attempt #{record.retry_count})"
         record.save()
         
         sentry_sdk.capture_message(
-            f"Stuck record reset: {record.stellar_account}",
+            f"{table_name} stuck record reset: {record.stellar_account}",
             level='info',
             extras={
+                'table': table_name,
                 'stellar_account': record.stellar_account,
                 'network_name': record.network_name,
                 'previous_status': current_status,
-                'new_status': PENDING_HORIZON_API_DATASETS,
+                'new_status': pending_status,
                 'retry_count': record.retry_count,
                 'reason': reason,
             }
