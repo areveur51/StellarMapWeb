@@ -208,13 +208,24 @@ class StageExecutionsAPITest(TestCase):
             self.assertIn('created_at', stage)
             self.assertIn('updated_at', stage)
     
-    def test_empty_result_for_nonexistent_account(self):
-        """Test API returns empty stages for account without data."""
-        # Use a different valid account that doesn't have stage data
-        nonexistent_account = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H'
+    def test_empty_result_for_account_without_data(self):
+        """Test API returns empty stages for account with no data."""
+        # Use a unique valid account and clean up any existing data
+        test_account = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H'
+        
+        # Clean up any existing records for this account
+        existing_records = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=test_account,
+            network_name=self.valid_network
+        ).limit(100))
+        
+        for record in existing_records:
+            record.delete()
+        
+        # Now verify API returns empty results
         url = reverse('apiApp:stage_executions_api')
         response = self.client.get(url, {
-            'account': nonexistent_account,
+            'account': test_account,
             'network': self.valid_network
         })
         
@@ -282,38 +293,54 @@ class CronLoggingIntegrationTest(TestCase):
     
     def test_execution_time_tracking(self):
         """Test that execution time is correctly tracked in milliseconds."""
-        execution_times = [100, 500, 1234, 5678, 10000]
+        # Use unique valid Stellar account and clean up existing data
+        test_account = 'GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H'
         
-        for i, exec_time in enumerate(execution_times, start=1):
+        # Clean up any existing records for this account
+        existing_records = list(StellarAccountStageExecution.objects.filter(
+            stellar_account=test_account,
+            network_name=self.valid_network
+        ).limit(100))
+        
+        for record in existing_records:
+            record.delete()
+        
+        # Create test stage executions with different execution times
+        test_data = [
+            (1, 'cron_stage_1', 100),
+            (2, 'cron_stage_2', 500),
+            (3, 'cron_stage_3', 1234),
+        ]
+        
+        for stage_num, cron_name, exec_time in test_data:
             StellarAccountStageExecution.objects.create(
-                stellar_account=self.valid_account,
+                stellar_account=test_account,
                 network_name=self.valid_network,
-                stage_number=i,
-                cron_name=f'cron_stage_{i}',
+                stage_number=stage_num,
+                cron_name=cron_name,
                 status='SUCCESS',
                 execution_time_ms=exec_time
             )
         
+        # Fetch results after cleanup and creation
         results = list(StellarAccountStageExecution.objects.filter(
-            stellar_account=self.valid_account,
+            stellar_account=test_account,
             network_name=self.valid_network
         ).limit(100))
         
-        # Verify we have the correct number of records
-        self.assertGreaterEqual(len(results), len(execution_times))
+        # Verify we have exactly the expected number of records
+        self.assertEqual(len(results), len(test_data))
         
         # Create a mapping of stage_number to execution_time_ms
-        stage_to_time = {r.stage_number: r.execution_time_ms for r in results}
+        actual_times = {r.stage_number: r.execution_time_ms for r in results}
+        expected_times = {stage: time for stage, _, time in test_data}
         
-        # Verify at least some execution times match
-        # (Cassandra may return records in non-deterministic order)
-        matching_times = 0
-        for i, expected_time in enumerate(execution_times, start=1):
-            if i in stage_to_time and stage_to_time[i] == expected_time:
-                matching_times += 1
-        
-        # At least half should match correctly
-        self.assertGreaterEqual(matching_times, len(execution_times) // 2)
+        # Verify execution times match exactly for each stage
+        for stage_num, expected_time in expected_times.items():
+            self.assertIn(stage_num, actual_times, 
+                         f"Stage {stage_num} not found in results")
+            self.assertEqual(actual_times[stage_num], expected_time,
+                           f"Stage {stage_num}: expected {expected_time}ms, got {actual_times[stage_num]}ms")
 
 
 class StageExecutionSecurityTest(TestCase):
