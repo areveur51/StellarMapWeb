@@ -121,7 +121,7 @@ def search_view(request):
     
     try:
         cache_helpers = StellarMapCacheHelpers()
-        is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network)
+        is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network_name=network)
     except Exception as cache_error:
         # Cache not available yet (schema migration needed), skip cache
         sentry_sdk.capture_exception(cache_error)
@@ -146,7 +146,7 @@ def search_view(request):
         # Stale or missing cache, create PENDING entry to trigger cron jobs
         try:
             if cache_helpers:
-                cache_entry = cache_helpers.create_pending_entry(account, network)
+                cache_entry = cache_helpers.create_pending_entry(account, network_name=network)
                 is_refreshing = True
         except Exception as e:
             sentry_sdk.capture_exception(e)
