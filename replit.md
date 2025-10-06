@@ -4,6 +4,20 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - User Experience Improvements
+- **Graceful Error Handling**: Invalid Stellar addresses now show friendly error messages instead of throwing 404 errors
+  - Invalid address format displays: "Invalid Stellar account address format. Must be 56 characters starting with G."
+  - Invalid network displays: "Invalid network. Must be 'public' or 'testnet'."
+  - Users see error information in the search interface instead of Django 404 page
+- **Default Search Pending Accounts**: Fixed default search page (no account parameter) to populate Pending Accounts tab
+  - Users can now see all pending/in-progress accounts immediately on page load
+  - Provides visibility into active cron job processing
+- **Browser Cache Prevention**: Added Cache-Control headers to all search responses
+  - Headers: `Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0`
+  - Prevents browser from caching stale or corrupted data
+  - Ensures users always see fresh data from database
+- **Files Updated**: webApp/views.py
+
 ## October 2025 - Data Corruption Bug Fix
 - **Fixed critical bug in StellarAccountSearchCacheManager**: The `update_inquiry()` method was incorrectly querying by non-existent `id` field instead of composite partition key (stellar_account, network_name)
 - **Root Cause**: When cron job called `inquiry_manager.update_inquiry(id=inq_queryset.id, ...)`, it caused Cassandra ORM to create corrupted records with single-character values (e.g., stellar_account='G', network_name='D')
