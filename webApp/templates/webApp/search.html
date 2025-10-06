@@ -131,7 +131,7 @@
                         {{ data.value }}s
                       </template>
                       <template #cell(error_message)="data">
-                        <span v-if="data.value" class="text-danger">{{ data.value | truncate(50) }}</span>
+                        <span v-if="data.value" class="text-danger" v-text="truncateText(data.value, 50)"></span>
                         <span v-else class="text-success">No errors</span>
                       </template>
                     </b-table>
@@ -236,13 +236,6 @@
             { key: 'execution_time_seconds', label: 'Time', sortable: true },
             { key: 'error_message', label: 'Error', sortable: false }
           ]
-        },
-        filters: {
-          truncate: function(text, length) {
-            if (!text) return '';
-            if (text.length <= length) return text;
-            return text.substring(0, length) + '...';
-          }
         },
       methods: {
         async search() {
@@ -375,6 +368,11 @@
           if (status === 'FAILED' || status === 'ERROR') return 'danger';
           if (status === 'TIMEOUT') return 'warning';
           return 'secondary';
+        },
+        truncateText(text, length) {
+          if (!text) return '';
+          if (text.length <= length) return text;
+          return text.substring(0, length) + '...';
         }
       },
       watch: {
