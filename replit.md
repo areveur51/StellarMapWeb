@@ -22,9 +22,11 @@ Preferred communication style: Simple, everyday language.
 - **Fast Pipeline Architecture**: Consolidated 9 staggered cron jobs into a single sequential pipeline running every 2 minutes, reducing processing time to ~2-3 minutes per address.
 - **Automated Execution**: Background cron worker (`run_cron_jobs.py`) runs automatically, orchestrating 8 data collection stages.
 - **Workflow Management**: Comprehensive cron workflow with 18 status constants (`PENDING`, `IN_PROGRESS`, `DONE`, `RE_INQUIRY`, `FAILED`, `INVALID_HORIZON_STELLAR_ADDRESS`) for tracking data collection.
+- **Cron Health Monitoring**: `ManagementCronHealth` table tracks cron job health with `HEALTHY` and `UNHEALTHY_*` statuses; cron skips processing when any `UNHEALTHY` status exists to prevent cascading failures.
+- **Rate Limiting Recovery**: When Cassandra Document API rate limits occur, cron is marked `UNHEALTHY_RATE_LIMITED_BY_CASSANDRA_DOCUMENT_API`; old unhealthy records must be manually cleared via `.allow_filtering()` query and deletion by composite primary key (id, created_at, cron_name).
 - **Horizon API Validation**: When Horizon API returns 404 (NotFoundError) for an address, both `StellarAccountSearchCache` and `StellarCreatorAccountLineage` records are marked with `INVALID_HORIZON_STELLAR_ADDRESS` status and processing immediately stops (operations/effects fetching skipped).
 - **Terminal Status Architecture**: `INVALID_HORIZON_STELLAR_ADDRESS` and `FAILED` are terminal statuses excluded from `STUCK_THRESHOLDS`, ensuring invalid addresses are never picked up by cron jobs or stuck record recovery.
-- **Stuck Record Recovery**: Automatic detection and recovery system for stuck records in `STUCK_THRESHOLDS`, resetting them to `PENDING` or marking as `FAILED` after multiple retries.
+- **Stuck Record Recovery**: Automatic detection and recovery system for stuck records in `STUCK_THRESHOLDS`, resetting them to `PENDING` or marking as `FAILED` after multiple retries; runs independently of cron health status.
 - **API Integration**: Uses Horizon API and Stellar Expert with asynchronous interactions (`async/await`).
 - **Retry Logic**: `Tenacity` library for robust API calls with exponential backoff.
 - **Prioritization**: New user searches (`PENDING_MAKE_PARENT_LINEAGE`) are prioritized over cache refreshes (`RE_INQUIRY`).
