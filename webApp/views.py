@@ -266,6 +266,31 @@ def search_view(request):
         sentry_sdk.capture_exception(e)
         account_lineage_data = []
 
+    # Fetch all pending accounts (PENDING, IN_PROGRESS statuses)
+    pending_accounts_data = []
+    try:
+        from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY
+        
+        pending_statuses = [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]
+        pending_records = StellarAccountSearchCache.objects.filter(
+            status__in=pending_statuses
+        ).all()
+        
+        for record in pending_records:
+            record_data = {
+                'stellar_account': record.stellar_account,
+                'network_name': record.network_name,
+                'status': record.status,
+                'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
+                'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
+                'last_fetched_at': record.last_fetched_at.isoformat() if hasattr(record, 'last_fetched_at') and record.last_fetched_at else None,
+            }
+            pending_accounts_data.append(record_data)
+            
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        pending_accounts_data = []
+
     context = {
         'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
         'ENV': config('ENV', default='development'),
@@ -281,5 +306,6 @@ def search_view(request):
         'is_refreshing': is_refreshing,
         'request_status_data': request_status_data,
         'account_lineage_data': account_lineage_data,
+        'pending_accounts_data': pending_accounts_data,
     }
     return render(request, 'webApp/search.html', context)
