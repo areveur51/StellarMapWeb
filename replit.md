@@ -4,6 +4,20 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Automated Cron Jobs & Pending Accounts UI
+- **Automated Cron Execution**: Implemented background cron worker (`run_cron_jobs.py`) that runs automatically when app starts.
+  - Runs all 9 cron jobs on schedule (every 5-10 minutes with staggered offsets)
+  - Replaces manual cron execution with automatic background processing
+  - Logs all job execution status to console
+- **Cron Job Prioritization**: Updated `cron_make_parent_account_lineage.py` to prioritize new user searches:
+  - PENDING_MAKE_PARENT_LINEAGE entries processed first (new searches)
+  - RE_INQUIRY entries processed second (12-hour cache refreshes)
+  - Ensures new user searches get fastest response
+- **New "Pending Accounts" UI Tab**: Added visibility into cron job activity
+  - Displays all PENDING/IN_PROGRESS/RE_INQUIRY accounts in JSON format
+  - Real-time Vue.js watcher for automatic updates
+  - Located between "Account Lineage" and "TOML" tabs in search interface
+
 ## October 2025 - Critical Field Name Fix
 - **Fixed Cassandra schema mismatch**: Updated all code references from `network` to `network_name` to match production database column name.
 - **Impact**: This was preventing search functionality from creating PENDING cache entries in the database.

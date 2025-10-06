@@ -20,4 +20,31 @@
 #
 # For more information see the manual pages of crontab(5) and cron(8)
 #
-# m h  dom mon dow   command
+# m h dom mon dow command
+
+# Health check: Every 5 min (low load, frequent for resets)
+*/5 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_health_check > /dev/null 2>&1
+
+# Parent: Every 5 min, offset 0 (starts chain, prioritizes PENDING over RE_INQUIRY)
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_make_parent_account_lineage > /dev/null 2>&1
+
+# Horizon data: Every 10 min, offset 1 (after parent, API heavy)
+1,11,21,31,41,51 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_horizon_data > /dev/null 2>&1
+
+# Attributes: Every 5 min, offset 2 (post-horizon)
+2,7,12,17,22,27,32,37,42,47,52,57 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_lineage_attributes > /dev/null 2>&1
+
+# Assets: Every 5 min, offset 3
+3,8,13,18,23,28,33,38,43,48,53,58 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_lineage_assets > /dev/null 2>&1
+
+# Flags: Every 5 min, offset 4
+4,9,14,19,24,29,34,39,44,49,54,59 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_lineage_flags > /dev/null 2>&1
+
+# SE directory: Every 5 min, offset 0 (parallel to flags if non-dependent)
+0,5,10,15,20,25,30,35,40,45,50,55 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_lineage_se_directory > /dev/null 2>&1
+
+# Creator: Every 5 min, offset 1 (after SE/flags)
+1,6,11,16,21,26,31,36,41,46,51,56 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_collect_account_lineage_creator > /dev/null 2>&1
+
+# Grandparent: Every 10 min, offset 2 (end of chain)
+2,12,22,32,42,52 * * * * cd /home/runner/$REPL_SLUG && python manage.py cron_make_grandparent_account_lineage > /dev/null 2>&1
