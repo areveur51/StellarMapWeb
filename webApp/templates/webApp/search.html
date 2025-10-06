@@ -106,6 +106,44 @@
               <b-tab title="Pending Accounts">
                 <pre v-html="highlightedPendingAccounts"></pre>
               </b-tab>
+              <b-tab title="Stages">
+                <template>
+                  <div v-if="stageExecutionsLoading" style="text-align: center; padding: 20px;">
+                    <b-spinner variant="primary"></b-spinner>
+                    <p>Loading stage executions...</p>
+                  </div>
+                  <div v-else-if="stageExecutionsError" class="alert alert-danger">
+                    {{ stageExecutionsError }}
+                  </div>
+                  <div v-else-if="stage_executions_data && stage_executions_data.stages && stage_executions_data.stages.length > 0">
+                    <b-table
+                      :items="stage_executions_data.stages"
+                      :fields="stageExecutionFields"
+                      striped
+                      small
+                      dark
+                      hover
+                    >
+                      <template #cell(status)="data">
+                        <b-badge :variant="getStatusVariant(data.value)">{{ data.value }}</b-badge>
+                      </template>
+                      <template #cell(execution_time_seconds)="data">
+                        {{ data.value }}s
+                      </template>
+                      <template #cell(error_message)="data">
+                        <span v-if="data.value" class="text-danger">{{ data.value | truncate(50) }}</span>
+                        <span v-else class="text-success">No errors</span>
+                      </template>
+                    </b-table>
+                    <div class="text-muted" style="font-size: 0.8em; margin-top: 10px;">
+                      Auto-refreshes every 5 seconds
+                    </div>
+                  </div>
+                  <div v-else class="alert alert-info">
+                    No stage execution data available for this address. Stages will appear once processing begins.
+                  </div>
+                </template>
+              </b-tab>
               <b-tab title="TOML">
                 <b-card-text>TOML outputs</b-card-text>
               </b-tab>
@@ -186,7 +224,25 @@
           request_status_data: parsedRequestStatus,
           account_lineage_data: parsedAccountLineage,
           pending_accounts_data: parsedPendingAccounts,
-          pendingAccountsInterval: null
+          pendingAccountsInterval: null,
+          stage_executions_data: { stages: [] },
+          stageExecutionsLoading: false,
+          stageExecutionsError: null,
+          stageExecutionsInterval: null,
+          stageExecutionFields: [
+            { key: 'stage_number', label: 'Stage', sortable: true },
+            { key: 'cron_name', label: 'Cron Job', sortable: true },
+            { key: 'status', label: 'Status', sortable: true },
+            { key: 'execution_time_seconds', label: 'Time', sortable: true },
+            { key: 'error_message', label: 'Error', sortable: false }
+          ]
+        },
+        filters: {
+          truncate: function(text, length) {
+            if (!text) return '';
+            if (text.length <= length) return text;
+            return text.substring(0, length) + '...';
+          }
         },
       methods: {
         async search() {
@@ -287,6 +343,38 @@
           } catch (e) {
             console.error('Error fetching pending accounts:', e);
           }
+        },
+        async fetchStageExecutions() {
+          if (!this.query_account || !this.network_selected) {
+            return;
+          }
+          
+          try {
+            this.stageExecutionsLoading = true;
+            this.stageExecutionsError = null;
+            
+            const url = `/api/stage-executions/?account=${encodeURIComponent(this.query_account)}&network=${encodeURIComponent(this.network_selected)}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.stage_executions_data = data;
+            } else {
+              const error = await response.json();
+              this.stageExecutionsError = error.message || 'Failed to fetch stage executions';
+            }
+          } catch (e) {
+            console.error('Error fetching stage executions:', e);
+            this.stageExecutionsError = 'Error fetching stage executions';
+          } finally {
+            this.stageExecutionsLoading = false;
+          }
+        },
+        getStatusVariant(status) {
+          if (status === 'SUCCESS') return 'success';
+          if (status === 'FAILED' || status === 'ERROR') return 'danger';
+          if (status === 'TIMEOUT') return 'warning';
+          return 'secondary';
         }
       },
       watch: {
@@ -353,12 +441,25 @@
           this.fetchPendingAccounts();
         }, 5000);
         
+        // Fetch stage executions immediately if account is available
+        if (this.query_account && this.network_selected) {
+          this.fetchStageExecutions();
+          
+          // Set up auto-refresh for stage executions every 5 seconds
+          this.stageExecutionsInterval = setInterval(() => {
+            this.fetchStageExecutions();
+          }, 5000);
+        }
+        
         // JSON display is automatically updated by the watcher
       },
       beforeDestroy() {
-        // Clean up interval when component is destroyed
+        // Clean up intervals when component is destroyed
         if (this.pendingAccountsInterval) {
           clearInterval(this.pendingAccountsInterval);
+        }
+        if (this.stageExecutionsInterval) {
+          clearInterval(this.stageExecutionsInterval);
         }
       }
     })
