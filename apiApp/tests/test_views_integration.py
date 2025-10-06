@@ -31,7 +31,7 @@ class SearchViewIntegrationTest(TestCase):
         mock_helpers = Mock()
         mock_helpers.check_cache_freshness.return_value = (True, Mock(
             stellar_account=self.test_account,
-            network=self.test_network,
+            network_name=self.test_network,
             cached_json=json.dumps({"test": "data"}),
             last_fetched_at=datetime.datetime.utcnow()
         ))
@@ -60,11 +60,11 @@ class SearchViewIntegrationTest(TestCase):
         mock_helpers = Mock()
         mock_helpers.check_cache_freshness.return_value = (False, Mock(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         ))
         mock_helpers.create_pending_entry.return_value = Mock(
             stellar_account=self.test_account,
-            network=self.test_network,
+            network_name=self.test_network,
             status=PENDING_MAKE_PARENT_LINEAGE
         )
         mock_helpers_class.return_value = mock_helpers
@@ -90,7 +90,7 @@ class SearchViewIntegrationTest(TestCase):
         mock_helpers.check_cache_freshness.return_value = (False, None)
         mock_helpers.create_pending_entry.return_value = Mock(
             stellar_account=self.test_account,
-            network=self.test_network,
+            network_name=self.test_network,
             status=PENDING_MAKE_PARENT_LINEAGE,
             created_at=datetime.datetime.utcnow(),
             updated_at=datetime.datetime.utcnow()
@@ -208,7 +208,7 @@ class SearchViewIntegrationTest(TestCase):
         mock_cache_helpers.check_cache_freshness.return_value = (False, Mock())
         mock_cache_helpers.create_pending_entry.return_value = Mock(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         mock_cache_helpers_class.return_value = mock_cache_helpers
         
@@ -240,7 +240,7 @@ class SearchViewIntegrationTest(TestCase):
         # Simulate refreshing cache entry
         refreshed_entry = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         
         self.assertEqual(refreshed_entry.status, PENDING_MAKE_PARENT_LINEAGE)

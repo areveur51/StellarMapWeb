@@ -35,14 +35,14 @@ class StellarMapCacheHelpersTest(TestCase):
         
         is_fresh, entry = self.cache_helpers.check_cache_freshness(
             self.test_account,
-            self.test_network
+            network_name=self.test_network
         )
         
         self.assertTrue(is_fresh)
         self.assertIsNotNone(entry)
         mock_objects.get.assert_called_once_with(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
 
     @patch('apiApp.helpers.sm_cache.StellarAccountSearchCache.objects')

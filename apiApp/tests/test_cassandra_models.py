@@ -38,7 +38,7 @@ class CassandraModelIntegrationTest(TestCase):
         
         entry = StellarAccountSearchCache.objects.create(
             stellar_account=self.test_account,
-            network=self.test_network,
+            network_name=self.test_network,
             status=PENDING_MAKE_PARENT_LINEAGE
         )
         
@@ -150,7 +150,7 @@ class CassandraModelIntegrationTest(TestCase):
         
         entry = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         
         entry.status = DONE_MAKE_PARENT_LINEAGE

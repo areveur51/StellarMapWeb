@@ -59,7 +59,7 @@ class CassandraRealIntegrationTest(TestCase):
         # Retrieve entry using composite primary key
         retrieved = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         
         self.assertEqual(retrieved.stellar_account, self.test_account)
@@ -88,7 +88,7 @@ class CassandraRealIntegrationTest(TestCase):
         # Retrieve updated entry
         updated = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         
         self.assertEqual(updated.status, DONE_MAKE_PARENT_LINEAGE)
@@ -116,11 +116,11 @@ class CassandraRealIntegrationTest(TestCase):
         # Verify both exist independently
         public_retrieved = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network="public"
+            network_name="public"
         )
         testnet_retrieved = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network="testnet"
+            network_name="testnet"
         )
         
         self.assertEqual(public_retrieved.status, PENDING_MAKE_PARENT_LINEAGE)
@@ -256,7 +256,7 @@ class CassandraRealIntegrationTest(TestCase):
         # Retrieve and parse JSON
         retrieved = StellarAccountSearchCache.objects.get(
             stellar_account=self.test_account,
-            network=self.test_network
+            network_name=self.test_network
         )
         
         parsed_data = json.loads(retrieved.cached_json)

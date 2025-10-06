@@ -30,7 +30,7 @@ class CronCommandsIntegrationTest(TestCase):
     def test_cron_make_parent_lineage_finds_pending_entries(self, mock_health_objects, mock_cache_objects):
         """Test that cron_make_parent_account_lineage finds PENDING entries."""
         mock_pending = [
-            Mock(stellar_account=self.test_account, network=self.test_network, status=PENDING_MAKE_PARENT_LINEAGE)
+            Mock(stellar_account=self.test_account, network_name=self.test_network, status=PENDING_MAKE_PARENT_LINEAGE)
         ]
         
         mock_cache_objects.filter.return_value = mock_pending
@@ -111,9 +111,9 @@ class CronCommandsIntegrationTest(TestCase):
     def test_cron_handles_multiple_pending_entries(self, mock_cache_objects):
         """Test that cron processes multiple PENDING entries."""
         mock_entries = [
-            Mock(stellar_account="ACCOUNT1", network="public", status=PENDING_MAKE_PARENT_LINEAGE),
-            Mock(stellar_account="ACCOUNT2", network="public", status=PENDING_MAKE_PARENT_LINEAGE),
-            Mock(stellar_account="ACCOUNT3", network="testnet", status=PENDING_MAKE_PARENT_LINEAGE),
+            Mock(stellar_account="ACCOUNT1", network_name="public", status=PENDING_MAKE_PARENT_LINEAGE),
+            Mock(stellar_account="ACCOUNT2", network_name="public", status=PENDING_MAKE_PARENT_LINEAGE),
+            Mock(stellar_account="ACCOUNT3", network_name="testnet", status=PENDING_MAKE_PARENT_LINEAGE),
         ]
         
         mock_cache_objects.filter.return_value = mock_entries
