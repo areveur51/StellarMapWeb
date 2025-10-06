@@ -103,6 +103,9 @@
               <b-tab title="Account Lineage">
                 <pre v-html="highlightedAccountLineage"></pre>
               </b-tab>
+              <b-tab title="Pending Accounts">
+                <pre v-html="highlightedPendingAccounts"></pre>
+              </b-tab>
               <b-tab title="TOML">
                 <b-card-text>TOML outputs</b-card-text>
               </b-tab>
@@ -149,6 +152,7 @@
   {{ account_genealogy_items|json_script:"account-genealogy-json" }}
   {{ request_status_data|json_script:"request-status-json" }}
   {{ account_lineage_data|json_script:"account-lineage-json" }}
+  {{ pending_accounts_data|json_script:"pending-accounts-json" }}
   
   <script src="{% static 'webApp/js/lineage_table_mixin.js' %}?v=2"></script>
   <script>
@@ -156,9 +160,11 @@
     const genealogyEl = document.getElementById('account-genealogy-json');
     const requestStatusEl = document.getElementById('request-status-json');
     const accountLineageEl = document.getElementById('account-lineage-json');
+    const pendingAccountsEl = document.getElementById('pending-accounts-json');
     const parsedTreeData = JSON.parse(treeDataEl.textContent || '{}');
     const parsedRequestStatus = JSON.parse(requestStatusEl.textContent || '{}');
     const parsedAccountLineage = JSON.parse(accountLineageEl.textContent || '[]');
+    const parsedPendingAccounts = JSON.parse(pendingAccountsEl.textContent || '[]');
     
     var vm = new Vue({
         el: '#app',
@@ -171,13 +177,15 @@
           highlightedJSONResponse: '',
           highlightedRequestStatus: '',
           highlightedAccountLineage: '',
+          highlightedPendingAccounts: '',
           network_toggle: {% if network %}true{% else %}false{% endif %},
           network_selected: '{{ network|default:"testnet" }}',
           loading_animation: true,
           account_genealogy_items: JSON.parse(genealogyEl.textContent || '[]'),
           tree_data: parsedTreeData,
           request_status_data: parsedRequestStatus,
-          account_lineage_data: parsedAccountLineage
+          account_lineage_data: parsedAccountLineage,
+          pending_accounts_data: parsedPendingAccounts
         },
       methods: {
         async search() {
@@ -255,6 +263,22 @@
           } else {
             this.highlightedAccountLineage = '';
           }
+        },
+        updatePendingAccountsDisplay() {
+          if (this.pending_accounts_data && this.pending_accounts_data.length > 0) {
+            const pendingJSON = JSON.stringify(this.pending_accounts_data, null, 2);
+            try {
+              if (typeof hljs !== 'undefined') {
+                this.highlightedPendingAccounts = hljs.highlight(pendingJSON, {language: 'json'}).value;
+              } else {
+                this.highlightedPendingAccounts = pendingJSON;
+              }
+            } catch (e) {
+              this.highlightedPendingAccounts = pendingJSON;
+            }
+          } else {
+            this.highlightedPendingAccounts = 'No pending accounts at this time.';
+          }
         }
       },
       watch: {
@@ -286,6 +310,14 @@
           handler(newVal) {
             // Update account lineage display whenever account_lineage_data changes
             this.updateAccountLineageDisplay();
+          },
+          deep: true,
+          immediate: true
+        },
+        pending_accounts_data: {
+          handler(newVal) {
+            // Update pending accounts display whenever pending_accounts_data changes
+            this.updatePendingAccountsDisplay();
           },
           deep: true,
           immediate: true
