@@ -39,6 +39,7 @@ Preferred communication style: Simple, everyday language.
 - **Pending Accounts UI**: Real-time Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
 - **Auto-Refresh**: Vue.js polling system refreshes Pending Accounts tab every 5 seconds via `/api/pending-accounts/` endpoint, with immediate initial fetch and proper cleanup on component destruction.
 - **Stages Monitoring**: Real-time pipeline progress tracking showing execution time, status, and errors for each of the 8 stages (Stage 1: Make Parent Lineage, Stage 2: Collect Horizon Data, Stages 3-8: Lineage enrichment) per address via `/api/stage-executions/` endpoint with 5-second auto-refresh in dedicated Stages tab.
+- **Immediate Stage Initialization**: All 8 pipeline stages are created instantly when a new address is searched, appearing immediately in the Stages tab with PENDING status before processing begins; helper functions `initialize_stage_executions()` and `update_stage_execution()` ensure consistent stage lifecycle management with no duplicates.
 
 ## Security and Monitoring
 
