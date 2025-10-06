@@ -79,7 +79,13 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     updated_at = cassandra_columns.DateTime()
 
     def save(self, *args, **kwargs):
-        """Auto-set timestamps on save."""
+        """Auto-set timestamps on save with validation to prevent data corruption."""
+        # Validate data before saving to prevent corruption
+        if len(self.stellar_account) < 50:
+            raise ValueError(f"Invalid stellar_account: '{self.stellar_account}' (must be 56 chars, got {len(self.stellar_account)})")
+        if self.network_name not in ['public', 'testnet']:
+            raise ValueError(f"Invalid network_name: '{self.network_name}' (must be 'public' or 'testnet')")
+        
         if not self.created_at:
             self.created_at = datetime.datetime.utcnow()
         self.updated_at = datetime.datetime.utcnow()
