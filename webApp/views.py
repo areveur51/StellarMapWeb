@@ -218,6 +218,54 @@ def search_view(request):
             'message': 'No database entry found for this account/network combination'
         }
 
+    # Fetch Account Lineage records from StellarCreatorAccountLineage
+    # Recursively follow creator accounts up the lineage chain
+    account_lineage_data = []
+    try:
+        from apiApp.models import StellarCreatorAccountLineage
+        
+        visited_accounts = set()
+        accounts_to_process = [account]
+        
+        while accounts_to_process:
+            current_account = accounts_to_process.pop(0)
+            if current_account in visited_accounts:
+                continue
+            visited_accounts.add(current_account)
+            
+            try:
+                lineage_records = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=current_account,
+                    network_name=network
+                ).all()
+                
+                for record in lineage_records:
+                    record_data = {
+                        'stellar_account': record.stellar_account,
+                        'stellar_creator_account': record.stellar_creator_account,
+                        'network_name': record.network_name,
+                        'stellar_account_created_at': record.stellar_account_created_at.isoformat() if record.stellar_account_created_at else None,
+                        'home_domain': record.home_domain,
+                        'xlm_balance': record.xlm_balance,
+                        'horizon_accounts_doc_api_href': record.horizon_accounts_doc_api_href,
+                        'status': record.status,
+                        'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
+                        'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
+                    }
+                    account_lineage_data.append(record_data)
+                    
+                    # Follow the creator chain: add creator account to process next
+                    if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
+                        if record.stellar_creator_account not in accounts_to_process:
+                            accounts_to_process.append(record.stellar_creator_account)
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                continue
+                
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        account_lineage_data = []
+
     context = {
         'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
         'ENV': config('ENV', default='development'),
@@ -232,5 +280,6 @@ def search_view(request):
         'is_cached': is_fresh,
         'is_refreshing': is_refreshing,
         'request_status_data': request_status_data,
+        'account_lineage_data': account_lineage_data,
     }
     return render(request, 'webApp/search.html', context)

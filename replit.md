@@ -4,18 +4,24 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
-## October 6, 2025 - Request Status Tab Implementation
-- Added new "Request Status" b-tab to search.html template for visibility into UserInquirySearchHistory entries
-- Displays database entry details in JSON format with syntax highlighting
-- Shows key fields: stellar_account, network, status, last_fetched_at, created_at, updated_at, has_cached_data, cache_status
-- Implemented Vue.js integration with:
-  - `request_status_data` property for JSON data binding
-  - `highlightedRequestStatus` property for syntax-highlighted display
-  - `updateRequestStatusDisplay()` method for JSON formatting with HighlightJS
-  - Watcher to automatically update display when data changes
-- Context data prepared in webApp/views.py with comprehensive status information
-- Positioned between "JSON" and "TOML" tabs for easy access to request state
-- Enables users to monitor cache freshness and workflow status for searched accounts
+## October 6, 2025 - Request Status and Account Lineage Tabs Implementation
+- **Request Status Tab**: Added new b-tab for visibility into UserInquirySearchHistory entries
+  - Displays database entry details in JSON format with syntax highlighting
+  - Shows key fields: stellar_account, network, status, last_fetched_at, created_at, updated_at, has_cached_data, cache_status
+  - Context data prepared in webApp/views.py with comprehensive status information
+  - Positioned between "JSON" and "TOML" tabs for easy access to request state
+  - Enables users to monitor cache freshness and workflow status for searched accounts
+- **Account Lineage Tab**: Added new b-tab for displaying StellarCreatorAccountLineage records
+  - Recursively follows creator account chain up the lineage hierarchy
+  - Displays all lineage records matching searched stellar account and network
+  - Shows comprehensive record data: stellar_account, stellar_creator_account, network_name, xlm_balance, home_domain, status timestamps
+  - Positioned between "Request Status" and "TOML" tabs
+  - Provides complete visibility into account creation relationships
+- Implemented Vue.js integration for both tabs:
+  - Data properties for JSON data binding (`request_status_data`, `account_lineage_data`)
+  - Syntax-highlighted display using HighlightJS
+  - Update methods for JSON formatting (`updateRequestStatusDisplay()`, `updateAccountLineageDisplay()`)
+  - Watchers to automatically update display when data changes
 
 ## October 5, 2025 (Late Evening) - 12-Hour Database Caching System
 - Implemented efficient 12-hour caching strategy for Stellar address searches to minimize API calls

@@ -100,6 +100,9 @@
               <b-tab title="Request Status">
                 <pre v-html="highlightedRequestStatus"></pre>
               </b-tab>
+              <b-tab title="Account Lineage">
+                <pre v-html="highlightedAccountLineage"></pre>
+              </b-tab>
               <b-tab title="TOML">
                 <b-card-text>TOML outputs</b-card-text>
               </b-tab>
@@ -145,14 +148,17 @@
   {{ tree_data|json_script:"tree-data-json" }}
   {{ account_genealogy_items|json_script:"account-genealogy-json" }}
   {{ request_status_data|json_script:"request-status-json" }}
+  {{ account_lineage_data|json_script:"account-lineage-json" }}
   
   <script src="{% static 'webApp/js/lineage_table_mixin.js' %}?v=2"></script>
   <script>
     const treeDataEl = document.getElementById('tree-data-json');
     const genealogyEl = document.getElementById('account-genealogy-json');
     const requestStatusEl = document.getElementById('request-status-json');
+    const accountLineageEl = document.getElementById('account-lineage-json');
     const parsedTreeData = JSON.parse(treeDataEl.textContent || '{}');
     const parsedRequestStatus = JSON.parse(requestStatusEl.textContent || '{}');
+    const parsedAccountLineage = JSON.parse(accountLineageEl.textContent || '[]');
     
     var vm = new Vue({
         el: '#app',
@@ -164,12 +170,14 @@
           response: '',
           highlightedJSONResponse: '',
           highlightedRequestStatus: '',
+          highlightedAccountLineage: '',
           network_toggle: {% if network %}true{% else %}false{% endif %},
           network_selected: '{{ network|default:"testnet" }}',
           loading_animation: true,
           account_genealogy_items: JSON.parse(genealogyEl.textContent || '[]'),
           tree_data: parsedTreeData,
-          request_status_data: parsedRequestStatus
+          request_status_data: parsedRequestStatus,
+          account_lineage_data: parsedAccountLineage
         },
       methods: {
         async search() {
@@ -231,6 +239,22 @@
           } else {
             this.highlightedRequestStatus = '';
           }
+        },
+        updateAccountLineageDisplay() {
+          if (this.account_lineage_data && this.account_lineage_data.length > 0) {
+            const lineageJSON = JSON.stringify(this.account_lineage_data, null, 2);
+            try {
+              if (typeof hljs !== 'undefined') {
+                this.highlightedAccountLineage = hljs.highlight(lineageJSON, {language: 'json'}).value;
+              } else {
+                this.highlightedAccountLineage = lineageJSON;
+              }
+            } catch (e) {
+              this.highlightedAccountLineage = lineageJSON;
+            }
+          } else {
+            this.highlightedAccountLineage = '';
+          }
         }
       },
       watch: {
@@ -254,6 +278,14 @@
           handler(newVal) {
             // Update request status display whenever request_status_data changes
             this.updateRequestStatusDisplay();
+          },
+          deep: true,
+          immediate: true
+        },
+        account_lineage_data: {
+          handler(newVal) {
+            // Update account lineage display whenever account_lineage_data changes
+            this.updateAccountLineageDisplay();
           },
           deep: true,
           immediate: true
