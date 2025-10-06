@@ -267,47 +267,43 @@ def search_view(request):
         account_lineage_data = []
 
     # Fetch all pending accounts (PENDING, IN_PROGRESS statuses)
+    # Note: Cassandra doesn't support IN queries well with ALLOW FILTERING
+    # So we query each status separately and combine results
     pending_accounts_data = []
     try:
         from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY
         from datetime import datetime
         
         pending_statuses = [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]
-        print(f"DEBUG: Searching for pending statuses: {pending_statuses}")
         
-        pending_records = StellarAccountSearchCache.objects.filter(
-            status__in=pending_statuses
-        ).all()
+        def convert_timestamp(ts):
+            if ts is None:
+                return None
+            if isinstance(ts, datetime):
+                return ts.isoformat()
+            if isinstance(ts, (int, float)):
+                return datetime.fromtimestamp(ts / 1000).isoformat()
+            return str(ts)
         
-        pending_records_list = list(pending_records)
-        print(f"DEBUG: Found {len(pending_records_list)} pending records")
-        
-        for record in pending_records_list:
-            print(f"DEBUG: Processing record - Account: {record.stellar_account}, Status: {record.status}")
-            
-            def convert_timestamp(ts):
-                if ts is None:
-                    return None
-                if isinstance(ts, datetime):
-                    return ts.isoformat()
-                if isinstance(ts, (int, float)):
-                    return datetime.fromtimestamp(ts / 1000).isoformat()
-                return str(ts)
-            
-            record_data = {
-                'stellar_account': record.stellar_account,
-                'network_name': record.network_name,
-                'status': record.status,
-                'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
-                'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
-                'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
-            }
-            pending_accounts_data.append(record_data)
-        
-        print(f"DEBUG: Final pending_accounts_data count: {len(pending_accounts_data)}")
+        # Query each status separately (Cassandra limitation with IN + ALLOW FILTERING)
+        for status in pending_statuses:
+            try:
+                records = StellarAccountSearchCache.objects.filter(status=status).all()
+                for record in records:
+                    record_data = {
+                        'stellar_account': record.stellar_account,
+                        'network_name': record.network_name,
+                        'status': record.status,
+                        'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
+                        'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                        'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
+                    }
+                    pending_accounts_data.append(record_data)
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                continue
             
     except Exception as e:
-        print(f"DEBUG: Exception fetching pending accounts: {e}")
         sentry_sdk.capture_exception(e)
         pending_accounts_data = []
 
