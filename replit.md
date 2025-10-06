@@ -9,12 +9,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
   - **Root Cause**: Method always set `status = PENDING_MAKE_PARENT_LINEAGE` without checking if pipeline was already active
   - **Solution**: Added check for active statuses (PENDING/IN_PROGRESS/RE_INQUIRY) - if pipeline is running, return existing entry without modification
   - **Impact**: Users can now refresh/re-search without interrupting active pipeline processing; 12-hour cache strategy works as designed
-- **Enhanced Pending Accounts Tab**: Updated to show ALL records with PENDING/IN_PROGRESS statuses from BOTH database tables
-  - **Before**: Only showed records from `StellarAccountSearchCache` (3 statuses)
-  - **After**: Shows records from BOTH `StellarAccountSearchCache` AND `StellarCreatorAccountLineage` (13+ statuses)
+- **Fixed Pending Accounts Display Bug**: Template was showing empty array despite backend correctly querying database
+  - **Root Cause**: `fetch_pending_accounts()` helper function attempted to import non-existent status constants (IN_PROGRESS_COLLECTING_SE_DIRECTORY, DONE_SE_DIRECTORY, IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT, DONE_STELLAR_CREATOR_ACCOUNT), causing silent import failure and empty array return
+  - **Solution**: Updated imports to use only existing status constants from `apiApp/models.py` (17 valid constants covering all pipeline stages)
+  - **Result**: Pending Accounts tab now correctly displays all records with PENDING/IN_PROGRESS/DONE statuses from BOTH StellarAccountSearchCache AND StellarCreatorAccountLineage tables
+- **Enhanced Pending Accounts Tab**: Created centralized `fetch_pending_accounts()` helper function used by both default view and account search view
+  - Shows records from BOTH `StellarAccountSearchCache` (3 statuses) AND `StellarCreatorAccountLineage` (13+ statuses)
   - Added `table` field to distinguish which table each record comes from
-  - Provides complete visibility into entire Fast Pipeline processing workflow
-  - Users can see exactly which stage each address is in (Stage 1 pending, Stage 2 collecting Horizon data, Stage 3-8 enrichment, etc.)
+  - Provides complete visibility into entire Fast Pipeline processing workflow (Stage 1 pending → Stage 2 collecting Horizon data → Stages 3-8 enrichment)
+  - Users can monitor exactly which stage each address is in
 - **Files Updated**: apiApp/helpers/sm_cache.py, webApp/views.py
 
 ## October 2025 - Fast Pipeline Architecture (Option A)

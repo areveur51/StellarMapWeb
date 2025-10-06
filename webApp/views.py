@@ -39,6 +39,94 @@ def search_view(request):
     Raises:
         Http404: On invalid inputs.
     """
+    
+    # Helper function to fetch pending accounts from BOTH tables
+    def fetch_pending_accounts():
+        pending_accounts_data = []
+        try:
+            from apiApp.models import (
+                StellarAccountSearchCache, 
+                StellarCreatorAccountLineage,
+                PENDING_MAKE_PARENT_LINEAGE, 
+                IN_PROGRESS_MAKE_PARENT_LINEAGE, 
+                RE_INQUIRY,
+                PENDING_HORIZON_API_DATASETS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
+                DONE_HORIZON_API_DATASETS,
+                IN_PROGRESS_UPDATING_FROM_RAW_DATA,
+                DONE_UPDATING_FROM_RAW_DATA,
+                IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA,
+                DONE_UPDATING_FROM_OPERATIONS_RAW_DATA,
+                IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
+                DONE_GRANDPARENT_LINEAGE,
+            )
+            from datetime import datetime
+            
+            def convert_timestamp(ts):
+                if ts is None:
+                    return None
+                if isinstance(ts, datetime):
+                    return ts.isoformat()
+                if isinstance(ts, (int, float)):
+                    return datetime.fromtimestamp(ts / 1000).isoformat()
+                return str(ts)
+            
+            # Query StellarAccountSearchCache
+            for status_val in [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]:
+                try:
+                    records = StellarAccountSearchCache.objects.filter(status=status_val).all()
+                    for record in records:
+                        pending_accounts_data.append({
+                            'table': 'StellarAccountSearchCache',
+                            'stellar_account': record.stellar_account,
+                            'network_name': record.network_name,
+                            'status': status_val,
+                            'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
+                            'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                            'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
+                        })
+                except Exception:
+                    pass
+            
+            # Query StellarCreatorAccountLineage (all pipeline stages)
+            lineage_statuses = [
+                PENDING_HORIZON_API_DATASETS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+                DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
+                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
+                DONE_HORIZON_API_DATASETS,
+                IN_PROGRESS_UPDATING_FROM_RAW_DATA,
+                DONE_UPDATING_FROM_RAW_DATA,
+                IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA,
+                DONE_UPDATING_FROM_OPERATIONS_RAW_DATA,
+                IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
+                DONE_GRANDPARENT_LINEAGE,
+            ]
+            for status_val in lineage_statuses:
+                try:
+                    records = StellarCreatorAccountLineage.objects.filter(status=status_val).all()
+                    for record in records:
+                        pending_accounts_data.append({
+                            'table': 'StellarCreatorAccountLineage',
+                            'stellar_account': record.stellar_account,
+                            'stellar_creator_account': record.stellar_creator_account,
+                            'network_name': record.network_name,
+                            'status': status_val,
+                            'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
+                            'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                        })
+                except Exception:
+                    pass
+        except Exception:
+            pending_accounts_data = []
+        return pending_accounts_data
+    
     account = request.GET.get('account')  # No default, check if provided
     network = request.GET.get('network', 'public')  # Secure default
     
@@ -115,87 +203,6 @@ def search_view(request):
             response['Pragma'] = 'no-cache'
             response['Expires'] = '0'
             return response
-    
-    # Helper function to fetch pending accounts from BOTH tables
-    def fetch_pending_accounts():
-        pending_accounts_data = []
-        try:
-            from apiApp.models import (
-                StellarAccountSearchCache, 
-                StellarCreatorAccountLineage,
-                PENDING_MAKE_PARENT_LINEAGE, 
-                IN_PROGRESS_MAKE_PARENT_LINEAGE, 
-                RE_INQUIRY,
-                PENDING_HORIZON_API_DATASETS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
-                DONE_HORIZON_API_DATASETS,
-                DONE_UPDATING_FROM_RAW_DATA,
-                IN_PROGRESS_COLLECTING_SE_DIRECTORY,
-                DONE_SE_DIRECTORY,
-                IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT,
-                DONE_STELLAR_CREATOR_ACCOUNT,
-            )
-            from datetime import datetime
-            
-            def convert_timestamp(ts):
-                if ts is None:
-                    return None
-                if isinstance(ts, datetime):
-                    return ts.isoformat()
-                if isinstance(ts, (int, float)):
-                    return datetime.fromtimestamp(ts / 1000).isoformat()
-                return str(ts)
-            
-            # Query StellarAccountSearchCache
-            for status_val in [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]:
-                try:
-                    records = StellarAccountSearchCache.objects.filter(status=status_val).all()
-                    for record in records:
-                        pending_accounts_data.append({
-                            'table': 'StellarAccountSearchCache',
-                            'stellar_account': record.stellar_account,
-                            'network_name': record.network_name,
-                            'status': status_val,
-                            'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
-                            'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
-                            'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
-                        })
-                except Exception:
-                    pass
-            
-            # Query StellarCreatorAccountLineage
-            lineage_statuses = [
-                PENDING_HORIZON_API_DATASETS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
-                IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
-                DONE_HORIZON_API_DATASETS,
-                DONE_UPDATING_FROM_RAW_DATA,
-                IN_PROGRESS_COLLECTING_SE_DIRECTORY,
-                DONE_SE_DIRECTORY,
-                IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT,
-                DONE_STELLAR_CREATOR_ACCOUNT,
-            ]
-            for status_val in lineage_statuses:
-                try:
-                    records = StellarCreatorAccountLineage.objects.filter(status=status_val).all()
-                    for record in records:
-                        pending_accounts_data.append({
-                            'table': 'StellarCreatorAccountLineage',
-                            'stellar_account': record.stellar_account,
-                            'stellar_creator_account': record.stellar_creator_account,
-                            'network_name': record.network_name,
-                            'status': status_val,
-                            'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
-                            'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
-                        })
-                except Exception:
-                    pass
-        except Exception:
-            pending_accounts_data = []
-        return pending_accounts_data
     
     # If account was provided, validate and process
     # Secure validation
@@ -416,99 +423,8 @@ def search_view(request):
         sentry_sdk.capture_exception(e)
         account_lineage_data = []
 
-    # Fetch all pending accounts (PENDING, IN_PROGRESS statuses)
-    # Shows records from BOTH StellarAccountSearchCache AND StellarCreatorAccountLineage tables
-    # Note: Cassandra doesn't support IN queries well with ALLOW FILTERING
-    # So we query each status separately and combine results
-    pending_accounts_data = []
-    try:
-        from apiApp.models import (
-            StellarAccountSearchCache, 
-            StellarCreatorAccountLineage,
-            PENDING_MAKE_PARENT_LINEAGE, 
-            IN_PROGRESS_MAKE_PARENT_LINEAGE, 
-            RE_INQUIRY,
-            PENDING_HORIZON_API_DATASETS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
-            DONE_HORIZON_API_DATASETS,
-            DONE_UPDATING_FROM_RAW_DATA,
-            IN_PROGRESS_COLLECTING_SE_DIRECTORY,
-            DONE_SE_DIRECTORY,
-            IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT,
-            DONE_STELLAR_CREATOR_ACCOUNT,
-            DONE_GRANDPARENT_LINEAGE,
-        )
-        from datetime import datetime
-        
-        # StellarAccountSearchCache statuses to query
-        cache_pending_statuses = [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]
-        
-        # StellarCreatorAccountLineage statuses to query
-        lineage_pending_statuses = [
-            PENDING_HORIZON_API_DATASETS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS,
-            IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS,
-            DONE_HORIZON_API_DATASETS,
-            DONE_UPDATING_FROM_RAW_DATA,
-            IN_PROGRESS_COLLECTING_SE_DIRECTORY,
-            DONE_SE_DIRECTORY,
-            IN_PROGRESS_COLLECTING_STELLAR_CREATOR_ACCOUNT,
-            DONE_STELLAR_CREATOR_ACCOUNT,
-        ]
-        
-        def convert_timestamp(ts):
-            if ts is None:
-                return None
-            if isinstance(ts, datetime):
-                return ts.isoformat()
-            if isinstance(ts, (int, float)):
-                return datetime.fromtimestamp(ts / 1000).isoformat()
-            return str(ts)
-        
-        # Query StellarAccountSearchCache for PENDING/IN_PROGRESS statuses
-        for status_val in cache_pending_statuses:
-            try:
-                records = StellarAccountSearchCache.objects.filter(status=status_val).all()
-                for record in records:
-                    record_data = {
-                        'table': 'StellarAccountSearchCache',
-                        'stellar_account': record.stellar_account,
-                        'network_name': record.network_name,
-                        'status': status_val,
-                        'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
-                        'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
-                        'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
-                    }
-                    pending_accounts_data.append(record_data)
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                continue
-        
-        # Query StellarCreatorAccountLineage for PENDING/IN_PROGRESS/DONE statuses
-        for status_val in lineage_pending_statuses:
-            try:
-                records = StellarCreatorAccountLineage.objects.filter(status=status_val).all()
-                for record in records:
-                    record_data = {
-                        'table': 'StellarCreatorAccountLineage',
-                        'stellar_account': record.stellar_account,
-                        'stellar_creator_account': record.stellar_creator_account,
-                        'network_name': record.network_name,
-                        'status': status_val,
-                        'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
-                        'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
-                    }
-                    pending_accounts_data.append(record_data)
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                continue
-            
-    except Exception as e:
-        sentry_sdk.capture_exception(e)
-        pending_accounts_data = []
+    # Fetch all pending accounts from BOTH tables using helper function
+    pending_accounts_data = fetch_pending_accounts()
 
     context = {
         'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
