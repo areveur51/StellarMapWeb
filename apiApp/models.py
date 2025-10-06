@@ -93,13 +93,14 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     """
     Model for account lineage data.
 
-    Stores lineage relationships with composite primary key (stellar_account, network_name).
-    Tracks account creation relationships across the Stellar network.
+    PRIMARY KEY ((id), stellar_account, network_name) matches production table schema.
     
     NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'stellar_creator_account_lineage'
     
+    id = cassandra_columns.UUID(primary_key=True, default=uuid.uuid4)
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
     network_name = cassandra_columns.Text(primary_key=True, max_length=9)
     stellar_creator_account = cassandra_columns.Text(max_length=56)
@@ -119,8 +120,7 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
         return super().save(*args, **kwargs)
     
     class Meta:
-        get_pk_field = 'stellar_account'
-        db_table = 'stellar_creator_account_lineage'
+        get_pk_field = 'id'
 
 
 class ManagementCronHealth(DjangoCassandraModel):

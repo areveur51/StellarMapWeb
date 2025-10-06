@@ -4,6 +4,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Cassandra Table Schema Fix
+- **Fixed table name mismatch**: Updated models to use `__table_name__` attribute to match production table names.
+  - `StellarAccountSearchCache`: Now uses `stellar_account_search_cache` table with PRIMARY KEY ((stellar_account, network_name))
+  - `StellarCreatorAccountLineage`: Now uses `stellar_creator_account_lineage` table with PRIMARY KEY ((id), stellar_account, network_name)
+  - Dropped old `user_inquiry_search_history` table
+- **Root Cause**: django-cassandra-engine ignores Meta.db_table setting, requires explicit `__table_name__` attribute
+- **Impact**: Search functionality and Pending Accounts UI now work correctly with production database schema
+- **Files Updated**: apiApp/models.py, webApp/views.py
+
 ## October 2025 - Automated Cron Jobs & Pending Accounts UI
 - **Automated Cron Execution**: Implemented background cron worker (`run_cron_jobs.py`) that runs automatically when app starts.
   - Runs all 9 cron jobs on schedule (every 5-10 minutes with staggered offsets)
