@@ -21,10 +21,12 @@ Preferred communication style: Simple, everyday language.
 ## Data Collection Pipeline
 - **Fast Pipeline Architecture**: Consolidated 9 staggered cron jobs into a single sequential pipeline running every 2 minutes, reducing processing time to ~2-3 minutes per address.
 - **Automated Execution**: Background cron worker (`run_cron_jobs.py`) runs automatically, orchestrating 8 data collection stages.
-- **Workflow Management**: Comprehensive cron workflow with 17 status constants (`PENDING`, `IN_PROGRESS`, `DONE`, `RE_INQUIRY`, `FAILED`) for tracking data collection.
-- **Stuck Record Recovery**: Automatic detection and recovery system for stuck records, resetting them to `PENDING` or marking as `FAILED` after multiple retries.
+- **Workflow Management**: Comprehensive cron workflow with 18 status constants (`PENDING`, `IN_PROGRESS`, `DONE`, `RE_INQUIRY`, `FAILED`, `INVALID_HORIZON_STELLAR_ADDRESS`) for tracking data collection.
+- **Horizon API Validation**: When Horizon API returns 404 (NotFoundError) for an address, both `StellarAccountSearchCache` and `StellarCreatorAccountLineage` records are marked with `INVALID_HORIZON_STELLAR_ADDRESS` status and processing immediately stops (operations/effects fetching skipped).
+- **Terminal Status Architecture**: `INVALID_HORIZON_STELLAR_ADDRESS` and `FAILED` are terminal statuses excluded from `STUCK_THRESHOLDS`, ensuring invalid addresses are never picked up by cron jobs or stuck record recovery.
+- **Stuck Record Recovery**: Automatic detection and recovery system for stuck records in `STUCK_THRESHOLDS`, resetting them to `PENDING` or marking as `FAILED` after multiple retries.
 - **API Integration**: Uses Horizon API and Stellar Expert with asynchronous interactions (`async/await`).
-- **Retry Logic**: `Tenacity` library for robust API calls.
+- **Retry Logic**: `Tenacity` library for robust API calls with exponential backoff.
 - **Prioritization**: New user searches (`PENDING_MAKE_PARENT_LINEAGE`) are prioritized over cache refreshes (`RE_INQUIRY`).
 
 ## Frontend Architecture
@@ -38,7 +40,10 @@ Preferred communication style: Simple, everyday language.
 ## Security and Monitoring
 - **Environment Configuration**: `Decouple` library for secure environment variable management.
 - **Error Tracking**: Sentry integration for error monitoring.
-- **Input Validation**: Multi-layer address validation using Stellar SDK regex and cryptographic checks at the view, model, and validator layers.
+- **Input Validation**: Multi-layer address validation including:
+  - Stellar SDK regex and cryptographic checks at view/model/validator layers
+  - Horizon API 404 validation catches invalid addresses that pass format checks but don't exist on the network
+  - Invalid addresses marked with `INVALID_HORIZON_STELLAR_ADDRESS` terminal status
 - **HTTPS Enforcement**: Production settings enforce SSL/TLS.
 
 # External Dependencies
