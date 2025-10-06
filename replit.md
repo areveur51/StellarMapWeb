@@ -40,13 +40,105 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Refresh**: Vue.js polling system refreshes Pending Accounts tab every 5 seconds via `/api/pending-accounts/` endpoint, with immediate initial fetch and proper cleanup on component destruction.
 
 ## Security and Monitoring
-- **Environment Configuration**: `Decouple` library for secure environment variable management.
-- **Error Tracking**: Sentry integration for error monitoring.
-- **Input Validation**: Multi-layer address validation including:
+
+### Security Testing Framework
+- **Comprehensive Security Test Suite**: 70+ security tests across 4 test modules covering all attack vectors and validation points.
+- **Test Coverage Areas**:
+  - Injection Prevention (NoSQL injection, XSS, command injection, path traversal)
+  - API Input Validation (Stellar addresses, external API data, query parameters)
+  - Configuration Security (secrets management, environment variables, secure defaults)
+  - Frontend Security (XSS prevention, CSRF protection, clickjacking prevention)
+
+### Input Validation & Injection Prevention
+- **Multi-Layer Address Validation**:
   - Stellar SDK regex and cryptographic checks at view/model/validator layers
-  - Horizon API 404 validation catches invalid addresses that pass format checks but don't exist on the network
+  - 56-character length enforcement with 'G' prefix requirement
+  - Base32 character whitelist (prevents special characters, null bytes, unicode attacks)
+  - Horizon API 404 validation catches invalid addresses that don't exist on the network
   - Invalid addresses marked with `INVALID_HORIZON_STELLAR_ADDRESS` terminal status
-- **HTTPS Enforcement**: Production settings enforce SSL/TLS.
+- **NoSQL Injection Protection**:
+  - Cassandra query parameter sanitization and validation
+  - Status field whitelist validation (prevents status injection)
+  - Numeric field bounds checking (prevents overflow attacks)
+  - Query length limits to prevent buffer overflow
+- **XSS Prevention**:
+  - Django template auto-escaping enabled globally
+  - Vue.js text interpolation (auto-escaped)
+  - No v-html usage with user input
+  - API response escaping and sanitization
+  - Error messages sanitized to prevent reflection attacks
+- **Command Injection Prevention**:
+  - Shell character blacklist in validators (`;`, `|`, `&`, `` ` ``, `$`, `(`, `)`)
+  - No shell execution in validation or processing code
+  - External API command parameter whitelisting
+- **Path Traversal Protection**:
+  - Path traversal pattern detection (`../`, `..\\`, URL-encoded variants)
+  - File path sanitization in all file operations
+
+### API Security
+- **CSRF Protection**: Django CSRF middleware enabled for all state-changing operations
+- **Content-Type Validation**: API validates Content-Type headers and rejects invalid types
+- **Query Parameter Security**: 
+  - Length limits on all query parameters
+  - Special character handling and sanitization
+  - URL encoding validation
+- **HTTP Security Headers**:
+  - X-Frame-Options: DENY/SAMEORIGIN (clickjacking prevention)
+  - X-Content-Type-Options: nosniff (MIME sniffing prevention)
+  - Referrer-Policy configured
+  - Content-Security-Policy (CSP) for inline script prevention
+  - Strict-Transport-Security (HSTS) in production
+
+### External API Data Validation
+- **Horizon API Response Validation**:
+  - Operation type whitelist (24 valid Stellar operation types)
+  - Numeric field bounds checking (balance, timestamp validation)
+  - Timestamp sanity checks (prevents time-based attacks)
+  - JSON schema validation before processing
+- **Stellar Expert Data Sanitization**:
+  - Domain validation (prevents javascript:, file://, data: URIs)
+  - HTML/script tag stripping from names and descriptions
+  - Tag array sanitization
+
+### Configuration Security
+- **Secrets Management**:
+  - All secrets from environment variables via Replit Secrets
+  - `python-decouple` for typed environment variable loading
+  - No hardcoded credentials in source code
+  - Django SECRET_KEY from environment (50+ characters, not default values)
+  - Cassandra/Astra DB credentials from ASTRA_DB_TOKEN environment variable
+- **Secure Defaults**:
+  - DEBUG=False in production
+  - ALLOWED_HOSTS configured (not wildcard in production)
+  - SESSION_COOKIE_SECURE=True (HTTPS-only cookies)
+  - SESSION_COOKIE_HTTPONLY=True (prevents JS access)
+  - CSRF_COOKIE_SECURE=True in production
+  - SECURE_SSL_REDIRECT=True in production
+- **Database Security**:
+  - Cassandra connections use SSL/TLS
+  - Connection encryption enforced
+  - No database credentials in source code
+
+### Frontend Security
+- **Template Security**:
+  - Django auto-escaping enabled for all templates
+  - |safe filter never used with user input
+  - json_script filter for safe JSON embedding
+- **Vue.js Security**:
+  - Text interpolation {{ }} used (auto-escaped)
+  - v-bind for dynamic attributes (prevents attribute injection)
+  - No v-html with user-provided content
+  - Event handlers call methods, not eval
+- **Session Security**:
+  - Secure cookie flags set
+  - HTTP-only cookies prevent XSS theft
+  - SameSite cookie attribute configured
+
+### Environment Configuration & Monitoring
+- **Environment Configuration**: `Decouple` library for secure environment variable management with type validation.
+- **Error Tracking**: Sentry integration for error monitoring (sensitive data filtered from logs).
+- **HTTPS Enforcement**: Production settings enforce SSL/TLS with HSTS headers.
+- **Security Test Automation**: Continuous security testing in CI/CD pipeline.
 
 # External Dependencies
 

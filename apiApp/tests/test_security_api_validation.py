@@ -4,7 +4,7 @@ Security tests for API input validation and external data consumption.
 Ensures proper validation of Stellar addresses and external API data.
 """
 from django.test import TestCase, Client
-from apiApp.validators import validate_stellar_address
+from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
 from django.core.exceptions import ValidationError
 import json
 
@@ -16,7 +16,7 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         """Test that only valid Stellar address prefixes are accepted."""
         # Valid prefix
         valid_address = "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A"
-        validate_stellar_address(valid_address)  # Should not raise
+        self.assertTrue(StellarMapValidatorHelpers.validate_stellar_account_address(valid_address))
         
         # Invalid prefixes
         invalid_prefixes = [
@@ -26,22 +26,23 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         ]
         
         for address in invalid_prefixes:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(address)
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(address)
+            self.assertFalse(is_valid, f"Invalid prefix should be rejected: {address}")
     
     def test_stellar_address_length_validation(self):
         """Test that Stellar addresses have correct length."""
         # Too short
-        with self.assertRaises(ValidationError):
-            validate_stellar_address("GABC")
+        is_valid = StellarMapValidatorHelpers.validate_stellar_account_address("GABC")
+        self.assertFalse(is_valid, "Too short address should be rejected")
         
         # Too long
-        with self.assertRaises(ValidationError):
-            validate_stellar_address("G" + "A" * 100)
+        is_valid = StellarMapValidatorHelpers.validate_stellar_account_address("G" + "A" * 100)
+        self.assertFalse(is_valid, "Too long address should be rejected")
         
         # Valid length (56 characters)
         valid_address = "GAHK7EEG2WWHVKDNT4CEQFZGKF2LGDSW2IVM4S5DP42RBW3K6BTODB4A"
-        validate_stellar_address(valid_address)  # Should not raise
+        is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(valid_address)
+        self.assertTrue(is_valid, "Valid address should pass")
     
     def test_stellar_address_character_whitelist(self):
         """Test that only valid Base32 characters are accepted."""
@@ -54,8 +55,8 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         ]
         
         for address in invalid_chars:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(address)
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(address)
+            self.assertFalse(is_valid, f"Address with invalid chars should be rejected: {address}")
     
     def test_stellar_address_case_sensitivity(self):
         """Test that Stellar addresses maintain case sensitivity."""
@@ -63,11 +64,9 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         mixed_case = "GaBc4DCOBIAW2LJBK3GZYOVAWL2FKXJ6DRRUF2WFHLPHYZDF4ZMZX3OA"
         
         # Should validate the format but preserve case
-        try:
-            validate_stellar_address(mixed_case)
-        except ValidationError:
-            # Expected - invalid checksum due to case mismatch
-            pass
+        is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(mixed_case)
+        # Expected - may fail due to invalid checksum from case mismatch
+        # self.assertFalse(is_valid, "Mixed case may have invalid checksum")
     
     def test_stellar_address_null_byte_injection(self):
         """Test that null byte injection is prevented."""
@@ -78,8 +77,8 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         ]
         
         for payload in null_byte_payloads:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(payload)
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
+            self.assertFalse(is_valid, f"Null byte injection should be rejected: {repr(payload)}")
     
     def test_stellar_address_unicode_normalization(self):
         """Test that unicode normalization attacks are prevented."""
@@ -90,8 +89,8 @@ class StellarAddressValidationSecurityTestCase(TestCase):
         ]
         
         for payload in unicode_payloads:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(payload)
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
+            self.assertFalse(is_valid, f"Unicode normalization attack should be rejected: {payload}")
 
 
 class ExternalAPIDataValidationTestCase(TestCase):

@@ -6,7 +6,7 @@ Tests NoSQL injection, XSS, command injection, and other malicious attacks.
 from django.test import TestCase, Client
 from django.urls import reverse
 from apiApp.models import StellarCreatorAccountLineage, StellarAccountSearchCache
-from apiApp.validators import validate_stellar_address
+from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
 from django.core.exceptions import ValidationError
 import json
 
@@ -86,8 +86,9 @@ class XSSPreventionTestCase(TestCase):
         
         for payload in xss_payloads:
             # Validate at validator level
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(payload)
+            # XSS payloads should fail validation
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
+            self.assertFalse(is_valid, f"XSS payload should be rejected: {payload}")
     
     def test_api_response_escaping(self):
         """Test that API responses properly escape HTML/JavaScript."""
@@ -130,8 +131,9 @@ class CommandInjectionPreventionTestCase(TestCase):
         ]
         
         for payload in command_injection_payloads:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(payload)
+            # XSS payloads should fail validation
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
+            self.assertFalse(is_valid, f"XSS payload should be rejected: {payload}")
     
     def test_no_shell_execution_in_validators(self):
         """Test that validators don't execute shell commands."""
@@ -158,8 +160,9 @@ class PathTraversalPreventionTestCase(TestCase):
         ]
         
         for payload in path_traversal_payloads:
-            with self.assertRaises(ValidationError):
-                validate_stellar_address(payload)
+            # XSS payloads should fail validation
+            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
+            self.assertFalse(is_valid, f"XSS payload should be rejected: {payload}")
 
 
 class InputValidationTestCase(TestCase):
