@@ -132,3 +132,100 @@ def pending_accounts_api(request):
         sentry_sdk.capture_exception(e)
     
     return JsonResponse(pending_accounts_data, safe=False)
+
+
+def stage_executions_api(request):
+    """
+    API endpoint that returns stage execution history for a specific address.
+    Used for real-time pipeline monitoring in the Stages tab.
+    
+    Query Parameters:
+        account (str): Stellar account address (required)
+        network (str): Network name (required, 'public' or 'testnet')
+    
+    Returns:
+        JsonResponse: List of stage executions ordered by stage number and time.
+    """
+    account = request.GET.get('account', '').strip()
+    network = request.GET.get('network', '').strip()
+    
+    # Validate required parameters
+    if not account or not network:
+        return JsonResponse({
+            'error': 'Missing required parameters',
+            'message': 'Both account and network parameters are required'
+        }, status=400)
+    
+    # Validate address format (basic check)
+    from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+    if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
+        return JsonResponse({
+            'error': 'Invalid stellar account address',
+            'message': 'Account must be a valid Stellar address'
+        }, status=400)
+    
+    # Validate network
+    if network not in ['public', 'testnet']:
+        return JsonResponse({
+            'error': 'Invalid network',
+            'message': 'Network must be either public or testnet'
+        }, status=400)
+    
+    stage_executions_data = []
+    try:
+        from apiApp.models import StellarAccountStageExecution
+        from datetime import datetime
+        
+        def convert_timestamp(ts):
+            if ts is None:
+                return None
+            if isinstance(ts, datetime):
+                return ts.isoformat()
+            if isinstance(ts, (int, float)):
+                return datetime.fromtimestamp(ts).isoformat()
+            return str(ts)
+        
+        # Fetch stage executions for the specific address and network
+        # Order by created_at DESC and stage_number to show latest executions first
+        records = StellarAccountStageExecution.objects.filter(
+            stellar_account=account,
+            network_name=network
+        ).limit(100)
+        
+        # Convert to list and sort by stage_number and created_at (latest first)
+        records_list = list(records)
+        records_list.sort(key=lambda x: (x.stage_number, x.created_at), reverse=True)
+        
+        # Group by stage_number and get only the most recent execution for each stage
+        stage_latest = {}
+        for record in records_list:
+            if record.stage_number not in stage_latest:
+                stage_latest[record.stage_number] = record
+        
+        # Convert to response format, sorted by stage number
+        for stage_num in sorted(stage_latest.keys()):
+            record = stage_latest[stage_num]
+            stage_executions_data.append({
+                'stage_number': record.stage_number,
+                'cron_name': record.cron_name,
+                'status': record.status,
+                'execution_time_ms': record.execution_time_ms,
+                'execution_time_seconds': round(record.execution_time_ms / 1000, 2) if record.execution_time_ms else 0,
+                'error_message': record.error_message or '',
+                'created_at': convert_timestamp(record.created_at),
+                'updated_at': convert_timestamp(record.updated_at),
+            })
+                
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)
+    
+    return JsonResponse({
+        'account': account,
+        'network': network,
+        'stages': stage_executions_data,
+        'total_stages': len(stage_executions_data)
+    }, safe=False)
