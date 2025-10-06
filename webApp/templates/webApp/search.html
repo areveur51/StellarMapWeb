@@ -265,19 +265,15 @@
           }
         },
         updatePendingAccountsDisplay() {
-          if (this.pending_accounts_data && this.pending_accounts_data.length > 0) {
-            const pendingJSON = JSON.stringify(this.pending_accounts_data, null, 2);
-            try {
-              if (typeof hljs !== 'undefined') {
-                this.highlightedPendingAccounts = hljs.highlight(pendingJSON, {language: 'json'}).value;
-              } else {
-                this.highlightedPendingAccounts = pendingJSON;
-              }
-            } catch (e) {
+          const pendingJSON = JSON.stringify(this.pending_accounts_data || [], null, 2);
+          try {
+            if (typeof hljs !== 'undefined') {
+              this.highlightedPendingAccounts = hljs.highlight(pendingJSON, {language: 'json'}).value;
+            } else {
               this.highlightedPendingAccounts = pendingJSON;
             }
-          } else {
-            this.highlightedPendingAccounts = 'No pending accounts at this time.';
+          } catch (e) {
+            this.highlightedPendingAccounts = pendingJSON;
           }
         }
       },
