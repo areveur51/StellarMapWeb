@@ -1,7 +1,7 @@
 # apiApp/helpers/sm_cache.py
 import datetime
 import json
-from apiApp.models import UserInquirySearchHistory, PENDING_MAKE_PARENT_LINEAGE, DONE_MAKE_PARENT_LINEAGE
+from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, DONE_MAKE_PARENT_LINEAGE
 
 
 class StellarMapCacheHelpers:
@@ -25,10 +25,10 @@ class StellarMapCacheHelpers:
             network_name (str): Network name (public/testnet)
             
         Returns:
-            tuple: (is_fresh: bool, cache_entry: UserInquirySearchHistory or None)
+            tuple: (is_fresh: bool, cache_entry: StellarAccountSearchCache or None)
         """
         try:
-            cache_entry = UserInquirySearchHistory.objects.get(
+            cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
@@ -42,7 +42,7 @@ class StellarMapCacheHelpers:
             
             return False, cache_entry
             
-        except UserInquirySearchHistory.DoesNotExist:
+        except StellarAccountSearchCache.DoesNotExist:
             return False, None
     
     def get_cached_data(self, cache_entry):
@@ -50,7 +50,7 @@ class StellarMapCacheHelpers:
         Get cached JSON data from cache entry.
         
         Args:
-            cache_entry (UserInquirySearchHistory): Cache entry object
+            cache_entry (StellarAccountSearchCache): Cache entry object
             
         Returns:
             dict: Parsed tree_data JSON or None if not available
@@ -73,10 +73,10 @@ class StellarMapCacheHelpers:
             status (str): Workflow status (default: DONE_MAKE_PARENT_LINEAGE)
             
         Returns:
-            UserInquirySearchHistory: Updated cache entry
+            StellarAccountSearchCache: Updated cache entry
         """
         try:
-            cache_entry = UserInquirySearchHistory.objects.get(
+            cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
@@ -86,8 +86,8 @@ class StellarMapCacheHelpers:
             cache_entry.save()
             return cache_entry
             
-        except UserInquirySearchHistory.DoesNotExist:
-            cache_entry = UserInquirySearchHistory.objects.create(
+        except StellarAccountSearchCache.DoesNotExist:
+            cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
                 cached_json=json.dumps(tree_data),
@@ -112,10 +112,10 @@ class StellarMapCacheHelpers:
             network_name (str): Network name (public/testnet)
             
         Returns:
-            UserInquirySearchHistory: Cache entry set to PENDING
+            StellarAccountSearchCache: Cache entry set to PENDING
         """
         try:
-            cache_entry = UserInquirySearchHistory.objects.get(
+            cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
@@ -124,8 +124,8 @@ class StellarMapCacheHelpers:
             cache_entry.save()
             return cache_entry
             
-        except UserInquirySearchHistory.DoesNotExist:
-            cache_entry = UserInquirySearchHistory.objects.create(
+        except StellarAccountSearchCache.DoesNotExist:
+            cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
                 status=PENDING_MAKE_PARENT_LINEAGE,

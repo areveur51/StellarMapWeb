@@ -3,7 +3,7 @@ import logging
 import sentry_sdk
 from django.core.management.base import BaseCommand
 from django.http import HttpRequest
-from apiApp.managers import UserInquirySearchHistoryManager, StellarCreatorAccountLineageManager
+from apiApp.managers import StellarAccountSearchCacheManager, StellarCreatorAccountLineageManager
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.helpers.sm_cache import StellarMapCacheHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
@@ -37,7 +37,7 @@ class Command(BaseCommand):
                 logger.warning(f"{cron_name} unhealthy; skipping.")
                 return
 
-            inquiry_manager = UserInquirySearchHistoryManager()
+            inquiry_manager = StellarAccountSearchCacheManager()
             inq_queryset = inquiry_manager.get_queryset(
                 status__in=[PENDING_MAKE_PARENT_LINEAGE, RE_INQUIRY])
 

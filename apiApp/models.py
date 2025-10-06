@@ -57,9 +57,9 @@ class BaseModel(DjangoCassandraModel):
         abstract = True
 
 
-class UserInquirySearchHistory(BaseModel):
+class StellarAccountSearchCache(BaseModel):
     """
-    Model for user inquiry history with 12-hour caching.
+    Model for Stellar account search caching with 12-hour freshness.
 
     Prevents duplicates by primary key; tracks cache freshness for efficient searches.
     Stores cached_json for immediate display if data is fresh (< 12 hours).

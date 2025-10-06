@@ -4,13 +4,13 @@ import sentry_sdk
 import uuid
 from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
 from apiApp.helpers.sm_datetime import StellarMapDateTimeHelpers
-from apiApp.models import UserInquirySearchHistory, StellarCreatorAccountLineage, ManagementCronHealth
+from apiApp.models import StellarAccountSearchCache, StellarCreatorAccountLineage, ManagementCronHealth
 from django.http import HttpRequest  # For mock requests
 
 
-class UserInquirySearchHistoryManager:
+class StellarAccountSearchCacheManager:
     """
-    Manager for UserInquirySearchHistory.
+    Manager for StellarAccountSearchCache.
 
     Handles create/update with timestamps.
     """
@@ -18,7 +18,7 @@ class UserInquirySearchHistoryManager:
     def get_queryset(self, **kwargs):
         """Filter queryset; return first or None."""
         try:
-            return UserInquirySearchHistory.objects.filter(**kwargs).first()
+            return StellarAccountSearchCache.objects.filter(**kwargs).first()
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise
@@ -29,7 +29,7 @@ class UserInquirySearchHistoryManager:
             dt_helpers = StellarMapDateTimeHelpers()
             dt_helpers.set_datetime_obj()
             request.data['created_at'] = dt_helpers.get_datetime_obj()
-            return UserInquirySearchHistory.objects.create(**request.data)
+            return StellarAccountSearchCache.objects.create(**request.data)
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise
