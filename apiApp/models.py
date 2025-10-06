@@ -30,6 +30,35 @@ PENDING_MAKE_PARENT_LINEAGE = 'PENDING_MAKE_PARENT_LINEAGE'
 IN_PROGRESS_MAKE_PARENT_LINEAGE = 'IN_PROGRESS_MAKE_PARENT_LINEAGE'
 DONE_MAKE_PARENT_LINEAGE = 'DONE_MAKE_PARENT_LINEAGE'
 RE_INQUIRY = 'RE_INQUIRY'
+FAILED = 'FAILED'
+
+# Stuck record detection thresholds (in minutes)
+# Records exceeding these durations in a given status are considered stuck
+STUCK_THRESHOLDS = {
+    # Stage 1: Parent lineage collection (should complete in ~2-3 minutes)
+    PENDING_MAKE_PARENT_LINEAGE: 10,
+    IN_PROGRESS_MAKE_PARENT_LINEAGE: 10,
+    
+    # Stage 2: Horizon data collection (should complete in ~5 minutes)
+    PENDING_HORIZON_API_DATASETS: 20,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS: 20,
+    DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS: 20,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS: 20,
+    DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS: 20,
+    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS: 20,
+    DONE_HORIZON_API_DATASETS: 20,
+    
+    # Stages 3-8: Enrichment stages (should complete in ~10 minutes)
+    IN_PROGRESS_UPDATING_FROM_RAW_DATA: 30,
+    DONE_UPDATING_FROM_RAW_DATA: 30,
+    IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA: 30,
+    DONE_UPDATING_FROM_OPERATIONS_RAW_DATA: 30,
+    IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE: 30,
+    DONE_GRANDPARENT_LINEAGE: 30,
+}
+
+# Maximum retry attempts before marking as FAILED
+MAX_RETRY_ATTEMPTS = 3
 
 TESTNET = 'testnet'
 PUBLIC = 'public'
@@ -119,6 +148,8 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     xlm_balance = cassandra_columns.Float(default=0.0)
     horizon_accounts_doc_api_href = cassandra_columns.Text()
     status = cassandra_columns.Text(max_length=127)
+    retry_count = cassandra_columns.Integer(default=0)
+    last_error = cassandra_columns.Text()
     created_at = cassandra_columns.DateTime()
     updated_at = cassandra_columns.DateTime()
     

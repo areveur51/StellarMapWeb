@@ -63,6 +63,7 @@ def search_view(request):
                 DONE_UPDATING_FROM_OPERATIONS_RAW_DATA,
                 IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
                 DONE_GRANDPARENT_LINEAGE,
+                STUCK_THRESHOLDS,
             )
             from datetime import datetime
             
@@ -75,11 +76,29 @@ def search_view(request):
                     return datetime.fromtimestamp(ts / 1000).isoformat()
                 return str(ts)
             
+            def calculate_age_and_stuck(record, status):
+                """Calculate record age and determine if it's stuck."""
+                now = datetime.utcnow()
+                age_minutes = 0
+                is_stuck = False
+                
+                if hasattr(record, 'updated_at') and record.updated_at:
+                    age_delta = now - record.updated_at
+                    age_minutes = int(age_delta.total_seconds() / 60)
+                    
+                    # Check if stuck based on threshold
+                    threshold = STUCK_THRESHOLDS.get(status, 30)  # Default 30 min
+                    is_stuck = age_minutes > threshold
+                
+                return age_minutes, is_stuck
+            
             # Query StellarAccountSearchCache
             for status_val in [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]:
                 try:
                     records = StellarAccountSearchCache.objects.filter(status=status_val).all()
                     for record in records:
+                        age_minutes, is_stuck = calculate_age_and_stuck(record, status_val)
+                        
                         pending_accounts_data.append({
                             'table': 'StellarAccountSearchCache',
                             'stellar_account': record.stellar_account,
@@ -88,6 +107,9 @@ def search_view(request):
                             'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
                             'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
                             'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
+                            'age_minutes': age_minutes,
+                            'is_stuck': is_stuck,
+                            'retry_count': getattr(record, 'retry_count', 0),
                         })
                 except Exception:
                     pass
@@ -112,6 +134,8 @@ def search_view(request):
                 try:
                     records = StellarCreatorAccountLineage.objects.filter(status=status_val).all()
                     for record in records:
+                        age_minutes, is_stuck = calculate_age_and_stuck(record, status_val)
+                        
                         pending_accounts_data.append({
                             'table': 'StellarCreatorAccountLineage',
                             'stellar_account': record.stellar_account,
@@ -120,6 +144,9 @@ def search_view(request):
                             'status': status_val,
                             'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
                             'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                            'age_minutes': age_minutes,
+                            'is_stuck': is_stuck,
+                            'retry_count': getattr(record, 'retry_count', 0),
                         })
                 except Exception:
                     pass
