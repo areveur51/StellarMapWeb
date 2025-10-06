@@ -61,17 +61,16 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     """
     Model for Stellar account search caching with 12-hour freshness.
 
-    Prevents duplicates by composite primary key (stellar_account, network).
-    Stores cached_json for immediate display if data is fresh (< 12 hours).
+    PRIMARY KEY ((stellar_account, network_name)) for efficient queries by account.
+    Composite partition key prevents duplicates and enables fast lookups.
     
     NOTE: Does NOT inherit from BaseModel to match existing table schema.
-    WARNING: Cassandra ORM uses lowercase model name as table, ignoring db_table setting!
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
-    __table_name__ = 'stellar_account_search_cache'  # Production table name
+    __table_name__ = 'stellar_account_search_cache'
     
-    stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
-    network_name = cassandra_columns.Text(primary_key=True, max_length=9)
+    stellar_account = cassandra_columns.Text(partition_key=True, max_length=56)
+    network_name = cassandra_columns.Text(partition_key=True, max_length=9)
     status = cassandra_columns.Text(max_length=127,
                                     default=PENDING_HORIZON_API_DATASETS)  # Workflow status
     cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
@@ -128,15 +127,15 @@ class ManagementCronHealth(DjangoCassandraModel):
     """
     Model for cron health monitoring.
 
-    Composite primary key (cron_name, created_at) with clustering for efficient latest fetch.
-    Allows querying health history per cron job with descending time order.
+    PRIMARY KEY ((id), created_at, cron_name) matches production table schema.
     
     NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
     
-    cron_name = cassandra_columns.Text(primary_key=True, max_length=71)
+    id = cassandra_columns.UUID(primary_key=True, default=uuid.uuid4)
     created_at = cassandra_columns.DateTime(primary_key=True, clustering_order="DESC")
+    cron_name = cassandra_columns.Text(primary_key=True, max_length=71)
     status = cassandra_columns.Text(max_length=63, default='HEALTHY')  # Secure default
     reason = cassandra_columns.Text()
     updated_at = cassandra_columns.DateTime()
@@ -149,7 +148,7 @@ class ManagementCronHealth(DjangoCassandraModel):
         return super().save(*args, **kwargs)
 
     class Meta:
-        get_pk_field = 'cron_name'
+        get_pk_field = 'id'
         db_table = 'management_cron_health'
 
     def __str__(self):
