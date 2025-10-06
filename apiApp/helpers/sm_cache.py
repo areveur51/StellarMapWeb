@@ -107,18 +107,30 @@ class StellarMapCacheHelpers:
         2. Process through complete PlantUML workflow
         3. Update cache with fresh data when complete
         
+        IMPORTANT: If pipeline is already running (PENDING/IN_PROGRESS/RE_INQUIRY status), 
+        DO NOT reset - let it complete naturally.
+        
         Args:
             stellar_account (str): Stellar account address
             network_name (str): Network name (public/testnet)
             
         Returns:
-            StellarAccountSearchCache: Cache entry set to PENDING
+            StellarAccountSearchCache: Cache entry (existing or new)
         """
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
+            
+            # Check if pipeline is already running - DON'T reset status
+            if cache_entry.status and ('PENDING' in cache_entry.status or 
+                                       'IN_PROGRESS' in cache_entry.status or 
+                                       cache_entry.status == 'RE_INQUIRY'):
+                # Pipeline already running, return existing entry without modification
+                return cache_entry
+            
+            # Only set to PENDING if it's DONE or another terminal status
             cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
             cache_entry.updated_at = datetime.datetime.utcnow()
             cache_entry.save()

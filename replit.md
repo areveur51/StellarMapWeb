@@ -4,6 +4,19 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Critical Cache Reset & Pending Accounts Bug Fixes
+- **Fixed Cache Reset Bug**: The `create_pending_entry()` method in `sm_cache.py` was incorrectly resetting status to PENDING every time a user searched for the same address, effectively restarting the pipeline even when it was already running
+  - **Root Cause**: Method always set `status = PENDING_MAKE_PARENT_LINEAGE` without checking if pipeline was already active
+  - **Solution**: Added check for active statuses (PENDING/IN_PROGRESS/RE_INQUIRY) - if pipeline is running, return existing entry without modification
+  - **Impact**: Users can now refresh/re-search without interrupting active pipeline processing; 12-hour cache strategy works as designed
+- **Enhanced Pending Accounts Tab**: Updated to show ALL records with PENDING/IN_PROGRESS statuses from BOTH database tables
+  - **Before**: Only showed records from `StellarAccountSearchCache` (3 statuses)
+  - **After**: Shows records from BOTH `StellarAccountSearchCache` AND `StellarCreatorAccountLineage` (13+ statuses)
+  - Added `table` field to distinguish which table each record comes from
+  - Provides complete visibility into entire Fast Pipeline processing workflow
+  - Users can see exactly which stage each address is in (Stage 1 pending, Stage 2 collecting Horizon data, Stage 3-8 enrichment, etc.)
+- **Files Updated**: apiApp/helpers/sm_cache.py, webApp/views.py
+
 ## October 2025 - Fast Pipeline Architecture (Option A)
 - **Performance Optimization**: Consolidated 9 staggered cron jobs into single sequential pipeline running every 2 minutes
 - **Speed Improvement**: Reduced per-address processing time from 10-20 minutes to ~2-3 minutes (7-10x faster)
