@@ -18,9 +18,10 @@ def run_command(command):
         )
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         status = "SUCCESS" if result.returncode == 0 else "FAILED"
-        print(f"[{timestamp}] {command}: {status}")
+        print(f"[{timestamp}] {command}: {status} (returncode={result.returncode})")
         if result.returncode != 0:
-            print(f"  Error: {result.stderr[:200]}")
+            stderr_preview = result.stderr[:300] if result.stderr else "(no stderr)"
+            print(f"  Error: {stderr_preview}")
         return result.returncode == 0
     except subprocess.TimeoutExpired:
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {command}: TIMEOUT")

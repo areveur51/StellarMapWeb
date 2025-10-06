@@ -34,7 +34,7 @@ class Command(BaseCommand):
             lineage_manager = StellarCreatorAccountLineageManager()
             lin_queryset = lineage_manager.get_all_queryset(
                 status__in=[DONE_HORIZON_API_DATASETS])
-
+            
             if not lin_queryset:
                 self.stdout.write(f"{cron_name}: No records to process")
                 logger.info(f"{cron_name}: No records to process")
