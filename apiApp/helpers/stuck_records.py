@@ -65,7 +65,7 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
                                 'threshold_minutes': threshold_minutes,
                                 'stellar_account': record.stellar_account,
                                 'network_name': record.network_name,
-                                'retry_count': record.retry_count if hasattr(record, 'retry_count') else 0,
+                                'retry_count': record.retry_count if (hasattr(record, 'retry_count') and record.retry_count is not None) else 0,
                             })
                 except Exception as e:
                     sentry_sdk.capture_exception(e)
@@ -88,7 +88,7 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
                             'threshold_minutes': threshold_minutes,
                             'stellar_account': record.stellar_account,
                             'network_name': record.network_name,
-                            'retry_count': record.retry_count if hasattr(record, 'retry_count') else 0,
+                            'retry_count': record.retry_count if (hasattr(record, 'retry_count') and record.retry_count is not None) else 0,
                         })
             except Exception as e:
                 sentry_sdk.capture_exception(e)
@@ -117,7 +117,7 @@ def reset_stuck_record(record, reason: str = "Auto-recovery") -> bool:
     """
     try:
         current_status = record.status
-        current_retry_count = record.retry_count if hasattr(record, 'retry_count') else 0
+        current_retry_count = record.retry_count if (hasattr(record, 'retry_count') and record.retry_count is not None) else 0
         table_name = record.__class__.__name__
         
         # Determine correct PENDING status based on table
