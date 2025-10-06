@@ -6,5 +6,5 @@ app_name = 'apiApp'
 
 urlpatterns = [
     path('', views.api_home, name='api_home'),
-    # Add your API routes here as needed
+    path('pending-accounts/', views.pending_accounts_api, name='pending_accounts_api'),
 ]
