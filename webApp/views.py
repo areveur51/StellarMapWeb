@@ -62,6 +62,38 @@ def search_view(request):
             account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
             network = 'testnet'  # Test data uses testnet
             
+            # Fetch pending accounts for default view
+            pending_accounts_data = []
+            try:
+                from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY
+                from datetime import datetime
+                
+                def convert_timestamp(ts):
+                    if ts is None:
+                        return None
+                    if isinstance(ts, datetime):
+                        return ts.isoformat()
+                    if isinstance(ts, (int, float)):
+                        return datetime.fromtimestamp(ts / 1000).isoformat()
+                    return str(ts)
+                
+                for status_val in [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]:
+                    try:
+                        records = StellarAccountSearchCache.objects.filter(status=status_val).all()
+                        for record in records:
+                            pending_accounts_data.append({
+                                'stellar_account': record.stellar_account,
+                                'network_name': record.network_name,
+                                'status': status_val,
+                                'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
+                                'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                                'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
+                            })
+                    except Exception:
+                        pass
+            except Exception:
+                pending_accounts_data = []
+            
             context = {
                 'search_variable': 'Default Tree Data',
                 'ENV': config('ENV', default='development'),
@@ -73,6 +105,9 @@ def search_view(request):
                 'query_account': account,  # For form persistence
                 'network_selected': network,  # For form persistence
                 'radial_tidy_tree_variable': tree_data,  # For the tree template
+                'pending_accounts_data': pending_accounts_data,
+                'request_status_data': {},
+                'account_lineage_data': [],
             }
             return render(request, 'webApp/search.html', context)
             
@@ -107,10 +142,57 @@ def search_view(request):
     validator = StellarMapValidatorHelpers()
     if not validator.validate_stellar_account_address(account):
         sentry_sdk.capture_message(f"Invalid Stellar account: {account}")
-        raise Http404("Invalid Stellar account address")
+        # Don't throw 404, show error message instead
+        context = {
+            'search_variable': 'Invalid Address',
+            'ENV': config('ENV', default='development'),
+            'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+            'account_genealogy_items': [],
+            'tree_data': {'name': 'Error', 'node_type': 'ERROR', 'children': []},
+            'account': account,
+            'network': network,
+            'query_account': account,
+            'network_selected': network,
+            'radial_tidy_tree_variable': {'name': 'Error', 'node_type': 'ERROR', 'children': []},
+            'is_cached': False,
+            'is_refreshing': False,
+            'request_status_data': {
+                'stellar_account': account,
+                'network': network,
+                'status': 'INVALID_ADDRESS',
+                'cache_status': 'ERROR',
+                'message': 'Invalid Stellar account address format. Must be 56 characters starting with G.'
+            },
+            'account_lineage_data': [],
+            'pending_accounts_data': [],
+        }
+        return render(request, 'webApp/search.html', context)
     
     if network not in ['public', 'testnet']:
-        raise Http404("Invalid network")
+        context = {
+            'search_variable': 'Invalid Network',
+            'ENV': config('ENV', default='development'),
+            'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+            'account_genealogy_items': [],
+            'tree_data': {'name': 'Error', 'node_type': 'ERROR', 'children': []},
+            'account': account,
+            'network': network,
+            'query_account': account,
+            'network_selected': network,
+            'radial_tidy_tree_variable': {'name': 'Error', 'node_type': 'ERROR', 'children': []},
+            'is_cached': False,
+            'is_refreshing': False,
+            'request_status_data': {
+                'stellar_account': account,
+                'network': network,
+                'status': 'INVALID_NETWORK',
+                'cache_status': 'ERROR',
+                'message': 'Invalid network. Must be "public" or "testnet".'
+            },
+            'account_lineage_data': [],
+            'pending_accounts_data': [],
+        }
+        return render(request, 'webApp/search.html', context)
 
     # 12-hour Cassandra cache strategy (with fallback for schema migration)
     is_fresh = False
