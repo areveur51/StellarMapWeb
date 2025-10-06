@@ -185,7 +185,8 @@
           tree_data: parsedTreeData,
           request_status_data: parsedRequestStatus,
           account_lineage_data: parsedAccountLineage,
-          pending_accounts_data: parsedPendingAccounts
+          pending_accounts_data: parsedPendingAccounts,
+          pendingAccountsInterval: null
         },
       methods: {
         async search() {
@@ -343,6 +344,9 @@
           this.network_selected = networkParam;
           this.network_toggle = networkParam === 'public';
         }
+        
+        // Fetch pending accounts immediately on mount
+        this.fetchPendingAccounts();
         
         // Set up auto-refresh for pending accounts every 5 seconds
         this.pendingAccountsInterval = setInterval(() => {

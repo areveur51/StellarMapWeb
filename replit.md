@@ -33,6 +33,7 @@ Preferred communication style: Simple, everyday language.
 - **Responsive Design**: Bootstrap-based interface.
 - **User Experience**: Graceful error handling for invalid Stellar addresses, default display of pending accounts, and prevention of browser caching using `Cache-Control` headers.
 - **Pending Accounts UI**: Real-time Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
+- **Auto-Refresh**: Vue.js polling system refreshes Pending Accounts tab every 5 seconds via `/api/pending-accounts/` endpoint, with immediate initial fetch and proper cleanup on component destruction.
 
 ## Security and Monitoring
 - **Environment Configuration**: `Decouple` library for secure environment variable management.
