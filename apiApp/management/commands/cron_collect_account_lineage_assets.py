@@ -34,13 +34,20 @@ class Command(BaseCommand):
             lin_queryset = lineage_manager.get_all_queryset(
                 status__in=['DONE_UPDATING_FROM_RAW_DATA'])
 
+            if not lin_queryset:
+                logger.info(f"{cron_name}: No records to process")
+                return
+
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
             async_helpers.execute_async(
                 lin_queryset, lineage_helpers.
                 async_horizon_accounts_assets_doc_api_href_from_accounts_raw_data
             )
+            
+            logger.info(f"{cron_name}: Processed {len(lin_queryset)} records")
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
             logger.error(f"{cron_name} failed: {e}")
-            raise ValueError(f'{cron_name} Error: {e}')
+            self.stderr.write(f"{cron_name} ERROR: {e}")
+            raise

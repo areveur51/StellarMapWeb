@@ -35,13 +35,20 @@ class Command(BaseCommand):
                 'DONE_UPDATING_HORIZON_ACCOUNTS_ASSETS_DOC_API_HREF'
             ])
 
+            if not lin_queryset:
+                logger.info(f"{cron_name}: No records to process")
+                return
+
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
             async_helpers.execute_async(
                 lin_queryset, lineage_helpers.
                 async_horizon_accounts_flags_doc_api_href_from_accounts_raw_data
             )
+            
+            logger.info(f"{cron_name}: Processed {len(lin_queryset)} records")
 
         except Exception as e:
             sentry_sdk.capture_exception(e)
             logger.error(f"{cron_name} failed: {e}")
-            raise ValueError(f'{cron_name} Error: {e}')
+            self.stderr.write(f"{cron_name} ERROR: {e}")
+            raise
