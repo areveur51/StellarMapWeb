@@ -38,9 +38,21 @@ class Command(BaseCommand):
                 return
 
             inquiry_manager = StellarAccountSearchCacheManager()
+            
+            # Prioritize new searches (PENDING) over cache refreshes (RE_INQUIRY)
+            # Try PENDING first (newest first for better user experience)
             inq_queryset = inquiry_manager.get_queryset(
-                status__in=[PENDING_MAKE_PARENT_LINEAGE, RE_INQUIRY])
-
+                status=PENDING_MAKE_PARENT_LINEAGE)
+            
+            if inq_queryset:
+                logger.info(f"Processing new search (PENDING): {inq_queryset.stellar_account}")
+            else:
+                # If no PENDING entries, process RE_INQUIRY (oldest first for fairness)
+                inq_queryset = inquiry_manager.get_queryset(
+                    status=RE_INQUIRY)
+                if inq_queryset:
+                    logger.info(f"Processing cache refresh (RE_INQUIRY): {inq_queryset.stellar_account}")
+            
             if inq_queryset:
                 inquiry_manager.update_inquiry(
                     id=inq_queryset.id,
