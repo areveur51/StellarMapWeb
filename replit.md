@@ -42,18 +42,32 @@ Preferred communication style: Simple, everyday language.
 ## Security and Monitoring
 
 ### Security Testing Framework
-- **Comprehensive Security Test Suite**: 70+ security tests across 4 test modules covering all attack vectors and validation points.
+- **Comprehensive Security Test Suite**: 90+ security tests across 6 test modules covering all attack vectors and validation points.
+- **Test Modules**:
+  - `test_validator_security.py`: 16 tests for enhanced validator with ValidationError enforcement
+  - `test_security_injection_prevention.py`: NoSQL injection, XSS, command injection, path traversal
+  - `test_security_api_validation.py`: Stellar address validation, external API data validation, query parameters
+  - `test_security_configuration.py`: Secrets management, environment variables, secure defaults
+  - `test_security_frontend.py`: XSS prevention, CSRF protection, clickjacking prevention
+  - `test_failed_status_handling.py`: Terminal status exclusion from cron processing
 - **Test Coverage Areas**:
+  - ValidationError enforcement for malicious input (shell chars, path traversal, null bytes, invalid checksums)
   - Injection Prevention (NoSQL injection, XSS, command injection, path traversal)
   - API Input Validation (Stellar addresses, external API data, query parameters)
   - Configuration Security (secrets management, environment variables, secure defaults)
   - Frontend Security (XSS prevention, CSRF protection, clickjacking prevention)
+  - Terminal Status Handling (FAILED, INVALID_HORIZON_STELLAR_ADDRESS exclusion from recovery)
 
 ### Input Validation & Injection Prevention
+- **Enhanced Validator with ValidationError Enforcement**:
+  - `StellarMapValidatorHelpers.validate_stellar_account_address()` supports dual modes:
+    - `raise_exception=False` (default): Returns True/False for backwards compatibility
+    - `raise_exception=True`: Raises Django ValidationError with descriptive messages for strict enforcement
+  - Multi-layer validation prevents malicious data from proceeding past validation layer
 - **Multi-Layer Address Validation**:
   - Stellar SDK regex and cryptographic checks at view/model/validator layers
   - 56-character length enforcement with 'G' prefix requirement
-  - Base32 character whitelist (prevents special characters, null bytes, unicode attacks)
+  - Base32 character whitelist (A-Z, 2-7) - prevents special characters, null bytes, unicode attacks
   - Horizon API 404 validation catches invalid addresses that don't exist on the network
   - Invalid addresses marked with `INVALID_HORIZON_STELLAR_ADDRESS` terminal status
 - **NoSQL Injection Protection**:
