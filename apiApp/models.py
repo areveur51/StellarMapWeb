@@ -57,23 +57,35 @@ class BaseModel(DjangoCassandraModel):
         abstract = True
 
 
-class StellarAccountSearchCache(BaseModel):
+class StellarAccountSearchCache(DjangoCassandraModel):
     """
     Model for Stellar account search caching with 12-hour freshness.
 
-    Prevents duplicates by primary key; tracks cache freshness for efficient searches.
+    Prevents duplicates by composite primary key (stellar_account, network).
     Stores cached_json for immediate display if data is fresh (< 12 hours).
+    
+    NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
-    network_name = cassandra_columns.Text(primary_key=True, max_length=9)
+    network = cassandra_columns.Text(primary_key=True, max_length=9)
     status = cassandra_columns.Text(max_length=127,
                                     default=PENDING_HORIZON_API_DATASETS)  # Workflow status
     cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
     last_fetched_at = cassandra_columns.DateTime()  # Tracks cache freshness
+    created_at = cassandra_columns.DateTime()
+    updated_at = cassandra_columns.DateTime()
+
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps on save."""
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        return super().save(*args, **kwargs)
 
     class Meta:
         get_pk_field = 'stellar_account'
-        ordering = ['-created_at']  # Efficient ordering
         db_table = 'user_inquiry_search_history'  # Keep original table name for compatibility
 
 

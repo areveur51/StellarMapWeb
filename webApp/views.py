@@ -201,7 +201,7 @@ def search_view(request):
     if cache_entry:
         request_status_data = {
             'stellar_account': cache_entry.stellar_account if hasattr(cache_entry, 'stellar_account') else account,
-            'network': cache_entry.network_name if hasattr(cache_entry, 'network_name') else network,
+            'network': cache_entry.network if hasattr(cache_entry, 'network') else network,
             'status': cache_entry.status if hasattr(cache_entry, 'status') else 'UNKNOWN',
             'last_fetched_at': cache_entry.last_fetched_at.isoformat() if hasattr(cache_entry, 'last_fetched_at') and cache_entry.last_fetched_at else None,
             'created_at': cache_entry.created_at.isoformat() if hasattr(cache_entry, 'created_at') and cache_entry.created_at else None,
