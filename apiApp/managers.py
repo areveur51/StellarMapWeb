@@ -34,10 +34,10 @@ class StellarAccountSearchCacheManager:
             sentry_sdk.capture_exception(e)
             raise
 
-    def update_inquiry(self, id: uuid.UUID, status: str):
-        """Update status by ID."""
+    def update_inquiry(self, stellar_account: str, network_name: str, status: str):
+        """Update status by account and network."""
         try:
-            inquiry = self.get_queryset(id=id)
+            inquiry = self.get_queryset(stellar_account=stellar_account, network_name=network_name)
             if inquiry:
                 inquiry.status = status
                 inquiry.save()

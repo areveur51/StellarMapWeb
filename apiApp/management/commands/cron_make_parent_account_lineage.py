@@ -55,7 +55,8 @@ class Command(BaseCommand):
             
             if inq_queryset:
                 inquiry_manager.update_inquiry(
-                    id=inq_queryset.id,
+                    stellar_account=inq_queryset.stellar_account,
+                    network_name=inq_queryset.network_name,
                     status=IN_PROGRESS_MAKE_PARENT_LINEAGE)
 
                 lineage_manager = StellarCreatorAccountLineageManager()
@@ -76,7 +77,9 @@ class Command(BaseCommand):
                     lineage_manager.create_lineage(request)
 
                 inquiry_manager.update_inquiry(
-                    id=inq_queryset.id, status=DONE_MAKE_PARENT_LINEAGE)
+                    stellar_account=inq_queryset.stellar_account,
+                    network_name=inq_queryset.network_name,
+                    status=DONE_MAKE_PARENT_LINEAGE)
                 
                 # Update cache with fresh tree data after completing lineage collection
                 try:

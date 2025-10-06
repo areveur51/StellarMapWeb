@@ -4,6 +4,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Data Corruption Bug Fix
+- **Fixed critical bug in StellarAccountSearchCacheManager**: The `update_inquiry()` method was incorrectly querying by non-existent `id` field instead of composite partition key (stellar_account, network_name)
+- **Root Cause**: When cron job called `inquiry_manager.update_inquiry(id=inq_queryset.id, ...)`, it caused Cassandra ORM to create corrupted records with single-character values (e.g., stellar_account='G', network_name='D')
+- **Solution**: 
+  - Updated `StellarAccountSearchCacheManager.update_inquiry()` to accept `stellar_account` and `network_name` parameters
+  - Fixed `cron_make_parent_account_lineage.py` to pass correct partition key fields instead of non-existent `id`
+- **Impact**: Eliminated data corruption; all cache entries now created with full, valid Stellar account addresses and network names
+- **Files Updated**: apiApp/managers.py, apiApp/management/commands/cron_make_parent_account_lineage.py
+
 ## October 2025 - Cassandra Table Schema Fix
 - **Fixed table name mismatch**: Updated models to use `__table_name__` attribute to match production table names.
   - `StellarAccountSearchCache`: Now uses `stellar_account_search_cache` table with PRIMARY KEY ((stellar_account, network_name))
