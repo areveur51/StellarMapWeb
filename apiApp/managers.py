@@ -115,6 +115,19 @@ class StellarCreatorAccountLineageManager:
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise
+    
+    def update_status(self, id: uuid.UUID, status: str):
+        """Update lineage record status by ID."""
+        try:
+            lineage = StellarCreatorAccountLineage.objects.filter(id=id).first()
+            if lineage:
+                lineage.status = status
+                lineage.save()
+                return lineage
+            return None
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise
 
     def get_lineage_by_account(self, account_id: str) -> pd.DataFrame:
         """Get lineage data for account as DataFrame."""
