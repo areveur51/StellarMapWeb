@@ -4,6 +4,39 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 
 # Recent Changes
 
+## October 6, 2025 (Late Afternoon) - Comprehensive Cassandra Schema Fix & Architectural Review
+- **CRITICAL FIX**: Removed `BaseModel` inheritance from all three Cassandra models to eliminate UUID `id` primary key conflicts
+- **StellarAccountSearchCache** (user_inquiry_search_history table):
+  - Removed BaseModel inheritance to use proper composite primary key: `(stellar_account, network)`
+  - Renamed field `network_name` → `network` throughout entire codebase (models, helpers, views, cron commands)
+  - Added explicit `created_at` and `updated_at` timestamp management via custom `save()` method
+  - Set `db_table = 'user_inquiry_search_history'` to preserve compatibility with existing table
+  - Updated apiApp/helpers/sm_cache.py: All methods now use `network` parameter
+  - Updated webApp/views.py: Changed `cache_entry.network_name` → `cache_entry.network`
+- **StellarCreatorAccountLineage** (stellar_creator_account_lineage table):
+  - Removed BaseModel inheritance to use proper composite primary key: `(stellar_account, network_name)`
+  - Reordered fields to put primary keys first for clarity
+  - Added explicit timestamp management with `created_at` and `updated_at` fields
+  - Set `db_table = 'stellar_creator_account_lineage'` for explicit table mapping
+  - Enables efficient lineage traversal queries without ALLOW FILTERING
+- **ManagementCronHealth** (management_cron_health table):
+  - Removed BaseModel inheritance to use proper composite primary key: `(cron_name, created_at DESC)`
+  - `created_at` configured as clustering key with DESC order for efficient latest-record queries
+  - Added `updated_at` field for consistency
+  - Allows cron health checks to efficiently fetch most recent status per cron job
+- **Architect Review Results**: PASS - All models align with production Cassandra schemas
+  - Composite primary keys support intended query patterns
+  - No UUID partition key conflicts
+  - Search/cache flows and lineage traversal use partition+clustering columns (no ALLOW FILTERING required)
+  - Cron health lookups efficiently fetch latest records via clustering-order DESC
+- **Testing**: Created comprehensive test suite in `apiApp/tests/test_stellar_account_search_cache.py`
+  - Tests for cache freshness checks (fresh/stale/missing data)
+  - Tests for PENDING entry creation (new/existing accounts)
+  - Tests for cache updates and JSON data retrieval
+  - Tests for composite primary key uniqueness enforcement
+  - Tests for automatic timestamp management
+  - Note: Uses Django TestCase; architect recommends migrating to CassandraTestCase or mocking for production
+
 ## October 6, 2025 - Search Cache and Account Lineage Tabs Implementation
 - **Model Rename**: Renamed `UserInquirySearchHistory` to `StellarAccountSearchCache` for clarity (better reflects caching functionality)
 - **Search Cache Tab**: Added new b-tab for visibility into StellarAccountSearchCache entries

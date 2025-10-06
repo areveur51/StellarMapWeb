@@ -89,37 +89,63 @@ class StellarAccountSearchCache(DjangoCassandraModel):
         db_table = 'user_inquiry_search_history'  # Keep original table name for compatibility
 
 
-class StellarCreatorAccountLineage(BaseModel):
+class StellarCreatorAccountLineage(DjangoCassandraModel):
     """
     Model for account lineage data.
 
-    Stores API hrefs; status for processing tracking.
+    Stores lineage relationships with composite primary key (stellar_account, network_name).
+    Tracks account creation relationships across the Stellar network.
+    
+    NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
-    stellar_creator_account = cassandra_columns.Text(max_length=56)
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    
     stellar_account = cassandra_columns.Text(primary_key=True, max_length=56)
-    stellar_account_created_at = cassandra_columns.DateTime()
     network_name = cassandra_columns.Text(primary_key=True, max_length=9)
+    stellar_creator_account = cassandra_columns.Text(max_length=56)
+    stellar_account_created_at = cassandra_columns.DateTime()
     home_domain = cassandra_columns.Text(max_length=127)
     xlm_balance = cassandra_columns.Float(default=0.0)
     horizon_accounts_doc_api_href = cassandra_columns.Text()
     status = cassandra_columns.Text(max_length=127)
+    created_at = cassandra_columns.DateTime()
+    updated_at = cassandra_columns.DateTime()
+    
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps on save."""
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        return super().save(*args, **kwargs)
     
     class Meta:
         get_pk_field = 'stellar_account'
+        db_table = 'stellar_creator_account_lineage'
 
 
-class ManagementCronHealth(BaseModel):
+class ManagementCronHealth(DjangoCassandraModel):
     """
     Model for cron health monitoring.
 
-    Clustering for efficient latest fetch.
+    Composite primary key (cron_name, created_at) with clustering for efficient latest fetch.
+    Allows querying health history per cron job with descending time order.
+    
+    NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    
     cron_name = cassandra_columns.Text(primary_key=True, max_length=71)
-    status = cassandra_columns.Text(max_length=63,
-                                    default='HEALTHY')  # Secure default
+    created_at = cassandra_columns.DateTime(primary_key=True, clustering_order="DESC")
+    status = cassandra_columns.Text(max_length=63, default='HEALTHY')  # Secure default
     reason = cassandra_columns.Text()
-    created_at = cassandra_columns.DateTime(primary_key=True,
-                                            clustering_order="DESC")
+    updated_at = cassandra_columns.DateTime()
+
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps on save."""
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        return super().save(*args, **kwargs)
 
     class Meta:
         get_pk_field = 'cron_name'
