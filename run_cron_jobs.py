@@ -29,56 +29,46 @@ def run_command(command):
         print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {command}: ERROR - {e}")
         return False
 
+def run_data_collection_pipeline():
+    """Run all data collection stages for one address in sequence."""
+    print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting data collection pipeline...")
+    
+    run_command('cron_make_parent_account_lineage')
+    run_command('cron_collect_account_horizon_data')
+    run_command('cron_collect_account_lineage_attributes')
+    run_command('cron_collect_account_lineage_assets')
+    run_command('cron_collect_account_lineage_flags')
+    run_command('cron_collect_account_lineage_se_directory')
+    run_command('cron_collect_account_lineage_creator')
+    run_command('cron_make_grandparent_account_lineage')
+    
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Data collection pipeline completed\n")
+
 def main():
-    """Run cron jobs on schedule."""
+    """Run cron jobs with optimized scheduling for fast per-address processing."""
     print("=" * 60)
-    print("Cron Worker Started")
+    print("Cron Worker Started (Option A: Fast Pipeline)")
+    print("=" * 60)
+    print("Strategy: Process each address FAST (all stages in ~1-2 min)")
+    print("Rate limiting: Natural delay between different user searches")
     print("=" * 60)
     
-    minute_counter = 0
+    cycle_counter = 0
     
     while True:
-        current_minute = int(time.strftime('%M'))
-        
-        # Health check: Every 5 min
-        if minute_counter % 5 == 0:
+        # Health check: Every 5 cycles (10 minutes)
+        if cycle_counter % 5 == 0:
             run_command('cron_health_check')
         
-        # Parent lineage: Every 5 min (prioritizes PENDING over RE_INQUIRY)
-        if current_minute % 5 == 0:
-            run_command('cron_make_parent_account_lineage')
+        # CRITICAL: Run full data collection pipeline every cycle (2 minutes)
+        # This processes ONE address through ALL stages quickly
+        run_data_collection_pipeline()
         
-        # Horizon data: Every 10 min, offset 1
-        if current_minute % 10 == 1:
-            run_command('cron_collect_account_horizon_data')
-        
-        # Attributes: Every 5 min, offset 2
-        if current_minute % 5 == 2:
-            run_command('cron_collect_account_lineage_attributes')
-        
-        # Assets: Every 5 min, offset 3
-        if current_minute % 5 == 3:
-            run_command('cron_collect_account_lineage_assets')
-        
-        # Flags: Every 5 min, offset 4
-        if current_minute % 5 == 4:
-            run_command('cron_collect_account_lineage_flags')
-        
-        # SE directory: Every 5 min, offset 0
-        if current_minute % 5 == 0:
-            run_command('cron_collect_account_lineage_se_directory')
-        
-        # Creator: Every 5 min, offset 1
-        if current_minute % 5 == 1:
-            run_command('cron_collect_account_lineage_creator')
-        
-        # Grandparent: Every 10 min, offset 2
-        if current_minute % 10 == 2:
-            run_command('cron_make_grandparent_account_lineage')
-        
-        # Wait 1 minute before next check
-        minute_counter += 1
-        time.sleep(60)
+        # Wait 2 minutes before next cycle
+        # This provides natural rate limiting between processing different addresses
+        cycle_counter += 1
+        print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Waiting 2 minutes before next cycle...")
+        time.sleep(120)
 
 if __name__ == '__main__':
     main()
