@@ -85,10 +85,9 @@ class XSSPreventionTestCase(TestCase):
         ]
         
         for payload in xss_payloads:
-            # Validate at validator level
-            # XSS payloads should fail validation
-            is_valid = StellarMapValidatorHelpers.validate_stellar_account_address(payload)
-            self.assertFalse(is_valid, f"XSS payload should be rejected: {payload}")
+            # Validate at validator level with raise_exception=True
+            with self.assertRaises(ValidationError, msg=f"XSS payload should raise ValidationError: {payload}"):
+                StellarMapValidatorHelpers.validate_stellar_account_address(payload, raise_exception=True)
     
     def test_api_response_escaping(self):
         """Test that API responses properly escape HTML/JavaScript."""
