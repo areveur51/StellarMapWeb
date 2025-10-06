@@ -16,13 +16,13 @@ class StellarMapCacheHelpers:
     
     CACHE_FRESHNESS_HOURS = 12
     
-    def check_cache_freshness(self, stellar_account, network):
+    def check_cache_freshness(self, stellar_account, network_name):
         """
         Check if cached data exists and is fresh (< 12 hours old).
         
         Args:
             stellar_account (str): Stellar account address
-            network (str): Network name (public/testnet)
+            network_name (str): Network name (public/testnet)
             
         Returns:
             tuple: (is_fresh: bool, cache_entry: StellarAccountSearchCache or None)
@@ -30,7 +30,7 @@ class StellarMapCacheHelpers:
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
-                network=network
+                network_name=network_name
             )
             
             if cache_entry.last_fetched_at:
@@ -62,13 +62,13 @@ class StellarMapCacheHelpers:
                 return None
         return None
     
-    def update_cache(self, stellar_account, network, tree_data, status=DONE_MAKE_PARENT_LINEAGE):
+    def update_cache(self, stellar_account, network_name, tree_data, status=DONE_MAKE_PARENT_LINEAGE):
         """
         Update cache with fresh tree data after cron job completion.
         
         Args:
             stellar_account (str): Stellar account address
-            network (str): Network name (public/testnet)
+            network_name (str): Network name (public/testnet)
             tree_data (dict): Tree data to cache
             status (str): Workflow status (default: DONE_MAKE_PARENT_LINEAGE)
             
@@ -78,7 +78,7 @@ class StellarMapCacheHelpers:
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
-                network=network
+                network_name=network_name
             )
             cache_entry.cached_json = json.dumps(tree_data)
             cache_entry.last_fetched_at = datetime.datetime.utcnow()
@@ -89,7 +89,7 @@ class StellarMapCacheHelpers:
         except StellarAccountSearchCache.DoesNotExist:
             cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
-                network=network,
+                network_name=network_name,
                 cached_json=json.dumps(tree_data),
                 last_fetched_at=datetime.datetime.utcnow(),
                 status=status,
@@ -98,7 +98,7 @@ class StellarMapCacheHelpers:
             )
             return cache_entry
     
-    def create_pending_entry(self, stellar_account, network):
+    def create_pending_entry(self, stellar_account, network_name):
         """
         Create or update entry with PENDING_MAKE_PARENT_LINEAGE status to trigger cron job processing.
         
@@ -109,7 +109,7 @@ class StellarMapCacheHelpers:
         
         Args:
             stellar_account (str): Stellar account address
-            network (str): Network name (public/testnet)
+            network_name (str): Network name (public/testnet)
             
         Returns:
             StellarAccountSearchCache: Cache entry set to PENDING
@@ -117,7 +117,7 @@ class StellarMapCacheHelpers:
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
-                network=network
+                network_name=network_name
             )
             cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
             cache_entry.updated_at = datetime.datetime.utcnow()
@@ -127,7 +127,7 @@ class StellarMapCacheHelpers:
         except StellarAccountSearchCache.DoesNotExist:
             cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
-                network=network,
+                network_name=network_name,
                 status=PENDING_MAKE_PARENT_LINEAGE,
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow()
