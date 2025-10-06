@@ -199,17 +199,9 @@ def search_view(request):
     # Prepare request status data for display
     request_status_data = {}
     if cache_entry:
-        # Debug logging to track data corruption
-        stellar_acc = cache_entry.stellar_account if hasattr(cache_entry, 'stellar_account') else account
-        network_val = cache_entry.network_name if hasattr(cache_entry, 'network_name') else network
-        
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning(f"DEBUG cache_entry data: stellar_account='{stellar_acc}' (len={len(stellar_acc)}), network_name='{network_val}' (len={len(network_val)})")
-        
         request_status_data = {
-            'stellar_account': stellar_acc,
-            'network': network_val,
+            'stellar_account': cache_entry.stellar_account if hasattr(cache_entry, 'stellar_account') else account,
+            'network': cache_entry.network_name if hasattr(cache_entry, 'network_name') else network,
             'status': cache_entry.status if hasattr(cache_entry, 'status') else 'UNKNOWN',
             'last_fetched_at': cache_entry.last_fetched_at.isoformat() if hasattr(cache_entry, 'last_fetched_at') and cache_entry.last_fetched_at else None,
             'created_at': cache_entry.created_at.isoformat() if hasattr(cache_entry, 'created_at') and cache_entry.created_at else None,
