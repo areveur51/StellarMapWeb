@@ -7,6 +7,9 @@ StellarMapWeb is a Django application for visualizing Stellar blockchain lineage
 ## October 6, 2025 - Search Cache and Account Lineage Tabs Implementation
 - **Model Rename**: Renamed `UserInquirySearchHistory` to `StellarAccountSearchCache` for clarity (better reflects caching functionality)
 - **Search Cache Tab**: Added new b-tab for visibility into StellarAccountSearchCache entries
+  - Fixed critical bug: Search Cache tab now displays PENDING entry after creation instead of NOT_FOUND message
+  - Updated webApp/views.py to refresh cache_entry after create_pending_entry() call
+  - Users now see actual database state (status: PENDING_MAKE_PARENT_LINEAGE) when searching new accounts
   - Displays database entry details in JSON format with syntax highlighting
   - Shows key fields: stellar_account, network, status, last_fetched_at, created_at, updated_at, has_cached_data, cache_status
   - Context data prepared in webApp/views.py with comprehensive status information

@@ -146,7 +146,7 @@ def search_view(request):
         # Stale or missing cache, create PENDING entry to trigger cron jobs
         try:
             if cache_helpers:
-                cache_helpers.create_pending_entry(account, network)
+                cache_entry = cache_helpers.create_pending_entry(account, network)
                 is_refreshing = True
         except Exception as e:
             sentry_sdk.capture_exception(e)
