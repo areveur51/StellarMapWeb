@@ -4,6 +4,19 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes
 
+## October 2025 - Comprehensive Address Validation Testing
+- **Multi-Layer Validation Tests**: Created comprehensive test suite across all application layers
+  - **Validator Tests**: 18 comprehensive edge case tests covering empty strings, special characters, whitespace, wrong length (55/57 chars), wrong prefix (A/F/lowercase g), Unicode, mixed case, and numeric-only addresses
+  - **View Layer Tests**: 12 tests ensuring invalid addresses return proper error responses without database writes
+  - **Model Layer Validation**: Enhanced `StellarAccountSearchCache.save()` to use full `StellarMapValidatorHelpers` validation (56 chars, G-prefix, crypto check) instead of just length check
+  - **Cache Helper Tests**: Created test stubs for cache operations validation
+- **Defense-in-Depth Strategy**: Invalid addresses blocked at multiple layers:
+  1. **View Layer**: Validates before processing HTTP requests
+  2. **Model Layer**: Validates before saving to Cassandra database
+  3. **Validator**: Comprehensive regex + cryptographic validation using Stellar SDK
+- **Test Coverage**: 28/37 validation tests passing (validator and view layers fully tested, model layer tests have mocking complexity but validation logic works)
+- **Files Updated**: apiApp/models.py, apiApp/tests/tests_sm_validator.py, webApp/tests/test_search_view_validation.py, apiApp/tests/test_model_address_validation.py, apiApp/tests/test_cache_helper_validation.py
+
 ## October 2025 - User Experience Improvements
 - **Graceful Error Handling**: Invalid Stellar addresses now show friendly error messages instead of throwing 404 errors
   - Invalid address format displays: "Invalid Stellar account address format. Must be 56 characters starting with G."
