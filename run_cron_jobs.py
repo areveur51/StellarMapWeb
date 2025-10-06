@@ -34,6 +34,9 @@ def run_data_collection_pipeline():
     """Run all data collection stages for one address in sequence."""
     print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting data collection pipeline...")
     
+    # Auto-recover stuck records before processing (5-minute threshold)
+    run_command('cron_recover_stuck_accounts')
+    
     run_command('cron_make_parent_account_lineage')
     run_command('cron_collect_account_horizon_data')
     run_command('cron_collect_account_lineage_attributes')
