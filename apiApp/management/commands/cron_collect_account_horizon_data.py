@@ -85,9 +85,17 @@ class Command(BaseCommand):
         horizon_url = env_helpers.get_base_horizon()
 
         lineage_manager = StellarCreatorAccountLineageManager()
-        self._fetch_and_store_accounts(lineage_manager, lin_queryset,
-                                       horizon_url, account_id, network_name,
-                                       cron_name)
+        
+        # Fetch accounts first - if invalid, stop processing
+        is_valid = self._fetch_and_store_accounts(lineage_manager, lin_queryset,
+                                                  horizon_url, account_id, network_name,
+                                                  cron_name)
+        
+        # Only continue if the address is valid on Horizon
+        if not is_valid:
+            logger.info(f"Skipping operations/effects for invalid address: {account_id}")
+            return
+        
         self._fetch_and_store_operations(lineage_manager, lin_queryset,
                                          horizon_url, account_id, network_name,
                                          cron_name)
@@ -99,8 +107,14 @@ class Command(BaseCommand):
            stop=stop_after_attempt(7))
     def _fetch_and_store_accounts(self, lineage_manager, lin_queryset,
                                   horizon_url: str, account_id: str,
-                                  network_name: str, cron_name: str):
-        """Helper: Fetch/store accounts with retry/timeout."""
+                                  network_name: str, cron_name: str) -> bool:
+        """
+        Helper: Fetch/store accounts with retry/timeout.
+        
+        Returns:
+            bool: True if account is valid and processing should continue,
+                  False if account is invalid (404) and processing should stop.
+        """
         from stellar_sdk.exceptions import NotFoundError, BaseRequestError
         try:
             lineage_manager.update_status(
@@ -132,6 +146,8 @@ class Command(BaseCommand):
                 'status': DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS
             }
             lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+            return True  # Valid address, continue processing
+            
         except (NotFoundError, BaseRequestError) as e:
             if 'NotFoundError' in str(type(e).__name__) or '404' in str(e):
                 logger.warning(f"Invalid Stellar address on Horizon: {account_id} on {network_name}")
@@ -150,6 +166,7 @@ class Command(BaseCommand):
                     status=INVALID_HORIZON_STELLAR_ADDRESS
                 )
                 logger.info(f"Marked {account_id} as INVALID_HORIZON_STELLAR_ADDRESS")
+                return False  # Invalid address, stop processing
             else:
                 sentry_sdk.capture_exception(e)
                 raise ValueError(f'Error fetching accounts: {e}')
