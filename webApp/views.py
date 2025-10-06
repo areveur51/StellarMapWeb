@@ -145,6 +145,40 @@ def search_view(request):
             response['Expires'] = '0'
             return response
     
+    # Helper function to fetch pending accounts
+    def fetch_pending_accounts():
+        pending_accounts_data = []
+        try:
+            from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY
+            from datetime import datetime
+            
+            def convert_timestamp(ts):
+                if ts is None:
+                    return None
+                if isinstance(ts, datetime):
+                    return ts.isoformat()
+                if isinstance(ts, (int, float)):
+                    return datetime.fromtimestamp(ts / 1000).isoformat()
+                return str(ts)
+            
+            for status_val in [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]:
+                try:
+                    records = StellarAccountSearchCache.objects.filter(status=status_val).all()
+                    for record in records:
+                        pending_accounts_data.append({
+                            'stellar_account': record.stellar_account,
+                            'network_name': record.network_name,
+                            'status': status_val,
+                            'created_at': convert_timestamp(record.created_at) if hasattr(record, 'created_at') else None,
+                            'updated_at': convert_timestamp(record.updated_at) if hasattr(record, 'updated_at') else None,
+                            'last_fetched_at': convert_timestamp(record.last_fetched_at) if hasattr(record, 'last_fetched_at') else None,
+                        })
+                except Exception:
+                    pass
+        except Exception:
+            pending_accounts_data = []
+        return pending_accounts_data
+    
     # If account was provided, validate and process
     # Secure validation
     validator = StellarMapValidatorHelpers()
@@ -172,7 +206,7 @@ def search_view(request):
                 'message': 'Invalid Stellar account address format. Must be 56 characters starting with G.'
             },
             'account_lineage_data': [],
-            'pending_accounts_data': [],
+            'pending_accounts_data': fetch_pending_accounts(),
         }
         response = render(request, 'webApp/search.html', context)
         response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -202,7 +236,7 @@ def search_view(request):
                 'message': 'Invalid network. Must be "public" or "testnet".'
             },
             'account_lineage_data': [],
-            'pending_accounts_data': [],
+            'pending_accounts_data': fetch_pending_accounts(),
         }
         response = render(request, 'webApp/search.html', context)
         response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
