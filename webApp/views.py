@@ -109,7 +109,11 @@ def search_view(request):
                 'request_status_data': {},
                 'account_lineage_data': [],
             }
-            return render(request, 'webApp/search.html', context)
+            response = render(request, 'webApp/search.html', context)
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            return response
             
         except Exception as e:
             sentry_sdk.capture_exception(e)
@@ -135,7 +139,11 @@ def search_view(request):
                 'network_selected': network,
                 'radial_tidy_tree_variable': tree_data,
             }
-            return render(request, 'webApp/search.html', context)
+            response = render(request, 'webApp/search.html', context)
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+            return response
     
     # If account was provided, validate and process
     # Secure validation
@@ -166,7 +174,11 @@ def search_view(request):
             'account_lineage_data': [],
             'pending_accounts_data': [],
         }
-        return render(request, 'webApp/search.html', context)
+        response = render(request, 'webApp/search.html', context)
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
     
     if network not in ['public', 'testnet']:
         context = {
@@ -192,7 +204,11 @@ def search_view(request):
             'account_lineage_data': [],
             'pending_accounts_data': [],
         }
-        return render(request, 'webApp/search.html', context)
+        response = render(request, 'webApp/search.html', context)
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
 
     # 12-hour Cassandra cache strategy (with fallback for schema migration)
     is_fresh = False
@@ -408,4 +424,9 @@ def search_view(request):
         'account_lineage_data': account_lineage_data,
         'pending_accounts_data': pending_accounts_data,
     }
-    return render(request, 'webApp/search.html', context)
+    
+    response = render(request, 'webApp/search.html', context)
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
