@@ -1,4 +1,8 @@
 from django.contrib import admin
+from django.shortcuts import render
+from django.contrib.admin.views.main import ChangeList
+from cassandra.cqlengine import connection
+from cassandra.query import SimpleStatement
 from .models import (
     StellarAccountSearchCache,
     StellarCreatorAccountLineage,
@@ -7,146 +11,95 @@ from .models import (
 )
 
 
-@admin.register(StellarAccountSearchCache)
-class StellarAccountSearchCacheAdmin(admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'status', 'last_fetched_at', 
-                    'retry_count', 'updated_at')
-    readonly_fields = ('created_at', 'updated_at')
-    ordering = ()  # Disable ordering to work with Cassandra constraints
-    show_full_result_count = False  # Disable count queries that use distinct()
-    list_per_page = 50  # Limit results to improve performance
+class CassandraAdminMixin:
+    """Mixin to handle Cassandra-specific admin functionality - READ ONLY."""
     
-    # Disable search and filters - not supported well by Cassandra
-    def has_search_permission(self, request):
+    def changelist_view(self, request, extra_context=None):
+        """Override changelist view to use raw CQL queries."""
+        try:
+            session = connection.get_session()
+            query = f"SELECT * FROM {self.get_table_name()} LIMIT 100 ALLOW FILTERING"
+            statement = SimpleStatement(query)
+            rows = session.execute(statement)
+            
+            # Convert rows to list of dictionaries
+            results = []
+            column_names = []
+            for row in rows:
+                row_dict = dict(row._asdict())
+                results.append(row_dict)
+                if not column_names and row_dict:
+                    column_names = list(row_dict.keys())
+            
+            context = {
+                'title': f'Select {self.model._meta.verbose_name}',
+                'results': results,
+                'column_names': column_names,
+                'opts': self.model._meta,
+                'has_add_permission': False,
+                'app_label': self.model._meta.app_label,
+                'cl': None,  # No changelist object
+            }
+            
+            if extra_context:
+                context.update(extra_context)
+            
+            return render(request, 'admin/cassandra_changelist.html', context)
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            
+            context = {
+                'title': f'Select {self.model._meta.verbose_name}',
+                'error': str(e),
+                'error_detail': error_detail,
+                'opts': self.model._meta,
+                'app_label': self.model._meta.app_label,
+            }
+            return render(request, 'admin/cassandra_error.html', context)
+    
+    def get_table_name(self):
+        """Get the Cassandra table name for this model."""
+        raise NotImplementedError("Subclasses must implement get_table_name()")
+    
+    def has_add_permission(self, request):
         return False
     
-    def get_queryset(self, request):
-        """Override to limit results and avoid complex Cassandra queries."""
-        qs = super().get_queryset(request)
-        # Use limit() instead of slicing to keep it as a QuerySet
-        return qs.limit(100)
+    def has_delete_permission(self, request, obj=None):
+        return False
     
-    fieldsets = (
-        ('Account Information', {
-            'fields': ('stellar_account', 'network_name')
-        }),
-        ('Status & Cache', {
-            'fields': ('status', 'cached_json', 'last_fetched_at')
-        }),
-        ('Error Tracking', {
-            'fields': ('retry_count', 'last_error')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(StellarAccountSearchCache)
+class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
+    list_display = ('stellar_account', 'network_name', 'status')
+    
+    def get_table_name(self):
+        return 'stellarmapweb_keyspace.stellar_account_search_cache'
 
 
 @admin.register(StellarCreatorAccountLineage)
-class StellarCreatorAccountLineageAdmin(admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 
-                    'xlm_balance', 'status', 'updated_at')
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    ordering = ()  # Disable ordering to work with Cassandra constraints
-    show_full_result_count = False  # Disable count queries that use distinct()
-    list_per_page = 50  # Limit results to improve performance
+class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
+    list_display = ('stellar_account', 'network_name', 'stellar_creator_account')
     
-    # Disable search and filters - not supported well by Cassandra
-    def has_search_permission(self, request):
-        return False
-    
-    def get_queryset(self, request):
-        """Override to limit results and avoid complex Cassandra queries."""
-        qs = super().get_queryset(request)
-        # Use limit() instead of slicing to keep it as a QuerySet
-        return qs.limit(100)
-    
-    fieldsets = (
-        ('Account Information', {
-            'fields': ('id', 'stellar_account', 'network_name')
-        }),
-        ('Lineage Data', {
-            'fields': ('stellar_creator_account', 'stellar_account_created_at', 
-                      'home_domain', 'xlm_balance')
-        }),
-        ('Horizon API', {
-            'fields': ('horizon_accounts_doc_api_href',)
-        }),
-        ('Status & Errors', {
-            'fields': ('status', 'retry_count', 'last_error')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def get_table_name(self):
+        return 'stellarmapweb_keyspace.stellar_creator_account_lineage'
 
 
 @admin.register(ManagementCronHealth)
-class ManagementCronHealthAdmin(admin.ModelAdmin):
-    list_display = ('cron_name', 'status', 'created_at', 'reason')
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    ordering = ()  # Disable ordering to work with Cassandra constraints
-    show_full_result_count = False  # Disable count queries that use distinct()
-    list_per_page = 50  # Limit results to improve performance
+class ManagementCronHealthAdmin(CassandraAdminMixin, admin.ModelAdmin):
+    list_display = ('cron_name', 'status', 'created_at')
     
-    # Disable search and filters - not supported well by Cassandra
-    def has_search_permission(self, request):
-        return False
-    
-    def get_queryset(self, request):
-        """Override to limit results and avoid complex Cassandra queries."""
-        qs = super().get_queryset(request)
-        # Use limit() instead of slicing to keep it as a QuerySet
-        return qs.limit(100)
-    
-    fieldsets = (
-        ('Cron Information', {
-            'fields': ('id', 'cron_name', 'status')
-        }),
-        ('Details', {
-            'fields': ('reason',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def get_table_name(self):
+        return 'stellarmapweb_keyspace.management_cron_health'
 
 
 @admin.register(StellarAccountStageExecution)
-class StellarAccountStageExecutionAdmin(admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'stage_number', 'cron_name', 
-                    'status', 'execution_time_ms', 'created_at')
-    readonly_fields = ('created_at', 'updated_at')
-    ordering = ()  # Disable ordering to work with Cassandra constraints
-    show_full_result_count = False  # Disable count queries that use distinct()
-    list_per_page = 50  # Limit results to improve performance
+class StellarAccountStageExecutionAdmin(CassandraAdminMixin, admin.ModelAdmin):
+    list_display = ('stellar_account', 'network_name', 'stage_number', 'status')
     
-    # Disable search and filters - not supported well by Cassandra
-    def has_search_permission(self, request):
-        return False
-    
-    def get_queryset(self, request):
-        """Override to limit results and avoid complex Cassandra queries."""
-        qs = super().get_queryset(request)
-        # Use limit() instead of slicing to keep it as a QuerySet
-        return qs.limit(100)
-    
-    fieldsets = (
-        ('Account Information', {
-            'fields': ('stellar_account', 'network_name')
-        }),
-        ('Stage Execution', {
-            'fields': ('stage_number', 'cron_name', 'status', 'execution_time_ms')
-        }),
-        ('Error Details', {
-            'fields': ('error_message',),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def get_table_name(self):
+        return 'stellarmapweb_keyspace.stellar_account_stage_execution'

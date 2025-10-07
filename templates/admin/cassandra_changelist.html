@@ -1,0 +1,81 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/changelists.css' %}">
+    <style>
+        .cassandra-results {
+            margin: 20px 0;
+        }
+        .cassandra-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .cassandra-table th {
+            background-color: #417690;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #305060;
+        }
+        .cassandra-table td {
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .cassandra-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        .info-message {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            margin: 20px 0;
+        }
+    </style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">Home</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_label|capfirst|escape }}</a>
+&rsaquo; {{ opts.verbose_name_plural|capfirst }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="info-message">
+        <strong>Read-Only View</strong> - Showing up to 100 most recent records from Cassandra
+    </div>
+    
+    <div class="cassandra-results">
+        {% if results %}
+            <table class="cassandra-table">
+                <thead>
+                    <tr>
+                        {% for column in column_names %}
+                        <th>{{ column|title }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                    <tr>
+                        {% for value in row.values %}
+                        <td title="{{ value }}">{{ value|truncatewords:10 }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p><em>{{ results|length }} record(s) displayed</em></p>
+        {% else %}
+            <p>No records found in this table.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
