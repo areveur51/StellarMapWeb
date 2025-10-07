@@ -68,30 +68,28 @@ def pending_accounts_api(request):
             threshold = STUCK_THRESHOLDS.get(status, float('inf'))
             return age_minutes >= threshold
         
-        # Fetch from StellarAccountSearchCache
+        # Fetch from StellarAccountSearchCache - OPTIMIZED: Single query instead of 3
         cache_statuses = [PENDING_MAKE_PARENT_LINEAGE, IN_PROGRESS_MAKE_PARENT_LINEAGE, RE_INQUIRY]
-        for status in cache_statuses:
-            try:
-                records = StellarAccountSearchCache.objects.filter(status=status).all()
-                for record in records:
-                    age_mins = calculate_age_minutes(record.updated_at)
-                    pending_accounts_data.append({
-                        'table': 'StellarAccountSearchCache',
-                        'stellar_account': record.stellar_account,
-                        'network_name': record.network_name,
-                        'status': record.status,
-                        'created_at': convert_timestamp(record.created_at),
-                        'updated_at': convert_timestamp(record.updated_at),
-                        'last_fetched_at': convert_timestamp(record.last_fetched_at),
-                        'age_minutes': age_mins,
-                        'is_stuck': is_record_stuck(record.status, age_mins),
-                        'retry_count': getattr(record, 'retry_count', 0),
-                    })
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                continue
+        try:
+            cache_records = StellarAccountSearchCache.objects.filter(status__in=cache_statuses).all()
+            for record in cache_records:
+                age_mins = calculate_age_minutes(record.updated_at)
+                pending_accounts_data.append({
+                    'table': 'StellarAccountSearchCache',
+                    'stellar_account': record.stellar_account,
+                    'network_name': record.network_name,
+                    'status': record.status,
+                    'created_at': convert_timestamp(record.created_at),
+                    'updated_at': convert_timestamp(record.updated_at),
+                    'last_fetched_at': convert_timestamp(record.last_fetched_at),
+                    'age_minutes': age_mins,
+                    'is_stuck': is_record_stuck(record.status, age_mins),
+                    'retry_count': getattr(record, 'retry_count', 0),
+                })
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
         
-        # Fetch from StellarCreatorAccountLineage
+        # Fetch from StellarCreatorAccountLineage - OPTIMIZED: Single query instead of 14
         lineage_statuses = [
             PENDING_HORIZON_API_DATASETS,
             IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
@@ -107,26 +105,24 @@ def pending_accounts_api(request):
             IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
             DONE_GRANDPARENT_LINEAGE,
         ]
-        for status in lineage_statuses:
-            try:
-                records = StellarCreatorAccountLineage.objects.filter(status=status).all()
-                for record in records:
-                    age_mins = calculate_age_minutes(record.updated_at)
-                    pending_accounts_data.append({
-                        'table': 'StellarCreatorAccountLineage',
-                        'stellar_account': record.stellar_account,
-                        'network_name': record.network_name,
-                        'status': record.status,
-                        'created_at': convert_timestamp(record.created_at),
-                        'updated_at': convert_timestamp(record.updated_at),
-                        'last_fetched_at': None,
-                        'age_minutes': age_mins,
-                        'is_stuck': is_record_stuck(record.status, age_mins),
-                        'retry_count': getattr(record, 'retry_count', 0),
-                    })
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                continue
+        try:
+            lineage_records = StellarCreatorAccountLineage.objects.filter(status__in=lineage_statuses).all()
+            for record in lineage_records:
+                age_mins = calculate_age_minutes(record.updated_at)
+                pending_accounts_data.append({
+                    'table': 'StellarCreatorAccountLineage',
+                    'stellar_account': record.stellar_account,
+                    'network_name': record.network_name,
+                    'status': record.status,
+                    'created_at': convert_timestamp(record.created_at),
+                    'updated_at': convert_timestamp(record.updated_at),
+                    'last_fetched_at': None,
+                    'age_minutes': age_mins,
+                    'is_stuck': is_record_stuck(record.status, age_mins),
+                    'retry_count': getattr(record, 'retry_count', 0),
+                })
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
                 
     except Exception as e:
         sentry_sdk.capture_exception(e)
