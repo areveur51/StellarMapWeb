@@ -51,14 +51,12 @@ jobs:
       run: |
         python manage.py check --deploy --fail-level WARNING
     
-    - name: Run tests
+    - name: Run tests (SQLite only - no Cassandra)
       env:
         DEBUG: 'True'
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY || 'test-secret-key-for-ci-only' }}
-        ASTRA_DB_TOKEN: ${{ secrets.ASTRA_DB_TOKEN || 'dummy' }}
-        CASSANDRA_DB_NAME: ${{ secrets.CASSANDRA_DB_NAME || 'dummy' }}
-        CASSANDRA_KEYSPACE: ${{ secrets.CASSANDRA_KEYSPACE || 'dummy' }}
       run: |
+        echo "Running tests with SQLite only (Cassandra tests require Astra DB credentials)"
         python manage.py test
     
     - name: Check for outdated packages
