@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run security audit
+      run: |
+        pip install pip-audit
+        pip-audit || true
+      continue-on-error: true
+    
+    - name: Run Django system checks
+      env:
+        DEBUG: 'False'
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY || 'test-secret-key-for-ci-only' }}
+        ASTRA_DB_TOKEN: ${{ secrets.ASTRA_DB_TOKEN || 'dummy' }}
+        CASSANDRA_DB_NAME: ${{ secrets.CASSANDRA_DB_NAME || 'dummy' }}
+        CASSANDRA_KEYSPACE: ${{ secrets.CASSANDRA_KEYSPACE || 'dummy' }}
+      run: |
+        python manage.py check --deploy --fail-level WARNING
+    
+    - name: Run tests
+      env:
+        DEBUG: 'True'
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY || 'test-secret-key-for-ci-only' }}
+        ASTRA_DB_TOKEN: ${{ secrets.ASTRA_DB_TOKEN || 'dummy' }}
+        CASSANDRA_DB_NAME: ${{ secrets.CASSANDRA_DB_NAME || 'dummy' }}
+        CASSANDRA_KEYSPACE: ${{ secrets.CASSANDRA_KEYSPACE || 'dummy' }}
+      run: |
+        python manage.py test
+    
+    - name: Check for outdated packages
+      run: |
+        pip list --outdated
+      continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install flake8
+      run: |
+        pip install flake8
+    
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
