@@ -11,13 +11,13 @@ skinparam component {
 }
 
 skinparam cloud {
-  BackgroundColor #231B3D
+  BackgroundColor #100D23
   BorderColor #0BE784
   FontColor #96DDF2
 }
 
 skinparam database {
-  BackgroundColor #032314
+  BackgroundColor #100D23
   BorderColor #0BE784
   FontColor #96DDF2
 }
@@ -32,6 +32,12 @@ skinparam actor {
   BackgroundColor #0BE784
   BorderColor #0BE784
   FontColor #100D23
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
 }
 
 title <color:#0BE784>System Overview</color>
@@ -69,7 +75,7 @@ Pipeline -[#01C176]-> Horizon : "Fetches Data"
 Pipeline -[#01C176]-> Expert : "Enrichment"
 Pipeline -[#01C176]-> DB : "Stores"
 
-note right of DB #100D23
+note right of DB #231B3D
   <color:#0BE784>Query Optimization:</color>
   <color:#96DDF2>• 204 → 24 queries/min
   • 88% reduction

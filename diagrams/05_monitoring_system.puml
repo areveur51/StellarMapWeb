@@ -11,7 +11,7 @@ skinparam component {
 }
 
 skinparam database {
-  BackgroundColor #032314
+  BackgroundColor #100D23
   BorderColor #0BE784
   FontColor #96DDF2
 }
@@ -23,7 +23,7 @@ skinparam package {
 }
 
 skinparam note {
-  BackgroundColor #100D23
+  BackgroundColor #231B3D
   BorderColor #3f2c70
   FontColor #96DDF2
 }
@@ -53,7 +53,7 @@ CronHealth -[#E5526F]-> CronWorker : "Skips processing\n(if unhealthy)"
 Recovery -[#01C176]-> DataDB : "Finds stuck records"
 Recovery -[#01C176]-> DataDB : "Resets to PENDING"
 
-note right of CronHealth #100D23
+note right of CronHealth #231B3D
   <color:#0BE784>Health Statuses:</color>
   <color:#96DDF2>• HEALTHY</color>
   <color:#E5526F>• UNHEALTHY_RATE_LIMITED</color>
@@ -69,13 +69,13 @@ note right of Recovery #231B3D
   • PENDING
   • IN_PROGRESS</color>
   
-  <color:#0BE784>Terminal Statuses</color>
-  <color:#96DDF2>(Never recovered):</color>
+  <color:#0BE784>Terminal Statuses:</color>
+  <color:#96DDF2>(Never recovered)</color>
   <color:#E5526F>• FAILED
   • INVALID_HORIZON_STELLAR_ADDRESS</color>
 end note
 
-note right of StageTracker #100D23
+note right of StageTracker #231B3D
   <color:#0BE784>Stage Lifecycle:</color>
   <color:#96DDF2>1. Initialize all 8 stages
   2. Update status per stage
