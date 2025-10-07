@@ -186,6 +186,11 @@ replit.nix
 .cache/
 .config/
 
+# Replit attachments and temporary files
+attached_assets/
+temp/
+tmp/
+
 # IDE
 .vscode/
 .idea/
@@ -193,4 +198,3 @@ replit.nix
 # Temporary files
 *.tmp
 *.temp
-/tmp/
