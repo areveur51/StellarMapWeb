@@ -55,10 +55,11 @@ class StellarMapCreatorAccountLineageHelpers:
         astra.set_datastax_url(lin_queryset.horizon_accounts_operations_doc_api_href)
         response = astra.get_document()
         parser = StellarMapHorizonAPIParserHelpers(response)
+        creator_data = parser.parse_operations_creator_account(lin_queryset.stellar_account)
         req = HttpRequest()
         req.data = {
-            'stellar_creator_account': parser.parse_operations_creator_account(),
-            'created': parser.parse_operations_created_at(),
+            'stellar_creator_account': creator_data.get('funder', ''),
+            'stellar_account_created_at': creator_data.get('created_at'),
             'status': DONE_UPDATING_FROM_OPERATIONS_RAW_DATA
         }
         await manager.async_update_lineage(lin_queryset.id, req)

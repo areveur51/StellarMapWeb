@@ -102,8 +102,14 @@ class StellarMapHorizonAPIParserHelpers:
             sentry_sdk.capture_exception(e)
             return 0.0
 
-    # Similar safe parsing for other methods: parse_account_home_domain, parse_operations_creator_account, parse_account_assets, parse_account_flags
-    # Example for parse_operations_creator_account:
+    def parse_account_home_domain(self) -> str:
+        """Extract home domain safely."""
+        try:
+            return self.datastax_response.get('data', {}).get('raw_data', {}).get('home_domain', '')
+        except (KeyError, AttributeError) as e:
+            sentry_sdk.capture_exception(e)
+            return ''
+
     def parse_operations_creator_account(self, stellar_account: str) -> dict:
         try:
             records = self.datastax_response.get('data', {}).get('raw_data', {}).get('_embedded', {}).get('records', [])
