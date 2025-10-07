@@ -16,77 +16,77 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>Astra DB (Cassandra) Schema</color>
+title Astra DB (Cassandra) Schema
 
 class StellarAccountSearchCache {
-  <color:#0BE784>+ stellar_account (PK)</color>
-  <color:#0BE784>+ network_name (PK)</color>
-  <color:#96DDF2>+ status
+  **+ stellar_account (PK)**
+  **+ network_name (PK)**
+  + status
   + cached_json
   + last_fetched_at
   + retry_count
   + created_at
-  + updated_at</color>
+  + updated_at
   --
-  <color:#01C176>12-hour cache</color>
+  //12-hour cache//
 }
 
 class StellarCreatorAccountLineage {
-  <color:#0BE784>+ id (PK)</color>
-  <color:#0BE784>+ stellar_account (CK)</color>
-  <color:#0BE784>+ network_name (CK)</color>
-  <color:#0BE784>+ created_at (CK)</color>
-  <color:#96DDF2>+ stellar_creator_account
+  **+ id (PK)**
+  **+ stellar_account (CK)**
+  **+ network_name (CK)**
+  **+ created_at (CK)**
+  + stellar_creator_account
   + stellar_account_created_at
   + home_domain
   + xlm_balance
   + status
-  + retry_count</color>
+  + retry_count
   --
-  <color:#01C176>Lineage data</color>
+  //Lineage data//
 }
 
 class StellarAccountStageExecution {
-  <color:#0BE784>+ stellar_account (PK)</color>
-  <color:#0BE784>+ network_name (PK)</color>
-  <color:#0BE784>+ created_at (PK)</color>
-  <color:#0BE784>+ stage_number (CK)</color>
-  <color:#96DDF2>+ cron_name
+  **+ stellar_account (PK)**
+  **+ network_name (PK)**
+  **+ created_at (PK)**
+  **+ stage_number (CK)**
+  + cron_name
   + status
   + execution_time_ms
   + error_message
-  + updated_at</color>
+  + updated_at
   --
-  <color:#01C176>Pipeline tracking</color>
+  //Pipeline tracking//
 }
 
 class ManagementCronHealth {
-  <color:#0BE784>+ id (PK)</color>
-  <color:#0BE784>+ created_at (PK)</color>
-  <color:#0BE784>+ cron_name (CK)</color>
-  <color:#96DDF2>+ status
+  **+ id (PK)**
+  **+ created_at (PK)**
+  **+ cron_name (CK)**
+  + status
   + execution_time_ms
   + error_message
-  + updated_at</color>
+  + updated_at
   --
-  <color:#01C176>Health monitoring</color>
+  //Health monitoring//
 }
 
 note right of StellarAccountSearchCache #231B3D
-  <color:#0BE784>Optimized Queries:</color>
-  <color:#96DDF2>filter(status__in=[
+  **Optimized Queries:**
+  filter(status__in=[
     'PENDING',
     'IN_PROGRESS',
     'RE_INQUIRY'
-  ])</color>
+  ])
 end note
 
 note right of ManagementCronHealth #231B3D
-  <color:#0BE784>Health Statuses:</color>
-  <color:#96DDF2>• HEALTHY</color>
-  <color:#E5526F>• UNHEALTHY_RATE_LIMITED</color>
+  **Health Statuses:**
+  • HEALTHY
+  • UNHEALTHY_RATE_LIMITED
   
-  <color:#96DDF2>Cron skips when unhealthy</color>
+  Cron skips when unhealthy
 end note
 
 @enduml

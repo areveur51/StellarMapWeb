@@ -34,7 +34,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>Frontend & API Architecture
+title Frontend & API Architecture
 
 actor User #0BE784
 

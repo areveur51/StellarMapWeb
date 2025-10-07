@@ -28,7 +28,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>Monitoring & Health System
+title Monitoring & Health System
 
 package "Monitoring Components" #231B3D {
   component "Cron Health\nMonitor" as CronHealth

@@ -16,7 +16,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>8-Stage Data Pipeline (2-3 minutes)
+title 8-Stage Data Pipeline (2-3 minutes)
 
 start
 

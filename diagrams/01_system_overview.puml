@@ -40,7 +40,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>System Overview
+title System Overview
 
 actor User #0BE784
 
