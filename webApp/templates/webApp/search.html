@@ -78,19 +78,39 @@
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card>
-              <b-tab title="Upstream Creator Accounts" active :title-link-attributes="{ title: 'View hierarchical table of creator accounts' }">
+              <b-tab title="Account Lineage" active :title-link-attributes="{ title: 'View lineage table leading back to origin/creator accounts' }">
                 <template>
-                  <div>
+                  <div v-if="account_lineage_data && account_lineage_data.length > 0">
                     <b-table
-                      id="table-transition-example"
-                      :items="account_genealogy_items"
-                      :fields="visibleGeneologyFields"
+                      :items="account_lineage_data"
+                      :fields="lineageTableFields"
                       striped
                       small
-                      primary-key="stellar_account"
                       dark
-                      :tbody-transition-props="transProps"
-                    ></b-table>
+                      hover
+                    >
+                      <template #cell(stellar_account)="data">
+                        <span style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>
+                      </template>
+                      <template #cell(stellar_creator_account)="data">
+                        <span v-if="data.value" style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(xlm_balance)="data">
+                        {{ data.value }} XLM
+                      </template>
+                      <template #cell(status)="data">
+                        <b-badge :variant="getLineageStatusVariant(data.value)">{{ data.value }}</b-badge>
+                      </template>
+                      <template #cell(actions)="row">
+                        <b-button size="sm" variant="info" @click="showLineageJson(row.item)" title="View JSON">
+                          <i class="fas fa-code"></i>
+                        </b-button>
+                      </template>
+                    </b-table>
+                  </div>
+                  <div v-else class="alert alert-info">
+                    No lineage data available for this address.
                   </div>
                 </template>
               </b-tab>
@@ -99,9 +119,6 @@
               </b-tab>
               <b-tab title="Search Cache" :title-link-attributes="{ title: 'Cache status and metadata for this search' }">
                 <pre v-html="highlightedRequestStatus"></pre>
-              </b-tab>
-              <b-tab title="Account Lineage" :title-link-attributes="{ title: 'Complete lineage data for all related accounts' }">
-                <pre v-html="highlightedAccountLineage"></pre>
               </b-tab>
               <b-tab title="Pending Accounts" :title-link-attributes="{ title: 'Accounts currently being processed by the pipeline' }">
                 <pre v-html="highlightedPendingAccounts"></pre>
@@ -198,6 +215,25 @@
         <pre v-html="highlightedStageJSON" style="background-color: #23241f; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto;"></pre>
       </div>
     </b-modal>
+
+    <!-- Lineage JSON Viewer Modal -->
+    <b-modal
+      v-model="showLineageJsonModal"
+      title="Account Lineage Data"
+      size="lg"
+      ok-only
+      ok-title="Close"
+      header-bg-variant="dark"
+      header-text-variant="light"
+      body-bg-variant="dark"
+      body-text-variant="light"
+      footer-bg-variant="dark"
+      footer-text-variant="light"
+    >
+      <div v-if="selectedLineageData">
+        <pre v-html="highlightedLineageJSON" style="background-color: #23241f; padding: 15px; border-radius: 5px; max-height: 500px; overflow-y: auto;"></pre>
+      </div>
+    </b-modal>
     {% endverbatim %}
   </div>
 
@@ -263,9 +299,20 @@
             { key: 'error_message', label: 'Error', sortable: false },
             { key: 'actions', label: 'JSON', sortable: false }
           ],
+          lineageTableFields: [
+            { key: 'stellar_account', label: 'Account', sortable: true },
+            { key: 'stellar_creator_account', label: 'Creator Account', sortable: true },
+            { key: 'xlm_balance', label: 'XLM Balance', sortable: true },
+            { key: 'home_domain', label: 'Home Domain', sortable: true },
+            { key: 'status', label: 'Status', sortable: true },
+            { key: 'actions', label: 'JSON', sortable: false }
+          ],
           showStageJsonModal: false,
           selectedStageData: null,
-          highlightedStageJSON: ''
+          highlightedStageJSON: '',
+          showLineageJsonModal: false,
+          selectedLineageData: null,
+          highlightedLineageJSON: ''
         },
       methods: {
         async search() {
@@ -429,6 +476,27 @@
             this.highlightedStageJSON = stageJSON;
           }
           this.showStageJsonModal = true;
+        },
+        showLineageJson(lineageData) {
+          this.selectedLineageData = lineageData;
+          const lineageJSON = JSON.stringify(lineageData, null, 2);
+          try {
+            if (typeof hljs !== 'undefined') {
+              this.highlightedLineageJSON = hljs.highlight(lineageJSON, {language: 'json'}).value;
+            } else {
+              this.highlightedLineageJSON = lineageJSON;
+            }
+          } catch (e) {
+            this.highlightedLineageJSON = lineageJSON;
+          }
+          this.showLineageJsonModal = true;
+        },
+        getLineageStatusVariant(status) {
+          if (status === 'COMPLETED_SUCCESS') return 'success';
+          if (status === 'FAILED' || status === 'ERROR') return 'danger';
+          if (status === 'PENDING_HORIZON_API_DATASETS') return 'warning';
+          if (status && status.includes('PENDING')) return 'info';
+          return 'secondary';
         }
       },
       watch: {
