@@ -1,94 +1,92 @@
 @startuml Database Schema
 
-skinparam backgroundColor #372963
-skinparam activity {
-    BackgroundColor #100D23
-    BorderColor #00FF9C
-    FontColor #ffffff
-}
-skinparam activityArrowColor #c592ff
-skinparam activityStartColor #00FF9C
-skinparam activityStopColor #00FF9C
-skinparam defaultFontColor #ffffff
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
 
 skinparam class {
   BackgroundColor #100D23
-  BorderColor #00FF9C
-  FontColor #ffffff
-  ArrowColor #c592ff
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
 }
 
-title <color:#00FF9C>Astra DB (Cassandra) Schema</color>
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+title <color:#0BE784>Astra DB (Cassandra) Schema</color>
 
 class StellarAccountSearchCache {
-  + stellar_account (PK)
-  + network_name (PK)
-  + status
+  <color:#0BE784>+ stellar_account (PK)</color>
+  <color:#0BE784>+ network_name (PK)</color>
+  <color:#96DDF2>+ status
   + cached_json
   + last_fetched_at
   + retry_count
   + created_at
-  + updated_at
+  + updated_at</color>
   --
-  <color:#00FF9C>12-hour cache</color>
+  <color:#01C176>12-hour cache</color>
 }
 
 class StellarCreatorAccountLineage {
-  + id (PK)
-  + stellar_account (CK)
-  + network_name (CK)
-  + created_at (CK)
-  + stellar_creator_account
+  <color:#0BE784>+ id (PK)</color>
+  <color:#0BE784>+ stellar_account (CK)</color>
+  <color:#0BE784>+ network_name (CK)</color>
+  <color:#0BE784>+ created_at (CK)</color>
+  <color:#96DDF2>+ stellar_creator_account
   + stellar_account_created_at
   + home_domain
   + xlm_balance
   + status
-  + retry_count
+  + retry_count</color>
   --
-  <color:#00FF9C>Lineage data</color>
+  <color:#01C176>Lineage data</color>
 }
 
 class StellarAccountStageExecution {
-  + stellar_account (PK)
-  + network_name (PK)
-  + created_at (PK)
-  + stage_number (CK)
-  + cron_name
+  <color:#0BE784>+ stellar_account (PK)</color>
+  <color:#0BE784>+ network_name (PK)</color>
+  <color:#0BE784>+ created_at (PK)</color>
+  <color:#0BE784>+ stage_number (CK)</color>
+  <color:#96DDF2>+ cron_name
   + status
   + execution_time_ms
   + error_message
-  + updated_at
+  + updated_at</color>
   --
-  <color:#00FF9C>Pipeline tracking</color>
+  <color:#01C176>Pipeline tracking</color>
 }
 
 class ManagementCronHealth {
-  + id (PK)
-  + created_at (PK)
-  + cron_name (CK)
-  + status
+  <color:#0BE784>+ id (PK)</color>
+  <color:#0BE784>+ created_at (PK)</color>
+  <color:#0BE784>+ cron_name (CK)</color>
+  <color:#96DDF2>+ status
   + execution_time_ms
   + error_message
-  + updated_at
+  + updated_at</color>
   --
-  <color:#00FF9C>Health monitoring</color>
+  <color:#01C176>Health monitoring</color>
 }
 
-note right of StellarAccountSearchCache
-  <color:#00FF9C>Optimized Queries:</color>
-  filter(status__in=[
+note right of StellarAccountSearchCache #231B3D
+  <color:#0BE784>Optimized Queries:</color>
+  <color:#96DDF2>filter(status__in=[
     'PENDING',
     'IN_PROGRESS',
     'RE_INQUIRY'
-  ])
+  ])</color>
 end note
 
-note right of ManagementCronHealth
-  <color:#00FF9C>Health Statuses:</color>
-  • HEALTHY
-  • UNHEALTHY_RATE_LIMITED
+note right of ManagementCronHealth #231B3D
+  <color:#0BE784>Health Statuses:</color>
+  <color:#96DDF2>• HEALTHY</color>
+  <color:#E5526F>• UNHEALTHY_RATE_LIMITED</color>
   
-  Cron skips when unhealthy
+  <color:#96DDF2>Cron skips when unhealthy</color>
 end note
 
 @enduml

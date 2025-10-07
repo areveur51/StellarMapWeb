@@ -1,75 +1,79 @@
 @startuml System Overview
 
-skinparam backgroundColor #372963
-skinparam activity {
-    BackgroundColor #100D23
-    BorderColor #00FF9C
-    FontColor #ffffff
-}
-skinparam activityArrowColor #c592ff
-skinparam activityStartColor #00FF9C
-skinparam activityStopColor #00FF9C
-skinparam defaultFontColor #ffffff
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
 
 skinparam component {
   BackgroundColor #100D23
-  BorderColor #00FF9C
-  FontColor #ffffff
-  ArrowColor #c592ff
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
 }
 
 skinparam cloud {
-  BackgroundColor #100D23
-  BorderColor #00FF9C
-  FontColor #ffffff
+  BackgroundColor #231B3D
+  BorderColor #0BE784
+  FontColor #96DDF2
 }
 
 skinparam database {
-  BackgroundColor #100D23
-  BorderColor #00FF9C
-  FontColor #ffffff
+  BackgroundColor #032314
+  BorderColor #0BE784
+  FontColor #96DDF2
 }
 
-title <color:#00FF9C>System Overview</color>
-
-actor User #00FF9C
-
-package "Frontend Layer" #100D23 {
-  component "Vue.js + D3.js\nVisualization" as Frontend #00FF9C
+skinparam package {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
 }
 
-package "Django Application" #100D23 {
-  component "webApp" as WebApp #00FF9C
-  component "apiApp" as ApiApp #00FF9C
-  component "radialTidyTreeApp" as RadialApp #00FF9C
+skinparam actor {
+  BackgroundColor #0BE784
+  BorderColor #0BE784
+  FontColor #100D23
 }
 
-package "Background Services" #100D23 {
-  component "Cron Worker\n(run_cron_jobs.py)" as CronWorker #00FF9C
-  component "8-Stage Pipeline\n(2-3 min processing)" as Pipeline #00FF9C
+title <color:#0BE784>System Overview</color>
+
+actor User #0BE784
+
+package "Frontend Layer" #231B3D {
+  component "Vue.js + D3.js\nVisualization" as Frontend #0BE784
 }
 
-cloud "External APIs" #100D23 {
-  component "Horizon API" as Horizon #00FF9C
-  component "Stellar Expert" as Expert #00FF9C
+package "Django Application" #231B3D {
+  component "webApp" as WebApp #0BE784
+  component "apiApp" as ApiApp #0BE784
+  component "radialTidyTreeApp" as RadialApp #0BE784
 }
 
-database "Astra DB\n(Cassandra)" as DB #00FF9C
+package "Background Services" #231B3D {
+  component "Cron Worker\n(run_cron_jobs.py)" as CronWorker #0BE784
+  component "8-Stage Pipeline\n(2-3 min processing)" as Pipeline #0BE784
+}
 
-User -[#c592ff]-> Frontend : "Views"
-Frontend -[#c592ff]-> WebApp : "HTTP"
-WebApp -[#c592ff]-> ApiApp : "API Calls"
-ApiApp -[#c592ff]-> DB : "Queries\n(88% optimized)"
-CronWorker -[#c592ff]-> Pipeline : "Orchestrates"
-Pipeline -[#c592ff]-> Horizon : "Fetches Data"
-Pipeline -[#c592ff]-> Expert : "Enrichment"
-Pipeline -[#c592ff]-> DB : "Stores"
+cloud "External APIs" #231B3D {
+  component "Horizon API" as Horizon #0BE784
+  component "Stellar Expert" as Expert #0BE784
+}
 
-note right of DB
-  <color:#00FF9C>Query Optimization:</color>
-  • 204 → 24 queries/min
+database "Astra DB\n(Cassandra)" as DB #0BE784
+
+User -[#01C176]-> Frontend : "Views"
+Frontend -[#01C176]-> WebApp : "HTTP"
+WebApp -[#01C176]-> ApiApp : "API Calls"
+ApiApp -[#01C176]-> DB : "Queries\n(88% optimized)"
+CronWorker -[#01C176]-> Pipeline : "Orchestrates"
+Pipeline -[#01C176]-> Horizon : "Fetches Data"
+Pipeline -[#01C176]-> Expert : "Enrichment"
+Pipeline -[#01C176]-> DB : "Stores"
+
+note right of DB #100D23
+  <color:#0BE784>Query Optimization:</color>
+  <color:#96DDF2>• 204 → 24 queries/min
   • 88% reduction
-  • Using status__in=[...]
+  • Using status__in=[...]</color>
 end note
 
 @enduml

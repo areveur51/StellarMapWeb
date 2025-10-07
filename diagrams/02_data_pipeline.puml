@@ -1,38 +1,38 @@
 @startuml Data Pipeline
 
-skinparam backgroundColor #372963
+skinparam backgroundColor #261D45
 skinparam activity {
     BackgroundColor #100D23
-    BorderColor #00FF9C
-    FontColor #ffffff
+    BorderColor #0BE784
+    FontColor #96DDF2
 }
-skinparam activityArrowColor #c592ff
-skinparam activityStartColor #00FF9C
-skinparam activityStopColor #00FF9C
-skinparam defaultFontColor #ffffff
+skinparam activityArrowColor #01C176
+skinparam activityStartColor #0BE784
+skinparam activityStopColor #E5526F
+skinparam defaultFontColor #96DDF2
 
-title <color:#00FF9C>8-Stage Data Pipeline (2-3 minutes)</color>
+title <color:#0BE784>8-Stage Data Pipeline (2-3 minutes)</color>
 
 start
 
 :User Searches Address;
 
 :Stage 1: Make Parent Lineage;
-note right
-  Status: PENDING_MAKE_PARENT_LINEAGE
-  Creates initial lineage records
+note right #100D23
+  <color:#0BE784>Status:</color> <color:#96DDF2>PENDING_MAKE_PARENT_LINEAGE
+  Creates initial lineage records</color>
 end note
 
 :Stage 2: Collect Horizon Data;
-note right
-  Fetches operations & effects
-  Validates with Horizon API
+note right #100D23
+  <color:#96DDF2>Fetches operations & effects
+  Validates with Horizon API</color>
 end note
 
 :Stage 3: Account Attributes;
-note right
-  Collects home_domain
-  and XLM balance
+note right #100D23
+  <color:#96DDF2>Collects home_domain
+  and XLM balance</color>
 end note
 
 :Stage 4: Account Assets;
@@ -40,28 +40,28 @@ end note
 :Stage 5: Account Flags;
 
 :Stage 6: SE Directory;
-note right
-  Stellar Expert enrichment
-  Enhanced metadata
+note right #100D23
+  <color:#96DDF2>Stellar Expert enrichment
+  Enhanced metadata</color>
 end note
 
 :Stage 7: Account Creator;
 
 :Stage 8: Make Grandparent;
-note right
-  Status: DONE_GRANDPARENT_LINEAGE
-  Creates ancestor lineage
+note right #100D23
+  <color:#0BE784>Status:</color> <color:#96DDF2>DONE_GRANDPARENT_LINEAGE
+  Creates ancestor lineage</color>
 end note
 
 stop
 
-note left
-  <color:#00FF9C>Pipeline Features:</color>
-  • Sequential execution
+note left #231B3D
+  <color:#0BE784>Pipeline Features:</color>
+  <color:#96DDF2>• Sequential execution
   • Runs every 2 minutes
   • Real-time stage tracking
   • Automatic stuck recovery
-  • Terminal status handling
+  • Terminal status handling</color>
 end note
 
 @enduml
