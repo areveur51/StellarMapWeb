@@ -162,3 +162,35 @@ cython_debug/
 # Nix
 /result
 /result-*
+
+# Cassandra/Astra DB - CRITICAL: Secure Connect Bundle
+secure-connect-*.zip
+*.zip
+
+# Database credentials and secrets
+*.pem
+*.key
+*.p12
+*.jks
+.secrets
+
+# Django settings with secrets
+settings_local.py
+local_settings.py
+
+# Replit specific
+.replit
+replit.nix
+.pythonlibs/
+.upm/
+.cache/
+.config/
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
