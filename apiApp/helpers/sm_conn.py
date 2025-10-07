@@ -64,18 +64,21 @@ class CassandraConnectionsHelpers:
     def __init__(self):
         self.cloud_config = {
             'secure_connect_bundle':
-            f"{APP_PATH}/secure-connect-stellarmapdb.zip"
+            f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip"
         }
         self.auth_provider = PlainTextAuthProvider("token", config('ASTRA_DB_TOKEN'))
         self.cluster = Cluster(cloud=self.cloud_config,
                                auth_provider=self.auth_provider,
                                )
         self.session = self.cluster.connect(CASSANDRA_KEYSPACE)
-        # Set up row factory for efficient dict rows - will be configured when needed
+        self.cql_query = None
 
-    def execute_cql(self, cql: str):
+    def set_cql_query(self, cql_query: str):
+        self.cql_query = cql_query
+
+    def execute_cql(self):
         try:
-            return self.session.execute(cql)
+            return self.session.execute(self.cql_query)
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise e
