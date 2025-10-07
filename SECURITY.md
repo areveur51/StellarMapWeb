@@ -8,9 +8,14 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability within StellarMapWeb, please send an email to [your-email]. All security vulnerabilities will be promptly addressed.
+If you discover a security vulnerability within StellarMapWeb, please report it privately through one of the following channels:
 
-Please do not publicly disclose the issue until it has been addressed by the team.
+1. **Preferred**: Create a private security advisory on GitHub (if repository has security advisories enabled)
+2. **Alternative**: Contact the repository maintainers directly via their GitHub profile email or direct message
+
+**Do not open public GitHub issues for security vulnerabilities.**
+
+All security vulnerabilities will be promptly addressed. You can expect an initial response within 48 hours.
 
 ## Known Security Considerations
 
@@ -79,4 +84,7 @@ pip list --outdated
 
 ## Contact
 
-For security concerns, please contact the maintainers directly rather than opening public issues.
+For security concerns:
+- **Security Issues**: Follow the private reporting channels listed above
+- **General Questions**: Open a public GitHub issue with the "question" label
+- **Feature Requests**: Open a public GitHub issue with the "enhancement" label
