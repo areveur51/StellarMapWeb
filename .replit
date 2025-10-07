@@ -6,7 +6,7 @@ hidden = [".pythonlibs"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["glibcLocales", "iana-etc", "libev", "plantuml", "graphviz"]
+packages = ["glibcLocales", "graphviz", "iana-etc", "libev", "plantuml"]
 
 [unitTest]
 language = "python3"
