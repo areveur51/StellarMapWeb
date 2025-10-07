@@ -61,6 +61,40 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Cassandra / Astra DB
+secure-connect-*.zip
+*.p12
+*.pem
+*.crt
+*.key
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.env
+*.token
+
+# Static and media files
+/staticfiles/
+/media/
+
+# Development databases
+*.sqlite3
+StellarMapWeb/db.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+/tmp/
+*.log
+/logs/
+
+# Node modules (if using frontend tooling)
+/node_modules/
+
 # Flask stuff:
 instance/
 .webassets-cache
