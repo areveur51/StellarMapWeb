@@ -2,6 +2,8 @@
 
 StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API and Stellar Expert, stores this data in Astra DB (Cassandra), and renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a fast, optimized data collection pipeline, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
 
+**Project Status**: Production-ready and prepared for open-source distribution with MIT License, comprehensive documentation, security guidelines, and CI/CD workflows.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -16,7 +18,7 @@ Preferred communication style: Simple, everyday language.
 - **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
 ## Technical Implementation
-- **Django Framework**: Built on Django 4.2.7 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
+- **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`). Note: Django 5.0.2 has known vulnerabilities but upgrading to 5.0.14+ breaks compatibility (documented in SECURITY.md).
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development. Custom `DatabaseAppsRouter` for database routing. Cassandra models utilize composite primary keys for efficient querying.
 - **Django Admin Integration**: Fully integrated Cassandra models with workarounds for query constraints: `ordering=()`, `show_full_result_count=False`, `.limit()` queries, and `CASSANDRA_FALLBACK_ORDER_BY_PYTHON=True` setting for Python-side sorting.
 - **Docker Deployment**: Cross-platform Docker Compose setup for easy local development on Windows, Linux, and macOS. Includes separate development (`docker-compose.yml`) and production (`docker-compose.prod.yml`) configurations with automatic migrations and dual-service orchestration (web + cron).
@@ -31,7 +33,16 @@ Preferred communication style: Simple, everyday language.
 - **Injection Prevention**: Robust measures against NoSQL injection, XSS, command injection, and path traversal.
 - **API Security**: CSRF protection, Content-Type validation, query parameter security, and HTTP security headers (X-Frame-Options, X-Content-Type-Options, Referrer-Policy, CSP, HSTS).
 - **Configuration Security**: Secrets managed via environment variables (Replit Secrets, `python-decouple`), secure Django defaults (DEBUG=False, ALLOWED_HOSTS), and HTTPS enforcement.
+- **Production Settings**: Dedicated production.py with HTTPS enforcement, HSTS, secure cookies, WhiteNoise static file serving, and all security best practices.
 - **Error Tracking**: Sentry integration for error monitoring.
+- **Security Auditing**: Regular pip-audit checks, documented vulnerabilities in SECURITY.md with mitigation strategies.
+
+## Open Source & CI/CD
+- **License**: MIT License for maximum adoption and contribution flexibility.
+- **Documentation**: Comprehensive CONTRIBUTING.md with setup instructions, coding standards, and PR guidelines.
+- **Security Policy**: SECURITY.md with vulnerability reporting procedures, known issues, and production deployment checklist.
+- **GitHub Actions**: Automated CI workflow for testing, linting, security audits, and deployment checks across Python 3.10 and 3.11.
+- **Environment Configuration**: Complete .env.example with all required variables for easy setup.
 
 # External Dependencies
 
