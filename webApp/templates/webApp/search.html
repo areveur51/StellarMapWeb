@@ -125,10 +125,10 @@
                       hover
                     >
                       <template #cell(status)="data">
-                        <b-badge :variant="getStatusVariant(data.value)">{{ data.value }}</b-badge>
+                        <b-badge :variant="getStatusVariant(data.item.status)">{{ data.item.status }}</b-badge>
                       </template>
                       <template #cell(execution_time_seconds)="data">
-                        {{ data.value }}s
+                        {{ data.item.execution_time_seconds }}s
                       </template>
                       <template #cell(error_message)="data">
                         <span v-if="data.value" class="text-danger" v-text="truncateText(data.value, 50)"></span>
@@ -372,8 +372,15 @@
             return;
           }
           
+          // Store scroll position before update
+          const scrollPosition = window.scrollY;
+          const isFirstLoad = this.stageExecutionsLoading && !this.stage_executions_data.stages;
+          
           try {
-            this.stageExecutionsLoading = true;
+            // Only show loading spinner on first load
+            if (isFirstLoad) {
+              this.stageExecutionsLoading = true;
+            }
             this.stageExecutionsError = null;
             
             const url = `/api/stage-executions/?account=${encodeURIComponent(this.query_account)}&network=${encodeURIComponent(this.network_selected)}`;
@@ -382,6 +389,7 @@
             if (response.ok) {
               const data = await response.json();
               this.stage_executions_data = data;
+              console.log('Stage data received:', data); // Debug log
             } else {
               const error = await response.json();
               this.stageExecutionsError = error.message || 'Failed to fetch stage executions';
@@ -391,6 +399,10 @@
             this.stageExecutionsError = 'Error fetching stage executions';
           } finally {
             this.stageExecutionsLoading = false;
+            // Restore scroll position after DOM update
+            this.$nextTick(() => {
+              window.scrollTo(0, scrollPosition);
+            });
           }
         },
         getStatusVariant(status) {
