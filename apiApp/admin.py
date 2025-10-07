@@ -14,7 +14,14 @@ class StellarAccountSearchCacheAdmin(admin.ModelAdmin):
     list_filter = ('network_name', 'status')
     search_fields = ('stellar_account',)
     readonly_fields = ('created_at', 'updated_at')
-    ordering = ('-updated_at',)
+    ordering = ()  # Disable ordering to work with Cassandra constraints
+    show_full_result_count = False  # Disable count queries that use distinct()
+    list_per_page = 50  # Limit results to improve performance
+    
+    def get_queryset(self, request):
+        """Override to limit results and avoid complex Cassandra queries."""
+        qs = super().get_queryset(request)
+        return qs[:100]  # Limit to 100 records
     
     fieldsets = (
         ('Account Information', {
@@ -40,7 +47,14 @@ class StellarCreatorAccountLineageAdmin(admin.ModelAdmin):
     list_filter = ('network_name', 'status')
     search_fields = ('stellar_account', 'stellar_creator_account', 'home_domain')
     readonly_fields = ('id', 'created_at', 'updated_at')
-    ordering = ('-updated_at',)
+    ordering = ()  # Disable ordering to work with Cassandra constraints
+    show_full_result_count = False  # Disable count queries that use distinct()
+    list_per_page = 50  # Limit results to improve performance
+    
+    def get_queryset(self, request):
+        """Override to limit results and avoid complex Cassandra queries."""
+        qs = super().get_queryset(request)
+        return qs[:100]  # Limit to 100 records
     
     fieldsets = (
         ('Account Information', {
@@ -69,7 +83,14 @@ class ManagementCronHealthAdmin(admin.ModelAdmin):
     list_filter = ('status', 'cron_name')
     search_fields = ('cron_name', 'reason')
     readonly_fields = ('id', 'created_at', 'updated_at')
-    ordering = ('-created_at',)
+    ordering = ()  # Disable ordering to work with Cassandra constraints
+    show_full_result_count = False  # Disable count queries that use distinct()
+    list_per_page = 50  # Limit results to improve performance
+    
+    def get_queryset(self, request):
+        """Override to limit results and avoid complex Cassandra queries."""
+        qs = super().get_queryset(request)
+        return qs[:100]  # Limit to 100 records
     
     fieldsets = (
         ('Cron Information', {
@@ -92,7 +113,14 @@ class StellarAccountStageExecutionAdmin(admin.ModelAdmin):
     list_filter = ('network_name', 'status', 'stage_number')
     search_fields = ('stellar_account', 'cron_name', 'error_message')
     readonly_fields = ('created_at', 'updated_at')
-    ordering = ('-created_at', 'stage_number')
+    ordering = ()  # Disable ordering to work with Cassandra constraints
+    show_full_result_count = False  # Disable count queries that use distinct()
+    list_per_page = 50  # Limit results to improve performance
+    
+    def get_queryset(self, request):
+        """Override to limit results and avoid complex Cassandra queries."""
+        qs = super().get_queryset(request)
+        return qs[:100]  # Limit to 100 records
     
     fieldsets = (
         ('Account Information', {
