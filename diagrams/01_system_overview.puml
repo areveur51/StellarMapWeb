@@ -40,7 +40,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title System Overview
+title <color:#0BE784>System Overview
 
 actor User #0BE784
 
@@ -76,8 +76,8 @@ Pipeline -[#01C176]-> Expert : "Enrichment"
 Pipeline -[#01C176]-> DB : "Stores"
 
 note right of DB #231B3D
-  **Query Optimization:**
-  • 204 → 24 queries/min
+  <color:#0BE784>Query Optimization:
+  <color:#96DDF2>• 204 → 24 queries/min
   • 88% reduction
   • Using status__in=[...]
 end note

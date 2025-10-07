@@ -28,7 +28,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title Monitoring & Health System
+title <color:#0BE784>Monitoring & Health System
 
 package "Monitoring Components" #231B3D {
   component "Cron Health\nMonitor" as CronHealth
@@ -54,30 +54,30 @@ Recovery -[#01C176]-> DataDB : "Finds stuck records"
 Recovery -[#01C176]-> DataDB : "Resets to PENDING"
 
 note right of CronHealth #231B3D
-  **Health Statuses:**
-  • HEALTHY
-  • UNHEALTHY_RATE_LIMITED
+  <color:#0BE784>Health Statuses:
+  <color:#96DDF2>• HEALTHY
+  <color:#E5526F>• UNHEALTHY_RATE_LIMITED
   
-  **Recovery:**
-  Manual cleanup required
+  <color:#0BE784>Recovery:
+  <color:#96DDF2>Manual cleanup required
   via .allow_filtering()
 end note
 
 note right of Recovery #231B3D
-  **Stuck Thresholds:**
-  Detects records stuck in:
+  <color:#0BE784>Stuck Thresholds:
+  <color:#96DDF2>Detects records stuck in:
   • PENDING
   • IN_PROGRESS
   
-  **Terminal Statuses:**
-  (Never recovered)
-  • FAILED
+  <color:#0BE784>Terminal Statuses:
+  <color:#96DDF2>(Never recovered)
+  <color:#E5526F>• FAILED
   • INVALID_HORIZON_STELLAR_ADDRESS
 end note
 
 note right of StageTracker #231B3D
-  **Stage Lifecycle:**
-  1. Initialize all 8 stages
+  <color:#0BE784>Stage Lifecycle:
+  <color:#96DDF2>1. Initialize all 8 stages
   2. Update status per stage
   3. Track execution time
   4. Log errors

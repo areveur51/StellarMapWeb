@@ -16,7 +16,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title 8-Stage Data Pipeline (2-3 minutes)
+title <color:#0BE784>8-Stage Data Pipeline (2-3 minutes)
 
 start
 
@@ -24,19 +24,19 @@ start
 
 :Stage 1: Make Parent Lineage;
 note right #231B3D
-  **Status:** PENDING_MAKE_PARENT_LINEAGE
+  <color:#0BE784>Status: <color:#96DDF2>PENDING_MAKE_PARENT_LINEAGE
   Creates initial lineage records
 end note
 
 :Stage 2: Collect Horizon Data;
 note right #231B3D
-  Fetches operations & effects
+  <color:#96DDF2>Fetches operations & effects
   Validates with Horizon API
 end note
 
 :Stage 3: Account Attributes;
 note right #231B3D
-  Collects home_domain
+  <color:#96DDF2>Collects home_domain
   and XLM balance
 end note
 
@@ -46,7 +46,7 @@ end note
 
 :Stage 6: SE Directory;
 note right #231B3D
-  Stellar Expert enrichment
+  <color:#96DDF2>Stellar Expert enrichment
   Enhanced metadata
 end note
 
@@ -54,15 +54,15 @@ end note
 
 :Stage 8: Make Grandparent;
 note right #231B3D
-  **Status:** DONE_GRANDPARENT_LINEAGE
+  <color:#0BE784>Status: <color:#96DDF2>DONE_GRANDPARENT_LINEAGE
   Creates ancestor lineage
 end note
 
 stop
 
 note left #231B3D
-  **Pipeline Features:**
-  • Sequential execution
+  <color:#0BE784>Pipeline Features:
+  <color:#96DDF2>• Sequential execution
   • Runs every 2 minutes
   • Real-time stage tracking
   • Automatic stuck recovery
