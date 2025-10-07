@@ -21,7 +21,8 @@ class StellarAccountSearchCacheAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Override to limit results and avoid complex Cassandra queries."""
         qs = super().get_queryset(request)
-        return qs[:100]  # Limit to 100 records
+        # Use limit() instead of slicing to keep it as a QuerySet
+        return qs.limit(100)
     
     fieldsets = (
         ('Account Information', {
@@ -54,7 +55,8 @@ class StellarCreatorAccountLineageAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Override to limit results and avoid complex Cassandra queries."""
         qs = super().get_queryset(request)
-        return qs[:100]  # Limit to 100 records
+        # Use limit() instead of slicing to keep it as a QuerySet
+        return qs.limit(100)
     
     fieldsets = (
         ('Account Information', {
@@ -90,7 +92,8 @@ class ManagementCronHealthAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Override to limit results and avoid complex Cassandra queries."""
         qs = super().get_queryset(request)
-        return qs[:100]  # Limit to 100 records
+        # Use limit() instead of slicing to keep it as a QuerySet
+        return qs.limit(100)
     
     fieldsets = (
         ('Cron Information', {
@@ -120,7 +123,8 @@ class StellarAccountStageExecutionAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         """Override to limit results and avoid complex Cassandra queries."""
         qs = super().get_queryset(request)
-        return qs[:100]  # Limit to 100 records
+        # Use limit() instead of slicing to keep it as a QuerySet
+        return qs.limit(100)
     
     fieldsets = (
         ('Account Information', {

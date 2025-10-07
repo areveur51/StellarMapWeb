@@ -18,6 +18,7 @@ Preferred communication style: Simple, everyday language.
 ## Technical Implementation
 - **Django Framework**: Built on Django 4.2.7 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development. Custom `DatabaseAppsRouter` for database routing. Cassandra models utilize composite primary keys for efficient querying.
+- **Django Admin Integration**: Fully integrated Cassandra models with workarounds for query constraints: `ordering=()`, `show_full_result_count=False`, `.limit()` queries, and `CASSANDRA_FALLBACK_ORDER_BY_PYTHON=True` setting for Python-side sorting.
 - **Docker Deployment**: Cross-platform Docker Compose setup for easy local development on Windows, Linux, and macOS. Includes separate development (`docker-compose.yml`) and production (`docker-compose.prod.yml`) configurations with automatic migrations and dual-service orchestration (web + cron).
 - **Fast Data Collection Pipeline**: An 8-stage sequential pipeline runs every 2 minutes, processing an address in 2-3 minutes. Includes automated execution, comprehensive workflow tracking (18 status constants), health monitoring, and stuck record recovery.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, using `Tenacity` for robust retries with exponential backoff.
