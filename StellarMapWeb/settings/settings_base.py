@@ -70,6 +70,7 @@ DATABASES = {
                     'secure_connect_bundle': str(SECURE_CONNECT_BUNDLE_PATH)
                 },
                 'retry_connect': True,
+                'protocol_version': 4,
             }
         }
     }
