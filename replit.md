@@ -8,10 +8,17 @@ Preferred communication style: Simple, everyday language.
 
 # System Architecture
 
-## Architecture Diagram
-- **PlantUML Visualization**: System architecture diagram (`architecture.puml`) with SVG output (`architecture.svg`) included in README.md
-- **Diagram Components**: Shows Django apps, data pipeline (8 stages), monitoring system, external APIs (Horizon, Stellar Expert), and Astra DB structure
+## Architecture Diagrams
+- **PlantUML Visualization**: 5 modular architecture diagrams in `diagrams/` directory with SVG outputs included in README.md
+- **Color Scheme**: Custom cyberpunk theme (#372963 background, #00FF9C borders, #c592ff arrows)
+- **Diagram Breakdown**:
+  1. **System Overview** (`01_system_overview.puml`): High-level architecture showing frontend, Django apps, external APIs, and database
+  2. **Data Pipeline** (`02_data_pipeline.puml`): 8-stage sequential pipeline with status tracking
+  3. **Database Schema** (`03_database_schema.puml`): Cassandra tables with composite keys and optimized queries
+  4. **Frontend & API** (`04_frontend_api.puml`): Vue.js components, API endpoints, and auto-refresh polling
+  5. **Monitoring System** (`05_monitoring_system.puml`): Cron health monitoring, stuck record recovery, and stage tracking
 - **Tools**: PlantUML and Graphviz installed as system dependencies for diagram generation
+- **Regenerate**: Run `cd diagrams && plantuml -tsvg *.puml` to regenerate all diagrams
 
 ## Framework and Structure
 - **Django 4.2.7** with a multi-app architecture: `apiApp` (API/data management), `webApp` (user interface), and `radialTidyTreeApp` (visualization components).

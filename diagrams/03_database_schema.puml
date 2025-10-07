@@ -1,0 +1,94 @@
+@startuml Database Schema
+
+skinparam backgroundColor #372963
+skinparam activity {
+    BackgroundColor #100D23
+    BorderColor #00FF9C
+    FontColor #ffffff
+}
+skinparam activityArrowColor #c592ff
+skinparam activityStartColor #00FF9C
+skinparam activityStopColor #00FF9C
+skinparam defaultFontColor #ffffff
+
+skinparam class {
+  BackgroundColor #100D23
+  BorderColor #00FF9C
+  FontColor #ffffff
+  ArrowColor #c592ff
+}
+
+title <color:#00FF9C>Astra DB (Cassandra) Schema</color>
+
+class StellarAccountSearchCache {
+  + stellar_account (PK)
+  + network_name (PK)
+  + status
+  + cached_json
+  + last_fetched_at
+  + retry_count
+  + created_at
+  + updated_at
+  --
+  <color:#00FF9C>12-hour cache</color>
+}
+
+class StellarCreatorAccountLineage {
+  + id (PK)
+  + stellar_account (CK)
+  + network_name (CK)
+  + created_at (CK)
+  + stellar_creator_account
+  + stellar_account_created_at
+  + home_domain
+  + xlm_balance
+  + status
+  + retry_count
+  --
+  <color:#00FF9C>Lineage data</color>
+}
+
+class StellarAccountStageExecution {
+  + stellar_account (PK)
+  + network_name (PK)
+  + created_at (PK)
+  + stage_number (CK)
+  + cron_name
+  + status
+  + execution_time_ms
+  + error_message
+  + updated_at
+  --
+  <color:#00FF9C>Pipeline tracking</color>
+}
+
+class ManagementCronHealth {
+  + id (PK)
+  + created_at (PK)
+  + cron_name (CK)
+  + status
+  + execution_time_ms
+  + error_message
+  + updated_at
+  --
+  <color:#00FF9C>Health monitoring</color>
+}
+
+note right of StellarAccountSearchCache
+  <color:#00FF9C>Optimized Queries:</color>
+  filter(status__in=[
+    'PENDING',
+    'IN_PROGRESS',
+    'RE_INQUIRY'
+  ])
+end note
+
+note right of ManagementCronHealth
+  <color:#00FF9C>Health Statuses:</color>
+  • HEALTHY
+  • UNHEALTHY_RATE_LIMITED
+  
+  Cron skips when unhealthy
+end note
+
+@enduml

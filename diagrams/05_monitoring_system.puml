@@ -1,0 +1,83 @@
+@startuml Monitoring System
+
+skinparam backgroundColor #372963
+skinparam activity {
+    BackgroundColor #100D23
+    BorderColor #00FF9C
+    FontColor #ffffff
+}
+skinparam activityArrowColor #c592ff
+skinparam activityStartColor #00FF9C
+skinparam activityStopColor #00FF9C
+skinparam defaultFontColor #ffffff
+
+skinparam component {
+  BackgroundColor #100D23
+  BorderColor #00FF9C
+  FontColor #ffffff
+  ArrowColor #c592ff
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #00FF9C
+  FontColor #ffffff
+}
+
+title <color:#00FF9C>Monitoring & Health System</color>
+
+package "Monitoring Components" #100D23 {
+  component "Cron Health\nMonitor" as CronHealth #00FF9C
+  component "Stuck Record\nRecovery" as Recovery #00FF9C
+  component "Stage Execution\nTracker" as StageTracker #00FF9C
+}
+
+component "Cron Worker\n(run_cron_jobs.py)" as CronWorker #00FF9C
+
+database "ManagementCronHealth\nTable" as HealthDB #00FF9C
+database "Stage Execution\nTable" as StageDB #00FF9C
+database "Cache & Lineage\nTables" as DataDB #00FF9C
+
+CronWorker -[#c592ff]-> CronHealth : "Checks before run"
+CronHealth -[#c592ff]-> HealthDB : "Reads status"
+
+CronWorker -[#c592ff]-> StageTracker : "Executes stages\n(if healthy)"
+StageTracker -[#c592ff]-> StageDB : "Updates progress"
+
+CronHealth -[#c592ff]-> CronWorker : "Skips processing\n(if unhealthy)"
+
+Recovery -[#c592ff]-> DataDB : "Finds stuck records"
+Recovery -[#c592ff]-> DataDB : "Resets to PENDING"
+
+note right of CronHealth
+  <color:#00FF9C>Health Statuses:</color>
+  • HEALTHY
+  • UNHEALTHY_RATE_LIMITED
+  
+  <color:#00FF9C>Recovery:</color>
+  Manual cleanup required
+  via .allow_filtering()
+end note
+
+note right of Recovery
+  <color:#00FF9C>Stuck Thresholds:</color>
+  Detects records stuck in:
+  • PENDING
+  • IN_PROGRESS
+  
+  <color:#00FF9C>Terminal Statuses</color>
+  (Never recovered):
+  • FAILED
+  • INVALID_HORIZON_STELLAR_ADDRESS
+end note
+
+note right of StageTracker
+  <color:#00FF9C>Stage Lifecycle:</color>
+  1. Initialize all 8 stages
+  2. Update status per stage
+  3. Track execution time
+  4. Log errors
+  5. Display in UI
+end note
+
+@enduml

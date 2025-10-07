@@ -1,0 +1,78 @@
+@startuml Frontend & API Layer
+
+skinparam backgroundColor #372963
+skinparam activity {
+    BackgroundColor #100D23
+    BorderColor #00FF9C
+    FontColor #ffffff
+}
+skinparam activityArrowColor #c592ff
+skinparam activityStartColor #00FF9C
+skinparam activityStopColor #00FF9C
+skinparam defaultFontColor #ffffff
+
+skinparam component {
+  BackgroundColor #100D23
+  BorderColor #00FF9C
+  FontColor #ffffff
+  ArrowColor #c592ff
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #00FF9C
+  FontColor #ffffff
+}
+
+title <color:#00FF9C>Frontend & API Architecture</color>
+
+actor User #00FF9C
+
+package "Frontend Components" #100D23 {
+  component "Vue.js\nReactive UI" as Vue #00FF9C
+  component "D3.js\nRadial Tree" as D3 #00FF9C
+  component "Bootstrap\nResponsive" as Bootstrap #00FF9C
+}
+
+package "API Endpoints" #100D23 {
+  component "/api/pending-accounts/\n(5s auto-refresh)" as PendingAPI #00FF9C
+  component "/api/stage-executions/\n(5s auto-refresh)" as StagesAPI #00FF9C
+  component "/search/\n(Main search)" as SearchAPI #00FF9C
+}
+
+database "Astra DB" as DB #00FF9C
+
+User -[#c592ff]-> Vue : "Interacts"
+User -[#c592ff]-> D3 : "Views Tree"
+Vue -[#c592ff]-> PendingAPI : "Polls every 5s"
+Vue -[#c592ff]-> StagesAPI : "Polls every 5s"
+User -[#c592ff]-> SearchAPI : "Searches"
+PendingAPI -[#c592ff]-> DB : "2 queries with IN"
+StagesAPI -[#c592ff]-> DB : "Stage status"
+SearchAPI -[#c592ff]-> DB : "Initiate pipeline"
+
+note right of PendingAPI
+  <color:#00FF9C>Optimized Query:</color>
+  
+  FROM stellar_account_search_cache
+  WHERE status IN (
+    'PENDING',
+    'IN_PROGRESS',
+    'RE_INQUIRY'
+  )
+  
+  FROM stellar_creator_account_lineage
+  WHERE status IN (...)
+  
+  <color:#00FF9C>Result: 88% fewer queries</color>
+end note
+
+note right of StagesAPI
+  <color:#00FF9C>Features:</color>
+  • Real-time progress
+  • Interactive JSON viewer
+  • Immediate initialization
+  • 8 stages per address
+end note
+
+@enduml

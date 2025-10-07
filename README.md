@@ -38,7 +38,24 @@ python manage.py test
 
 ## System Architecture
 
-![System Architecture Diagram](./architecture.svg)
+### Architecture Diagrams
+
+#### 1. System Overview
+![System Overview](./diagrams/01_system_overview.svg)
+
+#### 2. Data Pipeline (8 Stages)
+![Data Pipeline](./diagrams/02_data_pipeline.svg)
+
+#### 3. Database Schema
+![Database Schema](./diagrams/03_database_schema.svg)
+
+#### 4. Frontend & API Layer
+![Frontend & API](./diagrams/04_frontend_api.svg)
+
+#### 5. Monitoring System
+![Monitoring System](./diagrams/05_monitoring_system.svg)
+
+---
 
 ### Framework and Structure
 - **Django 4.2.7** with a multi-app architecture:

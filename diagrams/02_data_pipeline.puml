@@ -1,0 +1,67 @@
+@startuml Data Pipeline
+
+skinparam backgroundColor #372963
+skinparam activity {
+    BackgroundColor #100D23
+    BorderColor #00FF9C
+    FontColor #ffffff
+}
+skinparam activityArrowColor #c592ff
+skinparam activityStartColor #00FF9C
+skinparam activityStopColor #00FF9C
+skinparam defaultFontColor #ffffff
+
+title <color:#00FF9C>8-Stage Data Pipeline (2-3 minutes)</color>
+
+start
+
+:User Searches Address;
+
+:Stage 1: Make Parent Lineage;
+note right
+  Status: PENDING_MAKE_PARENT_LINEAGE
+  Creates initial lineage records
+end note
+
+:Stage 2: Collect Horizon Data;
+note right
+  Fetches operations & effects
+  Validates with Horizon API
+end note
+
+:Stage 3: Account Attributes;
+note right
+  Collects home_domain
+  and XLM balance
+end note
+
+:Stage 4: Account Assets;
+
+:Stage 5: Account Flags;
+
+:Stage 6: SE Directory;
+note right
+  Stellar Expert enrichment
+  Enhanced metadata
+end note
+
+:Stage 7: Account Creator;
+
+:Stage 8: Make Grandparent;
+note right
+  Status: DONE_GRANDPARENT_LINEAGE
+  Creates ancestor lineage
+end note
+
+stop
+
+note left
+  <color:#00FF9C>Pipeline Features:</color>
+  • Sequential execution
+  • Runs every 2 minutes
+  • Real-time stage tracking
+  • Automatic stuck recovery
+  • Terminal status handling
+end note
+
+@enduml
