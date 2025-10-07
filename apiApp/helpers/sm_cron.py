@@ -43,19 +43,29 @@ class StellarMapCronHelpers:
             return False
     
     def check_all_crons_health(self) -> dict:
-        """Check health of all cron jobs."""
+        """Check health of all cron jobs - OPTIMIZED: Limited query instead of full table scan."""
         try:
+            from datetime import datetime, timedelta
             cron_statuses = {}
-            cron_healths = ManagementCronHealth.objects.all()
             
+            # Only fetch recent health records (last 24 hours) with limit to prevent full table scan
+            recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+            cron_healths = ManagementCronHealth.objects.filter(
+                created_at__gte=recent_cutoff
+            ).limit(100)
+            
+            # Group by cron_name and keep only the most recent status for each
+            cron_map = {}
             for cron_health in cron_healths:
-                cron_statuses[cron_health.cron_name] = {
-                    'status': cron_health.status,
-                    'created_at': cron_health.created_at,
-                    'reason': cron_health.reason
-                }
+                cron_name = cron_health.cron_name
+                if cron_name not in cron_map or cron_health.created_at > cron_map[cron_name]['created_at']:
+                    cron_map[cron_name] = {
+                        'status': cron_health.status,
+                        'created_at': cron_health.created_at,
+                        'reason': cron_health.reason
+                    }
             
-            return cron_statuses
+            return cron_map
         except Exception as e:
             sentry_sdk.capture_exception(e)
             return {}
