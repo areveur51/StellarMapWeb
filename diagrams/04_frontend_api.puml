@@ -34,7 +34,7 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>Frontend & API Architecture</color>
+title <color:#0BE784>Frontend & API Architecture
 
 actor User #0BE784
 
@@ -62,8 +62,9 @@ StagesAPI -[#01C176]-> DB : "Stage status"
 SearchAPI -[#01C176]-> DB : "Initiate pipeline"
 
 note right of PendingAPI #231B3D
-  <color:#0BE784>Optimized Query:</color>
-  <color:#96DDF2>FROM stellar_account_search_cache
+  **Optimized Query:**
+  
+  FROM stellar_account_search_cache
   WHERE status IN (
     'PENDING',
     'IN_PROGRESS',
@@ -71,17 +72,17 @@ note right of PendingAPI #231B3D
   )
   
   FROM stellar_creator_account_lineage
-  WHERE status IN (...)</color>
+  WHERE status IN (...)
   
-  <color:#01C176>Result: 88% fewer queries</color>
+  **Result:** 88% fewer queries
 end note
 
 note right of StagesAPI #231B3D
-  <color:#0BE784>Features:</color>
-  <color:#96DDF2>• Real-time progress
+  **Features:**
+  • Real-time progress
   • Interactive JSON viewer
   • Immediate initialization
-  • 8 stages per address</color>
+  • 8 stages per address
 end note
 
 @enduml
