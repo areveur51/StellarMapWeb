@@ -38,6 +38,8 @@ python manage.py test
 
 ## System Architecture
 
+![System Architecture Diagram](./architecture.svg)
+
 ### Framework and Structure
 - **Django 4.2.7** with a multi-app architecture:
   - `apiApp`: API and data management

@@ -8,6 +8,11 @@ Preferred communication style: Simple, everyday language.
 
 # System Architecture
 
+## Architecture Diagram
+- **PlantUML Visualization**: System architecture diagram (`architecture.puml`) with SVG output (`architecture.svg`) included in README.md
+- **Diagram Components**: Shows Django apps, data pipeline (8 stages), monitoring system, external APIs (Horizon, Stellar Expert), and Astra DB structure
+- **Tools**: PlantUML and Graphviz installed as system dependencies for diagram generation
+
 ## Framework and Structure
 - **Django 4.2.7** with a multi-app architecture: `apiApp` (API/data management), `webApp` (user interface), and `radialTidyTreeApp` (visualization components).
 
