@@ -50,7 +50,7 @@ INSTALLED_APPS = [
 # Cassandra Configuration
 CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE', default='stellarmapweb')
 ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
-CASSANDRA_FALLBACK_ORDER_BY_PYTHON = True  # Enable Python-side ordering for Django admin
+# CASSANDRA_FALLBACK_ORDER_BY_PYTHON = True  # Disabled - causes TypeError with None value comparisons
 
 # Path to secure connect bundle
 SECURE_CONNECT_BUNDLE_PATH = BASE_DIR.parent / 'secure-connect-stellarmapwebastradb.zip'
