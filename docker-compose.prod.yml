@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: stellarmapweb-prod
+    ports:
+      - "5000:5000"
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DEBUG=False
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - USE_SQLITE=False
+      - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
+      - CASSANDRA_DB_NAME=${CASSANDRA_DB_NAME}
+      - CASSANDRA_KEYSPACE=${CASSANDRA_KEYSPACE}
+      - SENTRY_DSN=${SENTRY_DSN}
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn --bind 0.0.0.0:5000 --workers 4 StellarMapWeb.wsgi:application"
+    restart: always
+
+  cron:
+    build: .
+    container_name: stellarmapweb-cron-prod
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DEBUG=False
+      - USE_SQLITE=False
+      - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN}
+      - CASSANDRA_DB_NAME=${CASSANDRA_DB_NAME}
+      - CASSANDRA_KEYSPACE=${CASSANDRA_KEYSPACE}
+      - SENTRY_DSN=${SENTRY_DSN}
+    command: python run_cron_jobs.py
+    restart: always
+    depends_on:
+      - web

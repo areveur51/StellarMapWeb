@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+*.pot
+*.pyc
+staticfiles/
+media/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Environment
+.env
+.env.local
+
+# Replit
+.replit
+replit.nix
+.upm/
+.pythonlibs/
+
+# Cassandra
+secure-connect-*.zip
+
+# Documentation
+*.md
+diagrams/
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/

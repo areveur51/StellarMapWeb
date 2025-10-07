@@ -15,13 +15,37 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 4. Run: Auto-runs migrate/server via `.replit` config
 5. Access via Webview and input Stellar address
 
-### Local Development
+### Docker Deployment (Recommended for Local Dev)
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit .env and set your DJANGO_SECRET_KEY (generate a secure one)
+# For local dev, USE_SQLITE=True is already set
+
+# Start services (Django server + Cron worker)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+Access the application at `http://localhost:5000`
+
+### Local Development (Without Docker)
 ```bash
 # Set environment variables
 export DJANGO_SECRET_KEY="your-secret-key"
-export ASTRA_DB_TOKEN="your-token"
-export CASSANDRA_DB_NAME="your-db-name"
-export CASSANDRA_KEYSPACE="your-keyspace"
+export DEBUG="True"
+export USE_SQLITE="True"
+
+# Optional: For production Cassandra/Astra DB
+# export ASTRA_DB_TOKEN="your-token"
+# export CASSANDRA_DB_NAME="your-db-name"
+# export CASSANDRA_KEYSPACE="your-keyspace"
 
 # Install and run
 pip install -r requirements.txt

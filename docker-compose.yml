@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: stellarmapweb
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-your-secret-key-here-change-in-production}
+      - DEBUG=${DEBUG:-True}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0}
+      - USE_SQLITE=${USE_SQLITE:-True}
+      - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN:-}
+      - CASSANDRA_DB_NAME=${CASSANDRA_DB_NAME:-}
+      - CASSANDRA_KEYSPACE=${CASSANDRA_KEYSPACE:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:5000"
+    restart: unless-stopped
+
+  cron:
+    build: .
+    container_name: stellarmapweb-cron
+    volumes:
+      - .:/app
+      - sqlite_data:/app/data
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-your-secret-key-here-change-in-production}
+      - DEBUG=${DEBUG:-True}
+      - USE_SQLITE=${USE_SQLITE:-True}
+      - ASTRA_DB_TOKEN=${ASTRA_DB_TOKEN:-}
+      - CASSANDRA_DB_NAME=${CASSANDRA_DB_NAME:-}
+      - CASSANDRA_KEYSPACE=${CASSANDRA_KEYSPACE:-}
+      - SENTRY_DSN=${SENTRY_DSN:-}
+    command: python run_cron_jobs.py
+    restart: unless-stopped
+    depends_on:
+      - web
+
+volumes:
+  sqlite_data:
