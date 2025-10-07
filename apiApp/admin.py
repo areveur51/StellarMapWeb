@@ -1,8 +1,6 @@
 from django.contrib import admin
 from django.shortcuts import render
-from django.contrib.admin.views.main import ChangeList
-from cassandra.cqlengine import connection
-from cassandra.query import SimpleStatement
+from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
 from .models import (
     StellarAccountSearchCache,
     StellarCreatorAccountLineage,
@@ -15,12 +13,13 @@ class CassandraAdminMixin:
     """Mixin to handle Cassandra-specific admin functionality - READ ONLY."""
     
     def changelist_view(self, request, extra_context=None):
-        """Override changelist view to use raw CQL queries."""
+        """Override changelist view to use raw CQL queries via CassandraConnectionsHelpers."""
         try:
-            session = connection.get_session()
-            query = f"SELECT * FROM {self.get_table_name()} LIMIT 100 ALLOW FILTERING"
-            statement = SimpleStatement(query)
-            rows = session.execute(statement)
+            conn_helpers = CassandraConnectionsHelpers()
+            cql_query = f"SELECT * FROM {self.get_table_name()} LIMIT 100 ALLOW FILTERING;"
+            
+            conn_helpers.set_cql_query(cql_query)
+            rows = conn_helpers.execute_cql()
             
             # Convert rows to list of dictionaries
             results = []
@@ -31,6 +30,8 @@ class CassandraAdminMixin:
                 if not column_names and row_dict:
                     column_names = list(row_dict.keys())
             
+            conn_helpers.close_connection()
+            
             context = {
                 'title': f'Select {self.model._meta.verbose_name}',
                 'results': results,
@@ -38,7 +39,7 @@ class CassandraAdminMixin:
                 'opts': self.model._meta,
                 'has_add_permission': False,
                 'app_label': self.model._meta.app_label,
-                'cl': None,  # No changelist object
+                'cl': None,
             }
             
             if extra_context:
@@ -78,7 +79,7 @@ class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
     list_display = ('stellar_account', 'network_name', 'status')
     
     def get_table_name(self):
-        return 'stellarmapweb_keyspace.stellar_account_search_cache'
+        return 'stellar_account_search_cache'
 
 
 @admin.register(StellarCreatorAccountLineage)
@@ -86,7 +87,7 @@ class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
     list_display = ('stellar_account', 'network_name', 'stellar_creator_account')
     
     def get_table_name(self):
-        return 'stellarmapweb_keyspace.stellar_creator_account_lineage'
+        return 'stellar_creator_account_lineage'
 
 
 @admin.register(ManagementCronHealth)
@@ -94,7 +95,7 @@ class ManagementCronHealthAdmin(CassandraAdminMixin, admin.ModelAdmin):
     list_display = ('cron_name', 'status', 'created_at')
     
     def get_table_name(self):
-        return 'stellarmapweb_keyspace.management_cron_health'
+        return 'management_cron_health'
 
 
 @admin.register(StellarAccountStageExecution)
@@ -102,4 +103,4 @@ class StellarAccountStageExecutionAdmin(CassandraAdminMixin, admin.ModelAdmin):
     list_display = ('stellar_account', 'network_name', 'stage_number', 'status')
     
     def get_table_name(self):
-        return 'stellarmapweb_keyspace.stellar_account_stage_execution'
+        return 'stellar_account_stage_execution'
