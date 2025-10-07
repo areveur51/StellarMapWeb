@@ -78,7 +78,7 @@
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card>
-              <b-tab title="Upstream Creator Accounts" active>
+              <b-tab title="Upstream Creator Accounts" active :title-link-attributes="{ title: 'View hierarchical table of creator accounts' }">
                 <template>
                   <div>
                     <b-table
@@ -94,19 +94,19 @@
                   </div>
                 </template>
               </b-tab>
-              <b-tab title="JSON">
+              <b-tab title="JSON" :title-link-attributes="{ title: 'Raw JSON response data' }">
                 <pre v-html="highlightedJSONResponse"></pre>
               </b-tab>
-              <b-tab title="Search Cache">
+              <b-tab title="Search Cache" :title-link-attributes="{ title: 'Cache status and metadata for this search' }">
                 <pre v-html="highlightedRequestStatus"></pre>
               </b-tab>
-              <b-tab title="Account Lineage">
+              <b-tab title="Account Lineage" :title-link-attributes="{ title: 'Complete lineage data for all related accounts' }">
                 <pre v-html="highlightedAccountLineage"></pre>
               </b-tab>
-              <b-tab title="Pending Accounts">
+              <b-tab title="Pending Accounts" :title-link-attributes="{ title: 'Accounts currently being processed by the pipeline' }">
                 <pre v-html="highlightedPendingAccounts"></pre>
               </b-tab>
-              <b-tab title="Stages">
+              <b-tab title="Stages" :title-link-attributes="{ title: 'Real-time pipeline stage execution progress' }">
                 <template>
                   <div v-if="stageExecutionsLoading" style="text-align: center; padding: 20px;">
                     <b-spinner variant="primary"></b-spinner>
@@ -149,10 +149,10 @@
                   </div>
                 </template>
               </b-tab>
-              <b-tab title="TOML">
+              <b-tab title="TOML" :title-link-attributes="{ title: 'Stellar TOML configuration files' }">
                 <b-card-text>TOML outputs</b-card-text>
               </b-tab>
-              <b-tab title="TERMINAL">
+              <b-tab title="TERMINAL" :title-link-attributes="{ title: 'Terminal output and logs' }">
                 <b-card-text>Terminal outputs</b-card-text>
               </b-tab>
             </b-tabs>
