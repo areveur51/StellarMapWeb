@@ -39,26 +39,26 @@ title <color:#0BE784>System Overview</color>
 actor User #0BE784
 
 package "Frontend Layer" #231B3D {
-  component "Vue.js + D3.js\nVisualization" as Frontend #0BE784
+  component "Vue.js + D3.js\nVisualization" as Frontend
 }
 
 package "Django Application" #231B3D {
-  component "webApp" as WebApp #0BE784
-  component "apiApp" as ApiApp #0BE784
-  component "radialTidyTreeApp" as RadialApp #0BE784
+  component "webApp" as WebApp
+  component "apiApp" as ApiApp
+  component "radialTidyTreeApp" as RadialApp
 }
 
 package "Background Services" #231B3D {
-  component "Cron Worker\n(run_cron_jobs.py)" as CronWorker #0BE784
-  component "8-Stage Pipeline\n(2-3 min processing)" as Pipeline #0BE784
+  component "Cron Worker\n(run_cron_jobs.py)" as CronWorker
+  component "8-Stage Pipeline\n(2-3 min processing)" as Pipeline
 }
 
 cloud "External APIs" #231B3D {
-  component "Horizon API" as Horizon #0BE784
-  component "Stellar Expert" as Expert #0BE784
+  component "Horizon API" as Horizon
+  component "Stellar Expert" as Expert
 }
 
-database "Astra DB\n(Cassandra)" as DB #0BE784
+database "Astra DB\n(Cassandra)" as DB
 
 User -[#01C176]-> Frontend : "Views"
 Frontend -[#01C176]-> WebApp : "HTTP"

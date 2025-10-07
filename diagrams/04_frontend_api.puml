@@ -39,18 +39,18 @@ title <color:#0BE784>Frontend & API Architecture</color>
 actor User #0BE784
 
 package "Frontend Components" #231B3D {
-  component "Vue.js\nReactive UI" as Vue #0BE784
-  component "D3.js\nRadial Tree" as D3 #0BE784
-  component "Bootstrap\nResponsive" as Bootstrap #0BE784
+  component "Vue.js\nReactive UI" as Vue
+  component "D3.js\nRadial Tree" as D3
+  component "Bootstrap\nResponsive" as Bootstrap
 }
 
 package "API Endpoints" #231B3D {
-  component "/api/pending-accounts/\n(5s auto-refresh)" as PendingAPI #0BE784
-  component "/api/stage-executions/\n(5s auto-refresh)" as StagesAPI #0BE784
-  component "/search/\n(Main search)" as SearchAPI #0BE784
+  component "/api/pending-accounts/\n(5s auto-refresh)" as PendingAPI
+  component "/api/stage-executions/\n(5s auto-refresh)" as StagesAPI
+  component "/search/\n(Main search)" as SearchAPI
 }
 
-database "Astra DB" as DB #0BE784
+database "Astra DB" as DB
 
 User -[#01C176]-> Vue : "Interacts"
 User -[#01C176]-> D3 : "Views Tree"

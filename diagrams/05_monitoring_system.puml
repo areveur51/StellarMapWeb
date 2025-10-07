@@ -31,16 +31,16 @@ skinparam note {
 title <color:#0BE784>Monitoring & Health System</color>
 
 package "Monitoring Components" #231B3D {
-  component "Cron Health\nMonitor" as CronHealth #0BE784
-  component "Stuck Record\nRecovery" as Recovery #0BE784
-  component "Stage Execution\nTracker" as StageTracker #0BE784
+  component "Cron Health\nMonitor" as CronHealth
+  component "Stuck Record\nRecovery" as Recovery
+  component "Stage Execution\nTracker" as StageTracker
 }
 
-component "Cron Worker\n(run_cron_jobs.py)" as CronWorker #0BE784
+component "Cron Worker\n(run_cron_jobs.py)" as CronWorker
 
-database "ManagementCronHealth\nTable" as HealthDB #0BE784
-database "Stage Execution\nTable" as StageDB #0BE784
-database "Cache & Lineage\nTables" as DataDB #0BE784
+database "ManagementCronHealth\nTable" as HealthDB
+database "Stage Execution\nTable" as StageDB
+database "Cache & Lineage\nTables" as DataDB
 
 CronWorker -[#01C176]-> CronHealth : "Checks before run"
 CronHealth -[#01C176]-> HealthDB : "Reads status"
