@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from apiApp.models import StellarAccountStageExecution
 
 
@@ -27,7 +26,6 @@ def initialize_stage_executions(stellar_account, network_name):
         int: Number of stages initialized
     """
     created_count = 0
-    current_time = datetime.now(timezone.utc)
     
     for stage_def in STAGE_DEFINITIONS:
         existing = StellarAccountStageExecution.objects.filter(
@@ -37,15 +35,14 @@ def initialize_stage_executions(stellar_account, network_name):
         ).first()
         
         if not existing:
-            StellarAccountStageExecution.create(
+            StellarAccountStageExecution.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
                 stage_number=stage_def["stage_number"],
                 cron_name=stage_def["cron_name"],
                 status="PENDING",
                 execution_time_ms=0,
-                error_message="",
-                created_at=current_time
+                error_message=""
             )
             created_count += 1
     
@@ -67,8 +64,6 @@ def update_stage_execution(stellar_account, network_name, stage_number, status, 
     Returns:
         StellarAccountStageExecution: The updated or created record
     """
-    current_time = datetime.now(timezone.utc)
-    
     existing = StellarAccountStageExecution.objects.filter(
         stellar_account=stellar_account,
         network_name=network_name,
@@ -79,19 +74,17 @@ def update_stage_execution(stellar_account, network_name, stage_number, status, 
         existing.status = status
         existing.execution_time_ms = execution_time_ms
         existing.error_message = error_message
-        existing.updated_at = current_time
         existing.save()
         return existing
     else:
         cron_name = next((s["cron_name"] for s in STAGE_DEFINITIONS if s["stage_number"] == stage_number), f"stage_{stage_number}")
         
-        return StellarAccountStageExecution.create(
+        return StellarAccountStageExecution.objects.create(
             stellar_account=stellar_account,
             network_name=network_name,
             stage_number=stage_number,
             cron_name=cron_name,
             status=status,
             execution_time_ms=execution_time_ms,
-            error_message=error_message,
-            created_at=current_time
+            error_message=error_message
         )
