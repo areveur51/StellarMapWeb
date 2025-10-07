@@ -41,19 +41,19 @@ python manage.py test
 ### Architecture Diagrams
 
 #### 1. System Overview
-![System Overview](./diagrams/01_system_overview.svg)
+![System Overview](./diagrams/01_system_overview.png)
 
 #### 2. Data Pipeline (8 Stages)
-![Data Pipeline](./diagrams/02_data_pipeline.svg)
+![Data Pipeline](./diagrams/02_data_pipeline.png)
 
 #### 3. Database Schema
-![Database Schema](./diagrams/03_database_schema.svg)
+![Database Schema](./diagrams/03_database_schema.png)
 
 #### 4. Frontend & API Layer
-![Frontend & API](./diagrams/04_frontend_api.svg)
+![Frontend & API](./diagrams/04_frontend_api.png)
 
 #### 5. Monitoring System
-![Monitoring System](./diagrams/05_monitoring_system.svg)
+![Monitoring System](./diagrams/05_monitoring_system.png)
 
 ---
 

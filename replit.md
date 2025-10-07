@@ -13,6 +13,7 @@ Preferred communication style: Simple, everyday language.
 - **Responsive Design**: Bootstrap-based frontend for adaptive layouts.
 - **Real-time Feedback**: Displays pending accounts and pipeline stage progress using Vue.js for immediate user feedback.
 - **Consistent Theming**: Replit cyberpunk theme applied across the application and architecture diagrams.
+- **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
 ## Technical Implementation
 - **Django Framework**: Built on Django 4.2.7 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
