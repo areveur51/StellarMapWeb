@@ -175,7 +175,7 @@ class StellarBigQueryHelper:
         try:
             query = """
                 SELECT 
-                    source_account as creator
+                    funder as creator
                 FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
                 WHERE type = 0
                   AND account = @account
@@ -247,6 +247,8 @@ class StellarBigQueryHelper:
             query = """
                 SELECT 
                     account_id,
+                    account_creation_date,
+                    min_sequence_number,
                     balance,
                     buying_liabilities,
                     selling_liabilities,
@@ -265,10 +267,11 @@ class StellarBigQueryHelper:
                     last_modified_ledger,
                     ledger_entry_change,
                     deleted,
-                    batch_id,
+                    sponsor,
+                    inflation_destination,
                     batch_run_date,
                     closed_at
-                FROM `crypto-stellar.crypto_stellar.accounts_current`
+                FROM `crypto-stellar.crypto_stellar_dbt.accounts_current`
                 WHERE account_id = @account
                 ORDER BY batch_run_date DESC
                 LIMIT 1
@@ -286,15 +289,17 @@ class StellarBigQueryHelper:
             for row in query_job:
                 result = {
                     'account_id': row.account_id,
-                    'balance': row.balance,
-                    'buying_liabilities': row.buying_liabilities,
-                    'selling_liabilities': row.selling_liabilities,
+                    'account_creation_date': row.account_creation_date.isoformat() if row.account_creation_date else None,
+                    'min_sequence_number': row.min_sequence_number,
+                    'balance': int(row.balance * 10000000) if row.balance else 0,
+                    'buying_liabilities': int(row.buying_liabilities * 10000000) if row.buying_liabilities else 0,
+                    'selling_liabilities': int(row.selling_liabilities * 10000000) if row.selling_liabilities else 0,
                     'num_subentries': row.num_subentries,
                     'num_sponsored': row.num_sponsored,
                     'num_sponsoring': row.num_sponsoring,
                     'sequence_number': row.sequence_number,
                     'sequence_ledger': row.sequence_ledger,
-                    'sequence_time': row.sequence_time,
+                    'sequence_time': row.sequence_time.isoformat() if row.sequence_time else None,
                     'flags': row.flags,
                     'home_domain': row.home_domain or '',
                     'master_weight': row.master_weight,
@@ -304,8 +309,9 @@ class StellarBigQueryHelper:
                     'last_modified_ledger': row.last_modified_ledger,
                     'ledger_entry_change': row.ledger_entry_change,
                     'deleted': row.deleted,
-                    'batch_id': row.batch_id,
-                    'batch_run_date': str(row.batch_run_date) if row.batch_run_date else None,
+                    'sponsor': row.sponsor,
+                    'inflation_destination': row.inflation_destination,
+                    'batch_run_date': row.batch_run_date.isoformat() if row.batch_run_date else None,
                     'closed_at': row.closed_at.isoformat() if row.closed_at else None
                 }
                 logger.info(f"Found account data in BigQuery for {account}")
@@ -369,7 +375,7 @@ class StellarBigQueryHelper:
                     deleted,
                     sponsor,
                     batch_run_date
-                FROM `crypto-stellar.crypto_stellar.trust_lines`
+                FROM `crypto-stellar.crypto_stellar_dbt.trust_lines_current`
                 WHERE account_id = @account
                   AND deleted = FALSE
                 ORDER BY batch_run_date DESC, asset_code ASC
