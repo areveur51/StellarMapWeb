@@ -438,7 +438,6 @@ def search_view(request):
                         'stellar_account_created_at': record.stellar_account_created_at.isoformat() if record.stellar_account_created_at else None,
                         'home_domain': record.home_domain,
                         'xlm_balance': record.xlm_balance,
-                        'horizon_accounts_doc_api_href': record.horizon_accounts_doc_api_href,
                         'status': record.status,
                         'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
                         'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
