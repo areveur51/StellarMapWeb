@@ -97,14 +97,25 @@
                       hover
                     >
                       <template #cell(stellar_account)="data">
-                        {% verbatim %}<span style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>{% endverbatim %}
+                        {% verbatim %}<span 
+                          v-if="data.value"
+                          style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
+                          :title="data.value"
+                          @dblclick="copyToClipboard(data.value, 'Account address copied!')"
+                        >...{{ data.value.slice(-6) }}</span>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(stellar_creator_account)="data">
-                        {% verbatim %}<span v-if="data.value" style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>{% endverbatim %}
+                        {% verbatim %}<span 
+                          v-if="data.value"
+                          style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
+                          :title="data.value"
+                          @dblclick="copyToClipboard(data.value, 'Creator address copied!')"
+                        >...{{ data.value.slice(-6) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(xlm_balance)="data">
-                        {% verbatim %}{{ data.value }} XLM{% endverbatim %}
+                        {% verbatim %}{{ data.value ? data.value.toFixed(3) : '0.000' }} XLM{% endverbatim %}
                       </template>
                       <template #cell(stellar_account_created_at)="data">
                         {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
@@ -589,6 +600,55 @@
             console.error('Error formatting date:', e);
             return dateString;
           }
+        },
+        copyToClipboard(text, message = 'Copied to clipboard!') {
+          if (!text) return;
+          
+          // Use the modern Clipboard API if available
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+              this.$bvToast.toast(message, {
+                title: 'Success',
+                variant: 'success',
+                solid: true,
+                autoHideDelay: 2000
+              });
+            }).catch(err => {
+              console.error('Failed to copy:', err);
+              this.fallbackCopyToClipboard(text, message);
+            });
+          } else {
+            this.fallbackCopyToClipboard(text, message);
+          }
+        },
+        fallbackCopyToClipboard(text, message) {
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            this.$bvToast.toast(message, {
+              title: 'Success',
+              variant: 'success',
+              solid: true,
+              autoHideDelay: 2000
+            });
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            this.$bvToast.toast('Failed to copy to clipboard', {
+              title: 'Error',
+              variant: 'danger',
+              solid: true,
+              autoHideDelay: 2000
+            });
+          }
+          
+          document.body.removeChild(textArea);
         }
       },
       watch: {
