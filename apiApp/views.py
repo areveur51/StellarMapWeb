@@ -489,3 +489,74 @@ def fetch_toml_api(request):
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
+
+
+def retry_failed_account_api(request):
+    """
+    API endpoint to retry a failed account by changing its status from FAILED to RE_INQUIRY.
+    
+    Query Parameters:
+        account (str): Stellar account address
+        network (str): Network name (public or testnet)
+    
+    Returns:
+        JsonResponse: Success or error message
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'error': 'Method not allowed. Use POST.'
+        }, status=405)
+    
+    account = request.POST.get('account') or request.GET.get('account')
+    network = request.POST.get('network') or request.GET.get('network')
+    
+    if not account or not network:
+        return JsonResponse({
+            'error': 'Missing required parameters: account and network'
+        }, status=400)
+    
+    try:
+        from apiApp.models import StellarCreatorAccountLineage, FAILED, RE_INQUIRY
+        from datetime import datetime
+        
+        # Find the FAILED record
+        try:
+            record = StellarCreatorAccountLineage.objects.filter(
+                stellar_account=account,
+                network_name=network,
+                status=FAILED
+            ).first()
+            
+            if not record:
+                return JsonResponse({
+                    'error': 'No FAILED record found for this account',
+                    'account': account,
+                    'network': network
+                }, status=404)
+            
+            # Update status to RE_INQUIRY to trigger retry
+            record.status = RE_INQUIRY
+            record.updated_at = datetime.utcnow()
+            record.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Account queued for retry',
+                'account': account,
+                'network': network,
+                'new_status': RE_INQUIRY
+            })
+            
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            return JsonResponse({
+                'error': 'Database error',
+                'message': str(e)
+            }, status=500)
+            
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)

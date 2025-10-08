@@ -158,8 +158,13 @@
                         >{{ data.value }}</a>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
-                      <template #cell(status)="data">
-                        {% verbatim %}<b-badge :variant="getLineageStatusVariant(data.value)">{{ data.value }}</b-badge>{% endverbatim %}
+                      <template #cell(status)="row">
+                        {% verbatim %}<b-badge 
+                          :variant="getLineageStatusVariant(row.item.status)"
+                          :style="row.item.status === 'FAILED' ? 'cursor: pointer;' : ''"
+                          :title="row.item.status === 'FAILED' ? 'Click to retry' : ''"
+                          @click="row.item.status === 'FAILED' ? retryFailedAccount(row.item) : null"
+                        >{{ row.item.status }}</b-badge>{% endverbatim %}
                       </template>
                       <template #cell(actions)="row">
                         <b-button size="sm" variant="info" @click="showLineageJson(row.item)" title="View JSON">
@@ -810,6 +815,71 @@
           } finally {
             this.tomlLoading = false;
           }
+        },
+        async retryFailedAccount(accountData) {
+          if (!accountData || !accountData.stellar_account || !accountData.network_name) {
+            console.error('Invalid account data for retry');
+            return;
+          }
+          
+          try {
+            const url = '/api/retry-failed-account/';
+            const formData = new FormData();
+            formData.append('account', accountData.stellar_account);
+            formData.append('network', accountData.network_name);
+            
+            const response = await fetch(url, {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'X-CSRFToken': this.getCSRFToken()
+              }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+              this.$bvToast.toast(`Account ${accountData.stellar_account.slice(-7)} queued for retry`, {
+                title: 'Retry Initiated',
+                variant: 'success',
+                solid: true,
+                autoHideDelay: 3000
+              });
+              
+              // Update the status in the UI immediately
+              accountData.status = 'RE_INQUIRY';
+              
+              // Refresh lineage data after a short delay
+              setTimeout(() => {
+                this.fetchAccountLineage();
+              }, 1000);
+            } else {
+              throw new Error(data.error || 'Failed to retry account');
+            }
+          } catch (error) {
+            console.error('Error retrying account:', error);
+            this.$bvToast.toast(error.message || 'Failed to retry account', {
+              title: 'Retry Failed',
+              variant: 'danger',
+              solid: true,
+              autoHideDelay: 3000
+            });
+          }
+        },
+        getCSRFToken() {
+          const name = 'csrftoken';
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+              }
+            }
+          }
+          return cookieValue;
         }
       },
       watch: {
