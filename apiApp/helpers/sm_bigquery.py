@@ -469,7 +469,7 @@ class StellarBigQueryHelper:
             assets = self.get_account_assets(account)
             
             # Query creator and creator's data
-            creator_address = self.get_creator_account(account)
+            creator_address = self.get_account_creator(account)
             creator_data = None
             if creator_address:
                 creator_data = self.get_account_data(creator_address)
