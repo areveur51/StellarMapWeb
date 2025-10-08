@@ -123,13 +123,17 @@ class StellarMapCreatorAccountLineageHelpers:
            stop=stop_after_attempt(5))
     async def async_fetch_child_accounts(self, client_session, lin_queryset):
         """
-        Fetch child accounts created by this account from Horizon API.
+        Fetch child accounts created by this account.
         
-        Queries Horizon for create_account operations where this account
-        is the funder, then adds those child accounts to the database
-        for processing.
+        Uses two-tier approach:
+        1. Primary: Horizon API (recent operations, ~1000 operations max)
+        2. Fallback: BigQuery/Hubble (complete historical data if configured)
+        
+        Queries for create_account operations where this account is the funder,
+        then adds those child accounts to the database for processing.
         """
         from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
+        from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
         
         manager = StellarCreatorAccountLineageManager()
         stellar_account = lin_queryset.stellar_account
@@ -139,14 +143,52 @@ class StellarMapCreatorAccountLineageHelpers:
         horizon_url = 'https://horizon.stellar.org' if network_name == 'public' else 'https://horizon-testnet.stellar.org'
         
         try:
-            # Fetch child accounts from Horizon
-            horizon_helper = StellarMapHorizonAPIHelpers(
-                horizon_url=horizon_url,
-                account_id=stellar_account
-            )
-            child_accounts = horizon_helper.get_child_accounts(max_pages=5)
+            child_accounts = []
+            
+            # Primary: Try Horizon API first (up to 1000 operations)
+            try:
+                horizon_helper = StellarMapHorizonAPIHelpers(
+                    horizon_url=horizon_url,
+                    account_id=stellar_account
+                )
+                child_accounts = horizon_helper.get_child_accounts(max_pages=5)
+                print(f"[DEBUG] Horizon API found {len(child_accounts)} child accounts for {stellar_account[-7:]}")
+            except Exception as horizon_error:
+                sentry_sdk.capture_exception(horizon_error)
+                print(f"[WARNING] Horizon API failed for {stellar_account[-7:]}: {str(horizon_error)}")
+            
+            # Fallback: Try BigQuery for complete historical data (if configured)
+            if network_name == 'public':
+                try:
+                    bigquery_helper = StellarBigQueryHelper()
+                    if bigquery_helper.is_available():
+                        # Get account creation date to optimize BigQuery scan
+                        account_created = lin_queryset.stellar_account_created_at
+                        start_date = None
+                        if account_created:
+                            start_date = account_created.strftime('%Y-%m-%d')
+                        
+                        bigquery_children = bigquery_helper.get_child_accounts(
+                            parent_account=stellar_account,
+                            start_date=start_date,
+                            limit=10000
+                        )
+                        
+                        if bigquery_children:
+                            # Merge with Horizon results, avoiding duplicates
+                            horizon_accounts = {c.get('account') for c in child_accounts}
+                            for bq_child in bigquery_children:
+                                if bq_child.get('account') not in horizon_accounts:
+                                    child_accounts.append(bq_child)
+                            
+                            print(f"[DEBUG] BigQuery found {len(bigquery_children)} total child accounts for {stellar_account[-7:]}")
+                            print(f"[DEBUG] Combined: {len(child_accounts)} unique child accounts")
+                except Exception as bigquery_error:
+                    sentry_sdk.capture_exception(bigquery_error)
+                    print(f"[INFO] BigQuery fallback not available for {stellar_account[-7:]}: {str(bigquery_error)}")
             
             # Add each child account to the database if not already present
+            added_count = 0
             for child_data in child_accounts:
                 child_account = child_data.get('account')
                 
@@ -168,10 +210,11 @@ class StellarMapCreatorAccountLineageHelpers:
                         'status': PENDING_HORIZON_API_DATASETS
                     }
                     manager.create_lineage(req)
+                    added_count += 1
                     print(f"[DEBUG] Added child account {child_account[-7:]} to database (parent: {stellar_account[-7:]})")
             
             if child_accounts:
-                print(f"[DEBUG] Found and processed {len(child_accounts)} child accounts for {stellar_account[-7:]}")
+                print(f"[DEBUG] Processed {len(child_accounts)} child accounts for {stellar_account[-7:]} ({added_count} new)")
             
         except Exception as e:
             # Don't fail the pipeline if child account fetching fails
