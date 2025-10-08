@@ -124,23 +124,17 @@ class Command(BaseCommand):
             accounts_dict = sm_horizon_helpers.get_base_accounts()
 
             # Store JSON directly in Cassandra TEXT column
-            request = HttpRequest()
-            request.data = {
-                'horizon_accounts_json': json.dumps(accounts_dict),
-                'status': DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS
-            }
-            lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+            lin_queryset.horizon_accounts_json = json.dumps(accounts_dict)
+            lin_queryset.status = DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS
+            lin_queryset.save()
             return True  # Valid address, continue processing
             
         except (NotFoundError, BaseRequestError) as e:
             if 'NotFoundError' in str(type(e).__name__) or '404' in str(e):
                 logger.warning(f"Invalid Stellar address on Horizon: {account_id} on {network_name}")
-                request = HttpRequest()
-                request.data = {
-                    'status': INVALID_HORIZON_STELLAR_ADDRESS,
-                    'last_error': f'Horizon API validation failed: Account not found on {network_name} network'
-                }
-                lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+                lin_queryset.status = INVALID_HORIZON_STELLAR_ADDRESS
+                lin_queryset.last_error = f'Horizon API validation failed: Account not found on {network_name} network'
+                lin_queryset.save()
                 
                 from apiApp.managers import StellarAccountSearchCacheManager
                 cache_manager = StellarAccountSearchCacheManager()
@@ -176,12 +170,9 @@ class Command(BaseCommand):
             operations_dict = sm_horizon_helpers.get_account_operations()
 
             # Store JSON directly in Cassandra TEXT column
-            request = HttpRequest()
-            request.data = {
-                'horizon_operations_json': json.dumps(operations_dict),
-                'status': DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
-            }
-            lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+            lin_queryset.horizon_operations_json = json.dumps(operations_dict)
+            lin_queryset.status = DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS
+            lin_queryset.save()
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise ValueError(f'Error fetching operations: {e}')
@@ -205,12 +196,9 @@ class Command(BaseCommand):
             effects_dict = sm_horizon_helpers.get_account_effects()
 
             # Store JSON directly in Cassandra TEXT column
-            request = HttpRequest()
-            request.data = {
-                'horizon_effects_json': json.dumps(effects_dict),
-                'status': DONE_HORIZON_API_DATASETS
-            }
-            lineage_manager.update_lineage(id=lin_queryset.id, request=request)
+            lin_queryset.horizon_effects_json = json.dumps(effects_dict)
+            lin_queryset.status = DONE_HORIZON_API_DATASETS
+            lin_queryset.save()
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise ValueError(f'Error fetching effects: {e}')
