@@ -107,8 +107,15 @@ class StellarBigQueryHelper:
         
         try:
             date_filter = ""
+            query_parameters = [
+                bigquery.ScalarQueryParameter("parent_account", "STRING", parent_account)
+            ]
+            
             if start_date:
-                date_filter = f"AND closed_at >= '{start_date}'"
+                date_filter = "AND closed_at >= TIMESTAMP(@start_date)"
+                query_parameters.append(
+                    bigquery.ScalarQueryParameter("start_date", "STRING", f"{start_date}T00:00:00Z")
+                )
             
             query = f"""
                 SELECT 
@@ -125,11 +132,7 @@ class StellarBigQueryHelper:
                 LIMIT {limit}
             """
             
-            job_config = bigquery.QueryJobConfig(
-                query_parameters=[
-                    bigquery.ScalarQueryParameter("parent_account", "STRING", parent_account)
-                ]
-            )
+            job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
             
             logger.info(f"Querying BigQuery for child accounts of {parent_account}")
             query_job = self.client.query(query, job_config=job_config)
