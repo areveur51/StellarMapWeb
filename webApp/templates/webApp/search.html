@@ -80,7 +80,14 @@
             <b-tabs card>
               <b-tab title="Account Lineage" active :title-link-attributes="{ title: 'View lineage table leading back to origin/creator accounts' }">
                 <template>
-                  <div v-if="account_lineage_data && account_lineage_data.length > 0">
+                  <div v-if="lineageLoading" style="text-align: center; padding: 20px;">
+                    <b-spinner variant="primary"></b-spinner>
+                    <p>Loading account lineage...</p>
+                  </div>
+                  <div v-else-if="lineageError" class="alert alert-danger">
+                    {% verbatim %}{{ lineageError }}{% endverbatim %}
+                  </div>
+                  <div v-else-if="account_lineage_data && account_lineage_data.length > 0">
                     <b-table
                       :items="account_lineage_data"
                       :fields="lineageTableFields"
@@ -307,6 +314,9 @@
           stageExecutionsLoading: false,
           stageExecutionsError: null,
           stageExecutionsInterval: null,
+          lineageLoading: false,
+          lineageError: null,
+          lineageInterval: null,
           stageExecutionFields: [
             { key: 'stage_number', label: 'Stage', sortable: true },
             { key: 'cron_name', label: 'Cron Job', sortable: true },
@@ -472,6 +482,44 @@
             });
           }
         },
+        async fetchAccountLineage() {
+          if (!this.query_account || !this.network_selected) {
+            return;
+          }
+          
+          // Store scroll position before update
+          const scrollPosition = window.scrollY;
+          const isFirstLoad = !this.account_lineage_data || this.account_lineage_data.length === 0;
+          
+          try {
+            // Only show loading spinner on first load
+            if (isFirstLoad) {
+              this.lineageLoading = true;
+            }
+            this.lineageError = null;
+            
+            const url = `/api/account-lineage/?account=${encodeURIComponent(this.query_account)}&network=${encodeURIComponent(this.network_selected)}`;
+            const response = await fetch(url);
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.account_lineage_data = data.lineage;
+              console.log('Lineage data received:', data); // Debug log
+            } else {
+              const error = await response.json();
+              this.lineageError = error.message || 'Failed to fetch account lineage';
+            }
+          } catch (e) {
+            console.error('Error fetching account lineage:', e);
+            this.lineageError = 'Error fetching account lineage';
+          } finally {
+            this.lineageLoading = false;
+            // Restore scroll position after DOM update
+            this.$nextTick(() => {
+              window.scrollTo(0, scrollPosition);
+            });
+          }
+        },
         getStatusVariant(status) {
           if (status === 'SUCCESS') return 'success';
           if (status === 'FAILED' || status === 'ERROR') return 'danger';
@@ -615,6 +663,14 @@
           this.stageExecutionsInterval = setInterval(() => {
             this.fetchStageExecutions();
           }, 5000);
+          
+          // Fetch account lineage immediately on mount
+          this.fetchAccountLineage();
+          
+          // Set up auto-refresh for account lineage every 5 seconds
+          this.lineageInterval = setInterval(() => {
+            this.fetchAccountLineage();
+          }, 5000);
         }
         
         // JSON display is automatically updated by the watcher
@@ -626,6 +682,9 @@
         }
         if (this.stageExecutionsInterval) {
           clearInterval(this.stageExecutionsInterval);
+        }
+        if (this.lineageInterval) {
+          clearInterval(this.lineageInterval);
         }
       }
     })

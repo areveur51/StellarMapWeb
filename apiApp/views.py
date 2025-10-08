@@ -225,3 +225,104 @@ def stage_executions_api(request):
         'stages': stage_executions_data,
         'total_stages': len(stage_executions_data)
     }, safe=False)
+
+
+def account_lineage_api(request):
+    """
+    API endpoint that returns account lineage data for a specific address.
+    Used for real-time lineage table updates in the Account Lineage tab.
+    
+    Query Parameters:
+        account (str): Stellar account address (required)
+        network (str): Network name (required, 'public' or 'testnet')
+    
+    Returns:
+        JsonResponse: List of lineage records with creator chain.
+    """
+    account = request.GET.get('account', '').strip()
+    network = request.GET.get('network', '').strip()
+    
+    # Validate required parameters
+    if not account or not network:
+        return JsonResponse({
+            'error': 'Missing required parameters',
+            'message': 'Both account and network parameters are required'
+        }, status=400)
+    
+    # Validate address format (basic check)
+    from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+    if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
+        return JsonResponse({
+            'error': 'Invalid stellar account address',
+            'message': 'Account must be a valid Stellar address'
+        }, status=400)
+    
+    # Validate network
+    if network not in ['public', 'testnet']:
+        return JsonResponse({
+            'error': 'Invalid network',
+            'message': 'Network must be either public or testnet'
+        }, status=400)
+    
+    account_lineage_data = []
+    try:
+        from apiApp.models import StellarCreatorAccountLineage
+        from datetime import datetime
+        
+        def convert_timestamp(ts):
+            if ts is None:
+                return None
+            if isinstance(ts, datetime):
+                return ts.isoformat()
+            if isinstance(ts, (int, float)):
+                return datetime.fromtimestamp(ts).isoformat()
+            return str(ts)
+        
+        # Track visited accounts to prevent infinite loops
+        visited_accounts = set()
+        accounts_to_process = [account]
+        
+        while accounts_to_process:
+            current_account = accounts_to_process.pop(0)
+            if current_account in visited_accounts:
+                continue
+            visited_accounts.add(current_account)
+            
+            # Fetch lineage record for current account
+            lineage_records = StellarCreatorAccountLineage.objects.filter(
+                stellar_account=current_account,
+                network_name=network
+            ).all()
+            
+            for record in lineage_records:
+                record_data = {
+                    'stellar_account': record.stellar_account,
+                    'stellar_creator_account': record.stellar_creator_account,
+                    'network_name': record.network_name,
+                    'stellar_account_created_at': convert_timestamp(record.stellar_account_created_at),
+                    'home_domain': record.home_domain,
+                    'xlm_balance': record.xlm_balance,
+                    'status': record.status,
+                    'created_at': convert_timestamp(record.created_at),
+                    'updated_at': convert_timestamp(record.updated_at),
+                }
+                account_lineage_data.append(record_data)
+                
+                # Follow the creator chain
+                if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
+                    if record.stellar_creator_account not in accounts_to_process:
+                        accounts_to_process.append(record.stellar_creator_account)
+                        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)
+    
+    return JsonResponse({
+        'account': account,
+        'network': network,
+        'lineage': account_lineage_data,
+        'total_records': len(account_lineage_data)
+    }, safe=False)
