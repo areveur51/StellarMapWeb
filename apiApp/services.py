@@ -10,8 +10,8 @@ from apiApp.managers import ManagementCronHealthManager
 # Secure env var loading
 ASTRA_DB_ID = config('ASTRA_DB_ID')
 ASTRA_DB_REGION = config('ASTRA_DB_REGION')
-ASTRA_DB_KEYSPACE = config('ASTRA_DB_KEYSPACE')
-ASTRA_DB_APPLICATION_TOKEN = config('ASTRA_DB_APPLICATION_TOKEN')
+ASTRA_DB_KEYSPACE = config('ASTRA_DB_KEYSPACE', default=config('CASSANDRA_KEYSPACE'))
+ASTRA_DB_APPLICATION_TOKEN = config('ASTRA_DB_APPLICATION_TOKEN', default=config('ASTRA_DB_TOKEN'))
 
 
 class AstraDocument:
