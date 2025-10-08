@@ -232,12 +232,15 @@ def account_lineage_api(request):
     API endpoint that returns account lineage data for a specific address.
     Used for real-time lineage table updates in the Account Lineage tab.
     
+    Returns hierarchical lineage from newest to oldest, with child accounts 
+    nested under their parent issuers.
+    
     Query Parameters:
         account (str): Stellar account address (required)
         network (str): Network name (required, 'public' or 'testnet')
     
     Returns:
-        JsonResponse: List of lineage records with creator chain.
+        JsonResponse: Hierarchical list of lineage records ordered newest to oldest.
     """
     account = request.GET.get('account', '').strip()
     network = request.GET.get('network', '').strip()
@@ -264,7 +267,6 @@ def account_lineage_api(request):
             'message': 'Network must be either public or testnet'
         }, status=400)
     
-    account_lineage_data = []
     try:
         from apiApp.models import StellarCreatorAccountLineage
         from datetime import datetime
@@ -279,7 +281,8 @@ def account_lineage_api(request):
                 return datetime.fromtimestamp(ts).isoformat()
             return str(ts)
         
-        # Track visited accounts to prevent infinite loops
+        # First, collect all lineage records in the chain
+        all_records = {}
         visited_accounts = set()
         accounts_to_process = [account]
         
@@ -317,24 +320,8 @@ def account_lineage_api(request):
                                     'asset_issuer': asset_issuer,
                                     'balance': float(asset_balance) if asset_balance else 0.0
                                 })
-                    except (json.JSONDecodeError, KeyError, ValueError) as e:
+                    except (json.JSONDecodeError, KeyError, ValueError):
                         pass
-                
-                # Fetch child accounts created by this account
-                child_accounts = []
-                try:
-                    child_records = StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=current_account,
-                        network_name=network
-                    ).limit(100).all()
-                    
-                    for child in child_records:
-                        if child.stellar_account not in visited_accounts:
-                            child_accounts.append(child.stellar_account)
-                            if child.stellar_account not in accounts_to_process:
-                                accounts_to_process.append(child.stellar_account)
-                except Exception as e:
-                    pass
                 
                 record_data = {
                     'stellar_account': record.stellar_account,
@@ -344,17 +331,73 @@ def account_lineage_api(request):
                     'home_domain': record.home_domain,
                     'xlm_balance': record.xlm_balance,
                     'assets': assets,
-                    'child_accounts': child_accounts,
                     'status': record.status,
                     'created_at': convert_timestamp(record.created_at),
                     'updated_at': convert_timestamp(record.updated_at),
+                    'children': []
                 }
-                account_lineage_data.append(record_data)
+                all_records[record.stellar_account] = record_data
                 
                 # Follow the creator chain upward
                 if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
                     if record.stellar_creator_account not in accounts_to_process:
                         accounts_to_process.append(record.stellar_creator_account)
+        
+        # Now fetch all child accounts for each record to build hierarchy
+        for account_addr in all_records:
+            try:
+                child_records = StellarCreatorAccountLineage.objects.filter(
+                    stellar_creator_account=account_addr,
+                    network_name=network
+                ).all()
+                
+                for child in child_records:
+                    if child.stellar_account in all_records:
+                        all_records[account_addr]['children'].append(all_records[child.stellar_account])
+            except Exception:
+                pass
+        
+        # Build hierarchical structure starting from root (oldest ancestor)
+        def find_root_accounts():
+            roots = []
+            for acc_addr, rec in all_records.items():
+                if not rec['stellar_creator_account'] or rec['stellar_creator_account'] not in all_records:
+                    roots.append(rec)
+            return roots
+        
+        # Sort children by creation date (newest first) recursively
+        def sort_children_recursive(record):
+            if record['children']:
+                record['children'].sort(
+                    key=lambda x: x.get('stellar_account_created_at') or '', 
+                    reverse=True
+                )
+                for child in record['children']:
+                    sort_children_recursive(child)
+        
+        root_accounts = find_root_accounts()
+        
+        # Sort roots by creation date (newest first)
+        root_accounts.sort(
+            key=lambda x: x.get('stellar_account_created_at') or '', 
+            reverse=True
+        )
+        
+        # Sort all children recursively
+        for root in root_accounts:
+            sort_children_recursive(root)
+        
+        # Flatten to hierarchical list format with indentation levels
+        def flatten_with_hierarchy(records, level=0):
+            result = []
+            for record in records:
+                record['hierarchy_level'] = level
+                result.append(record)
+                if record['children']:
+                    result.extend(flatten_with_hierarchy(record['children'], level + 1))
+            return result
+        
+        hierarchical_lineage = flatten_with_hierarchy(root_accounts)
                         
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -366,8 +409,8 @@ def account_lineage_api(request):
     return JsonResponse({
         'account': account,
         'network': network,
-        'lineage': account_lineage_data,
-        'total_records': len(account_lineage_data)
+        'lineage': hierarchical_lineage,
+        'total_records': len(hierarchical_lineage)
     }, safe=False)
 
 
