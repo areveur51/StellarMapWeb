@@ -64,6 +64,23 @@ class StellarMapCreatorAccountLineageHelpers:
         response = {"data": {"raw_data": raw_data}}
         parser = StellarMapHorizonAPIParserHelpers(response)
         creator_data = parser.parse_operations_creator_account(lin_queryset.stellar_account)
+        
+        # If no creator found in operations (e.g., claimable balance accounts),
+        # fall back to Stellar Expert API as authoritative source
+        if not creator_data.get('funder'):
+            stellar_expert_helpers = StellarMapStellarExpertAPIHelpers(
+                stellar_account=lin_queryset.stellar_account,
+                network_name=lin_queryset.network_name
+            )
+            expert_data = stellar_expert_helpers.get_account()
+            expert_parser = StellarMapStellarExpertAPIParserHelpers(
+                {"data": {"raw_data": expert_data}}
+            )
+            creator_data = {
+                'funder': expert_parser.parse_account_creator(),
+                'created_at': expert_parser.parse_account_created_at()
+            }
+        
         req = HttpRequest()
         req.data = {
             'stellar_creator_account': creator_data.get('funder', ''),

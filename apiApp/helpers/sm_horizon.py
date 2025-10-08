@@ -125,24 +125,15 @@ class StellarMapHorizonAPIParserHelpers:
         try:
             records = self.datastax_response.get('data', {}).get('raw_data', {}).get('_embedded', {}).get('records', [])
             
-            # First try to find create_account operation
+            # Only return creator if we find a create_account operation
+            # Do NOT fallback to first operation's source_account - let Stellar Expert handle that
             for record in records:
                 if record.get('type') == 'create_account' and record.get('account') == stellar_account:
                     dt_helpers = StellarMapDateTimeHelpers()
                     created_at_obj = dt_helpers.convert_horizon_datetime_str_to_obj(record.get('created_at', ''))
                     return {'funder': record.get('funder', ''), 'created_at': created_at_obj}
             
-            # Fallback: If no create_account operation, use source_account from first operation
-            # This handles accounts created through claimable balances or other mechanisms
-            if records and len(records) > 0:
-                first_op = records[0]
-                dt_helpers = StellarMapDateTimeHelpers()
-                created_at_obj = dt_helpers.convert_horizon_datetime_str_to_obj(first_op.get('created_at', ''))
-                return {
-                    'funder': first_op.get('source_account', ''),
-                    'created_at': created_at_obj
-                }
-            
+            # No create_account operation found - return empty to trigger Stellar Expert fallback
             return {}
         except Exception as e:
             sentry_sdk.capture_exception(e)

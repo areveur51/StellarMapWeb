@@ -24,6 +24,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Docker Deployment**: Cross-platform Docker Compose setup for easy local development on Windows, Linux, and macOS. Includes separate development (`docker-compose.yml`) and production (`docker-compose.prod.yml`) configurations with automatic migrations and dual-service orchestration (web + cron).
 - **Fast Data Collection Pipeline**: An 8-stage sequential pipeline runs every 2 minutes, processing an address in 2-3 minutes. Includes automated execution, comprehensive workflow tracking (18 status constants), health monitoring, and stuck record recovery.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, using `Tenacity` for robust retries with exponential backoff.
+- **Two-Tier Creator Extraction**: Horizon operations fetched in ascending order (oldest first) to find `create_account` operations. For accounts created through claimable balances or other non-standard methods, Stellar Expert API serves as authoritative fallback source for creator attribution.
 - **Caching**: 12-hour caching for Stellar address searches to minimize API calls.
 - **Frontend Interactivity**: Django templates enhanced with Vue.js components, including a polling system for real-time updates and an interactive JSON viewer for detailed stage execution data.
 
