@@ -16,29 +16,62 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>8-Stage Data Pipeline (2-3 minutes)
+title <color:#0BE784>Data Collection: BigQuery (Primary) & API (Educational)
+
+|<b><color:#0BE784>BigQuery Pipeline (50-90 seconds)|
+
+start
+
+:User Searches Address;
+
+:Query 1: Account Data;
+note right #231B3D
+  <color:#96DDF2>From <color:#0BE784>accounts_current
+  <color:#96DDF2>Balance, flags, thresholds
+end note
+
+:Query 2: Asset Holdings;
+note right #231B3D
+  <color:#96DDF2>From <color:#0BE784>trust_lines_current
+  <color:#96DDF2>Trustline data
+end note
+
+:Query 3: Creator Discovery;
+note right #231B3D
+  <color:#96DDF2>From <color:#0BE784>enriched_history_operations
+  <color:#96DDF2>Find parent (type=0)
+end note
+
+:Query 4: Child Accounts;
+note right #231B3D
+  <color:#96DDF2>Paginated (10K batches)
+  <color:#96DDF2>Up to 100K children
+  <color:#96DDF2>Handles airdrops
+end note
+
+:Update Database;
+
+stop
+
+note left #231B3D
+  <color:#0BE784>BigQuery Features:
+  <color:#96DDF2>• 2-3x faster than API
+  <color:#96DDF2>• No rate limits
+  <color:#96DDF2>• Complete history
+  <color:#96DDF2>• ~$0.10-0.50/1K accounts
+end note
+
+|<b><color:#96DDF2>API Pipeline (2-3 minutes) - Educational|
 
 start
 
 :User Searches Address;
 
 :Stage 1: Make Parent Lineage;
-note right #231B3D
-  <color:#0BE784>Status: <color:#96DDF2>PENDING_MAKE_PARENT_LINEAGE
-  Creates initial lineage records
-end note
 
 :Stage 2: Collect Horizon Data;
-note right #231B3D
-  <color:#96DDF2>Fetches operations & effects
-  Validates with Horizon API
-end note
 
 :Stage 3: Account Attributes;
-note right #231B3D
-  <color:#96DDF2>Collects home_domain
-  and XLM balance
-end note
 
 :Stage 4: Account Assets;
 
@@ -47,26 +80,20 @@ end note
 :Stage 6: SE Directory;
 note right #231B3D
   <color:#96DDF2>Stellar Expert enrichment
-  Enhanced metadata
 end note
 
 :Stage 7: Account Creator;
 
 :Stage 8: Make Grandparent;
-note right #231B3D
-  <color:#0BE784>Status: <color:#96DDF2>DONE_GRANDPARENT_LINEAGE
-  Creates ancestor lineage
-end note
 
 stop
 
 note left #231B3D
-  <color:#0BE784>Pipeline Features:
-  <color:#96DDF2>• Sequential execution
-  • Runs every 2 minutes
-  • Real-time stage tracking
-  • Automatic stuck recovery
-  • Terminal status handling
+  <color:#96DDF2>API Pipeline (Reference):
+  <color:#96DDF2>• 8 sequential stages
+  <color:#96DDF2>• Horizon + Expert APIs
+  <color:#96DDF2>• Educational purposes
+  <color:#96DDF2>• Not enabled by default
 end note
 
 @enduml

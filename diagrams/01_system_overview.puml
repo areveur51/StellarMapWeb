@@ -55,11 +55,12 @@ package "Django Application" #231B3D {
 }
 
 package "Background Services" #231B3D {
-  component "Cron Worker\n(run_cron_jobs.py)" as CronWorker
-  component "8-Stage Pipeline\n(2-3 min processing)" as Pipeline
+  component "BigQuery Pipeline\n(50-90 sec processing)" as BQPipeline #0BE784
+  component "API Pipeline (Educational)\n(8-stage, 2-3 min)" as APIPipeline
 }
 
-cloud "External APIs" #231B3D {
+cloud "Data Sources" #231B3D {
+  database "BigQuery/Hubble\n(Stellar Dataset)" as BigQuery #0BE784
   component "Horizon API" as Horizon
   component "Stellar Expert" as Expert
 }
@@ -70,16 +71,24 @@ User -[#01C176]-> Frontend : "Views"
 Frontend -[#01C176]-> WebApp : "HTTP"
 WebApp -[#01C176]-> ApiApp : "API Calls"
 ApiApp -[#01C176]-> DB : "Queries\n(88% optimized)"
-CronWorker -[#01C176]-> Pipeline : "Orchestrates"
-Pipeline -[#01C176]-> Horizon : "Fetches Data"
-Pipeline -[#01C176]-> Expert : "Enrichment"
-Pipeline -[#01C176]-> DB : "Stores"
+BQPipeline -[#0BE784,bold]-> BigQuery : "<b>Primary Data Source"
+BQPipeline -[#01C176]-> DB : "Stores"
+APIPipeline -[#96DDF2,dashed]-> Horizon : "(Educational)"
+APIPipeline -[#96DDF2,dashed]-> Expert : "(Reference)"
 
-note right of DB #231B3D
-  <color:#0BE784>Query Optimization:
-  <color:#96DDF2>• 204 → 24 queries/min
-  • 88% reduction
-  • Using status__in=[...]
+note right of BQPipeline #231B3D
+  <color:#0BE784>Primary Pipeline:
+  <color:#96DDF2>• 4 optimized queries
+  <color:#96DDF2>• No API rate limits
+  <color:#96DDF2>• 2-3x faster
+  <color:#96DDF2>• Up to 100K children/parent
+end note
+
+note right of APIPipeline #231B3D
+  <color:#96DDF2>Educational/Reference:
+  <color:#96DDF2>• 8-stage sequential
+  <color:#96DDF2>• Horizon + Expert APIs
+  <color:#96DDF2>• Not enabled by default
 end note
 
 @enduml
