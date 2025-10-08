@@ -36,10 +36,6 @@ class AstraDocument:
             collections_name (str): e.g., 'horizon_accounts', 'horizon_operations', 'horizon_effects'.
         """
         self.collections_name = collections_name
-        # Build a pseudo-URL for compatibility with existing code
-        self.url = (
-            f"cassandra://{ASTRA_DB_KEYSPACE}/"
-            f"{self.collections_name}/{self.document_id}")
 
     @retry(wait=wait_exponential(multiplier=1, max=7),
            stop=stop_after_attempt(7))
@@ -65,7 +61,7 @@ class AstraDocument:
         try:
             from apiApp.models import StellarCreatorAccountLineage
             
-            # Get or create the lineage record
+            # Get the lineage record
             lineage = StellarCreatorAccountLineage.objects.filter(
                 stellar_account=stellar_account,
                 network_name=network_name
@@ -77,14 +73,25 @@ class AstraDocument:
             # Determine which JSON column to update based on collection name
             json_str = json.dumps(raw_data)
             
+            # Use queryset.update() for Cassandra compatibility
+            queryset = StellarCreatorAccountLineage.objects.filter(
+                stellar_account=stellar_account,
+                network_name=network_name
+            )
+            
             if self.collections_name == "horizon_accounts":
-                lineage.update(horizon_accounts_json=json_str)
+                queryset.update(horizon_accounts_json=json_str)
             elif self.collections_name == "horizon_operations":
-                lineage.update(horizon_operations_json=json_str)
+                queryset.update(horizon_operations_json=json_str)
             elif self.collections_name == "horizon_effects":
-                lineage.update(horizon_effects_json=json_str)
+                queryset.update(horizon_effects_json=json_str)
             else:
                 raise Exception(f"Unknown collection name: {self.collections_name}")
+            
+            # Build pseudo-URL with actual account ID
+            self.url = (
+                f"cassandra://{ASTRA_DB_KEYSPACE}/"
+                f"{self.collections_name}/{stellar_account}_{network_name}")
             
             # Return format compatible with old REST API response
             doc_id = f"{stellar_account}_{self.collections_name}"
@@ -121,19 +128,30 @@ class AstraDocument:
         try:
             from apiApp.models import StellarCreatorAccountLineage
             
-            # Parse pseudo-URL to extract account and collection name
-            # Format: cassandra://{keyspace}/{collection_name}/{stellar_account}
+            # Parse pseudo-URL to extract account, network, and collection name
+            # Format: cassandra://{keyspace}/{collection_name}/{stellar_account}_{network_name}
             parts = self.datastax_url.split('/')
-            stellar_account = parts[-1]
+            account_network = parts[-1]
             collection_name = parts[-2]
             
-            # Get the lineage record
+            # Split account and network (format: ACCOUNT_network)
+            if '_' in account_network:
+                account_parts = account_network.rsplit('_', 1)
+                stellar_account = account_parts[0]
+                network_name = account_parts[1]
+            else:
+                # Fallback for old format without network
+                stellar_account = account_network
+                network_name = 'public'
+            
+            # Get the lineage record with network filter
             lineage = StellarCreatorAccountLineage.objects.filter(
-                stellar_account=stellar_account
+                stellar_account=stellar_account,
+                network_name=network_name
             ).first()
             
             if not lineage:
-                raise Exception(f"Lineage record not found for {stellar_account}")
+                raise Exception(f"Lineage record not found for {stellar_account} on {network_name}")
             
             # Retrieve JSON from appropriate column
             json_str = None
