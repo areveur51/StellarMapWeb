@@ -295,6 +295,10 @@ class Command(BaseCommand):
             account_obj.status = 'BIGQUERY_COMPLETE'
             account_obj.save()
             
+            # Queue creator account for processing
+            if creator:
+                self._queue_creator_account(creator, account_obj.stellar_account)
+            
             # Queue child accounts for processing
             if children:
                 self._queue_child_accounts(children, account_obj.stellar_account)
@@ -303,6 +307,29 @@ class Command(BaseCommand):
             logger.error(f'Error updating database: {e}')
             sentry_sdk.capture_exception(e)
             raise
+    
+    def _queue_creator_account(self, creator_account, child_account):
+        """Add creator account to database for processing."""
+        try:
+            existing = StellarCreatorAccountLineage.objects.filter(
+                stellar_account=creator_account,
+                network_name='public'
+            ).first()
+            
+            if not existing:
+                StellarCreatorAccountLineage.objects.create(
+                    stellar_account=creator_account,
+                    network_name='public',
+                    status='PENDING',
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                self.stdout.write(self.style.SUCCESS(
+                    f'    ✓ Queued creator account {creator_account} for processing'
+                ))
+                
+        except Exception as e:
+            logger.error(f'Error queuing creator account {creator_account}: {e}')
     
     def _queue_child_accounts(self, children, parent_account):
         """Add child accounts to database for processing."""
