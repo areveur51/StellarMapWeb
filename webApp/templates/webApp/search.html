@@ -514,19 +514,37 @@
             });
           });
           
-          // Second pass: build the tree structure (child -> parent relationship)
+          // Second pass: build the tree structure showing both directions
           let rootNode = null;
           this.account_lineage_data.forEach(record => {
             const currentNode = accountMap.get(record.stellar_account);
             const creatorAccount = record.stellar_creator_account;
             
+            // Build creator chain (upward): add as child of creator
             if (creatorAccount && accountMap.has(creatorAccount)) {
-              // This account has a creator in our dataset, add it as child of creator
               const parentNode = accountMap.get(creatorAccount);
-              parentNode.children.push(currentNode);
+              // Only add if not already a child (avoid duplicates)
+              if (!parentNode.children.some(child => child.stellar_account === currentNode.stellar_account)) {
+                parentNode.children.push(currentNode);
+              }
             } else {
-              // This account has no creator in our dataset, it's the root
-              rootNode = currentNode;
+              // No creator in dataset means this is a potential root
+              if (!rootNode) {
+                rootNode = currentNode;
+              }
+            }
+            
+            // Build descendant chain (downward): add child accounts created by this account
+            if (record.child_accounts && record.child_accounts.length > 0) {
+              record.child_accounts.forEach(childAccount => {
+                if (accountMap.has(childAccount)) {
+                  const childNode = accountMap.get(childAccount);
+                  // Only add if not already a child (avoid duplicates)
+                  if (!currentNode.children.some(child => child.stellar_account === childNode.stellar_account)) {
+                    currentNode.children.push(childNode);
+                  }
+                }
+              });
             }
             
             // Add ASSET nodes as children of this ISSUER node
@@ -545,7 +563,7 @@
             }
           });
           
-          // If we couldn't find a root (shouldn't happen), use the first account
+          // Fallback to first account if still no root
           if (!rootNode && this.account_lineage_data.length > 0) {
             rootNode = accountMap.get(this.account_lineage_data[0].stellar_account);
           }

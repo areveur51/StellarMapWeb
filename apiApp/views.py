@@ -320,6 +320,22 @@ def account_lineage_api(request):
                     except (json.JSONDecodeError, KeyError, ValueError) as e:
                         pass
                 
+                # Fetch child accounts created by this account
+                child_accounts = []
+                try:
+                    child_records = StellarCreatorAccountLineage.objects.filter(
+                        stellar_creator_account=current_account,
+                        network_name=network
+                    ).limit(100).all()
+                    
+                    for child in child_records:
+                        if child.stellar_account not in visited_accounts:
+                            child_accounts.append(child.stellar_account)
+                            if child.stellar_account not in accounts_to_process:
+                                accounts_to_process.append(child.stellar_account)
+                except Exception as e:
+                    pass
+                
                 record_data = {
                     'stellar_account': record.stellar_account,
                     'stellar_creator_account': record.stellar_creator_account,
@@ -328,13 +344,14 @@ def account_lineage_api(request):
                     'home_domain': record.home_domain,
                     'xlm_balance': record.xlm_balance,
                     'assets': assets,
+                    'child_accounts': child_accounts,
                     'status': record.status,
                     'created_at': convert_timestamp(record.created_at),
                     'updated_at': convert_timestamp(record.updated_at),
                 }
                 account_lineage_data.append(record_data)
                 
-                # Follow the creator chain
+                # Follow the creator chain upward
                 if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
                     if record.stellar_creator_account not in accounts_to_process:
                         accounts_to_process.append(record.stellar_creator_account)
