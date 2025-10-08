@@ -120,7 +120,58 @@ WSGI_APPLICATION = 'StellarMapWeb.wsgi.application'
 
 import logging
 
-logging.basicConfig(level=logging.DEBUG if DEBUG else logging.INFO)
+# Configure logging to reduce Cassandra DEBUG verbosity
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG' if DEBUG else 'INFO',
+    },
+    'loggers': {
+        # Reduce Cassandra driver verbosity to prevent flooding stderr
+        'cassandra': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Only show WARNING and ERROR, not DEBUG/INFO
+            'propagate': False,
+        },
+        'cassandra.cluster': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'cassandra.connection': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'cassandra.cqlengine.connection': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'cassandra.pool': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'cassandra.io.libevreactor': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'cassandra.protocol_features': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

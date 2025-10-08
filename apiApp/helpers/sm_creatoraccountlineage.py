@@ -31,9 +31,13 @@ class StellarMapCreatorAccountLineageHelpers:
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
                                           IN_PROGRESS_UPDATING_FROM_RAW_DATA)
-        astra = AstraDocument()
-        astra.set_datastax_url(lin_queryset.horizon_accounts_doc_api_href)
-        response = astra.get_document()
+        
+        # Read JSON directly from Cassandra TEXT column
+        if not lin_queryset.horizon_accounts_json:
+            raise Exception(f"No Horizon accounts JSON data found for {lin_queryset.stellar_account}")
+        
+        raw_data = json.loads(lin_queryset.horizon_accounts_json)
+        response = {"data": {"raw_data": raw_data}}
         parser = StellarMapHorizonAPIParserHelpers(response)
         req = HttpRequest()
         req.data = {
@@ -51,9 +55,13 @@ class StellarMapCreatorAccountLineageHelpers:
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
                                           IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA)
-        astra = AstraDocument()
-        astra.set_datastax_url(lin_queryset.horizon_accounts_operations_doc_api_href)
-        response = astra.get_document()
+        
+        # Read JSON directly from Cassandra TEXT column
+        if not lin_queryset.horizon_operations_json:
+            raise Exception(f"No Horizon operations JSON data found for {lin_queryset.stellar_account}")
+        
+        raw_data = json.loads(lin_queryset.horizon_operations_json)
+        response = {"data": {"raw_data": raw_data}}
         parser = StellarMapHorizonAPIParserHelpers(response)
         creator_data = parser.parse_operations_creator_account(lin_queryset.stellar_account)
         req = HttpRequest()
