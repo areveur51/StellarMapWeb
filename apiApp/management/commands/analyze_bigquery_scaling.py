@@ -14,7 +14,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Execute the analysis."""
-        self.stdout.write(self.style.SUCCESS('\nAnalyzing BigQuery Usage & Scaling...\n'))
+        self.stdout.write(self.style.WARNING('\n' + '='*70))
+        self.stdout.write(self.style.WARNING('⚠️  BigQuery WORST-CASE Per-Search Cost Analysis'))
+        self.stdout.write(self.style.WARNING('='*70))
+        self.stdout.write(self.style.WARNING('NOTE: This shows worst-case if EVERY search hits BigQuery.'))
+        self.stdout.write(self.style.WARNING('Reality: Only first-time unique accounts query BigQuery.'))
+        self.stdout.write(self.style.SUCCESS('For realistic costs, use: python manage.py analyze_realistic_bigquery_costs'))
+        self.stdout.write(self.style.WARNING('='*70 + '\n'))
         
         tracker = BigQueryUsageTracker()
         
