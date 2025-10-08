@@ -117,6 +117,12 @@
                       <template #cell(xlm_balance)="data">
                         {% verbatim %}{{ data.value ? data.value.toFixed(3) : '0.000' }} XLM{% endverbatim %}
                       </template>
+                      <template #cell(assets)="row">
+                        {% verbatim %}<span v-if="row.item.assets && row.item.assets.length > 0">
+                          <b-badge variant="success">{{ row.item.assets.length }}</b-badge>
+                        </span>{% endverbatim %}
+                        <span v-else class="text-muted">0</span>
+                      </template>
                       <template #cell(stellar_account_created_at)="data">
                         {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
@@ -375,6 +381,7 @@
             { key: 'stellar_account_created_at', label: 'Account Created', sortable: true },
             { key: 'home_domain', label: 'Home Domain', sortable: true },
             { key: 'xlm_balance', label: 'XLM Balance', sortable: true },
+            { key: 'assets', label: 'Assets', sortable: true },
             { key: 'status', label: 'Status', sortable: true },
             { key: 'created_at', label: 'Pipeline Created', sortable: true },
             { key: 'updated_at', label: 'Pipeline Updated', sortable: true },
@@ -681,10 +688,18 @@
           this.showLineageJsonModal = true;
         },
         getLineageStatusVariant(status) {
-          if (status === 'COMPLETED_SUCCESS') return 'success';
-          if (status === 'FAILED' || status === 'ERROR') return 'danger';
-          if (status === 'PENDING_HORIZON_API_DATASETS') return 'warning';
-          if (status && status.includes('PENDING')) return 'info';
+          if (!status) return 'secondary';
+          // Normalize to uppercase for case-insensitive matching
+          const statusUpper = status.toUpperCase();
+          
+          // Success statuses (DONE_* indicates completion)
+          if (statusUpper.includes('DONE_') || statusUpper === 'COMPLETED' || statusUpper === 'COMPLETED_SUCCESS') return 'success';
+          // Error statuses
+          if (statusUpper === 'FAILED' || statusUpper === 'ERROR' || statusUpper.includes('INVALID')) return 'danger';
+          // Warning statuses
+          if (statusUpper === 'PENDING_HORIZON_API_DATASETS' || statusUpper === 'RE_INQUIRY') return 'warning';
+          // In-progress and pending statuses
+          if (statusUpper.includes('PENDING') || statusUpper.includes('IN_PROGRESS')) return 'info';
           return 'secondary';
         },
         formatDateTimeEST(dateString) {

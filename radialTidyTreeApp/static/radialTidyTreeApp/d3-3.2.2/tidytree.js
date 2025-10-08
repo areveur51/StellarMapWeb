@@ -322,90 +322,98 @@ function renderRadialTree(jsonData) {
             nodesByDepth[d.depth].push(d);
         });
 
-        // Apply angular offset to ISSUER nodes at same depth for staggering
+        // Apply spiral (angular + radial) offset to ISSUER nodes at same depth for galaxy effect
         const minAngleOffset = 23 * (Math.PI / 180); // 23 degrees in radians
+        const spiralRadiusStep = 15; // Pixels to increase radius for each ISSUER node (creates spiral outward)
+        
         Object.keys(nodesByDepth).forEach(depth => {
             const nodes = nodesByDepth[depth];
             const issuerNodes = nodes.filter(n => n.data.node_type === 'ISSUER');
             
-            if (issuerNodes.length > 1) {
+            if (issuerNodes.length > 0) {
                 const totalSpace = 2 * Math.PI;
                 const requiredSpace = issuerNodes.length * minAngleOffset;
                 
                 // Sort ISSUER nodes by their current angle
                 issuerNodes.sort((a, b) => a.x - b.x);
                 
-                if (requiredSpace <= totalSpace) {
-                    // We can fit all nodes with minimum spacing - proceed with spacing algorithm
-                    
-                    // Calculate working angles without modulo to maintain monotonic sequence
-                    const workingAngles = [issuerNodes[0].x];
-                    for (let i = 1; i < issuerNodes.length; i++) {
-                        const prevWorking = workingAngles[i - 1];
-                        let currentAngle = issuerNodes[i].x;
+                if (issuerNodes.length > 1) {
+                    if (requiredSpace <= totalSpace) {
+                        // We can fit all nodes with minimum spacing - proceed with spacing algorithm
                         
-                        // If current angle wrapped around (smaller than previous), unwrap it
-                        while (currentAngle < prevWorking) {
-                            currentAngle += totalSpace;
-                        }
-                        
-                        // Ensure minimum separation from previous
-                        const minRequired = prevWorking + minAngleOffset;
-                        workingAngles.push(Math.max(currentAngle, minRequired));
-                    }
-                    
-                    // Check if the sequence wraps correctly (last to first spacing)
-                    const lastWorking = workingAngles[workingAngles.length - 1];
-                    const firstWorking = workingAngles[0];
-                    const wrapDistance = (firstWorking + totalSpace) - lastWorking;
-                    
-                    if (wrapDistance < minAngleOffset) {
-                        // Can't maintain spacing with current distribution, use even spacing
-                        const extraSpace = totalSpace - requiredSpace;
-                        const spacing = minAngleOffset + (extraSpace / issuerNodes.length);
-                        
-                        issuerNodes.forEach((node, index) => {
-                            node.x = index * spacing;
-                        });
-                    } else {
-                        // Normalize working angles back to [0, 2π) range
-                        workingAngles.forEach((angle, index) => {
-                            issuerNodes[index].x = angle % totalSpace;
-                        });
-                        
-                        // Verify all adjacent pairs meet minimum spacing (including wrap)
-                        const normalizedAngles = workingAngles.map(a => a % totalSpace).sort((a, b) => a - b);
-                        let needsRedistribution = false;
-                        
-                        for (let i = 0; i < normalizedAngles.length; i++) {
-                            const current = normalizedAngles[i];
-                            const next = normalizedAngles[(i + 1) % normalizedAngles.length];
-                            const distance = next > current ? next - current : (next + totalSpace) - current;
+                        // Calculate working angles without modulo to maintain monotonic sequence
+                        const workingAngles = [issuerNodes[0].x];
+                        for (let i = 1; i < issuerNodes.length; i++) {
+                            const prevWorking = workingAngles[i - 1];
+                            let currentAngle = issuerNodes[i].x;
                             
-                            if (distance < minAngleOffset) {
-                                needsRedistribution = true;
-                                break;
+                            // If current angle wrapped around (smaller than previous), unwrap it
+                            while (currentAngle < prevWorking) {
+                                currentAngle += totalSpace;
                             }
+                            
+                            // Ensure minimum separation from previous
+                            const minRequired = prevWorking + minAngleOffset;
+                            workingAngles.push(Math.max(currentAngle, minRequired));
                         }
                         
-                        // If verification fails, redistribute evenly
-                        if (needsRedistribution) {
+                        // Check if the sequence wraps correctly (last to first spacing)
+                        const lastWorking = workingAngles[workingAngles.length - 1];
+                        const firstWorking = workingAngles[0];
+                        const wrapDistance = (firstWorking + totalSpace) - lastWorking;
+                        
+                        if (wrapDistance < minAngleOffset) {
+                            // Can't maintain spacing with current distribution, use even spacing
                             const extraSpace = totalSpace - requiredSpace;
                             const spacing = minAngleOffset + (extraSpace / issuerNodes.length);
                             
                             issuerNodes.forEach((node, index) => {
                                 node.x = index * spacing;
                             });
+                        } else {
+                            // Normalize working angles back to [0, 2π) range
+                            workingAngles.forEach((angle, index) => {
+                                issuerNodes[index].x = angle % totalSpace;
+                            });
+                            
+                            // Verify all adjacent pairs meet minimum spacing (including wrap)
+                            const normalizedAngles = workingAngles.map(a => a % totalSpace).sort((a, b) => a - b);
+                            let needsRedistribution = false;
+                            
+                            for (let i = 0; i < normalizedAngles.length; i++) {
+                                const current = normalizedAngles[i];
+                                const next = normalizedAngles[(i + 1) % normalizedAngles.length];
+                                const distance = next > current ? next - current : (next + totalSpace) - current;
+                                
+                                if (distance < minAngleOffset) {
+                                    needsRedistribution = true;
+                                    break;
+                                }
+                            }
+                            
+                            // If verification fails, redistribute evenly
+                            if (needsRedistribution) {
+                                const extraSpace = totalSpace - requiredSpace;
+                                const spacing = minAngleOffset + (extraSpace / issuerNodes.length);
+                                
+                                issuerNodes.forEach((node, index) => {
+                                    node.x = index * spacing;
+                                });
+                            }
                         }
+                    } else {
+                        // Too many nodes to fit with minimum spacing - distribute evenly with maximum possible spacing
+                        const spacing = totalSpace / issuerNodes.length;
+                        issuerNodes.forEach((node, index) => {
+                            node.x = index * spacing;
+                        });
                     }
-                } else {
-                    // Too many nodes to fit with minimum spacing - distribute evenly with maximum possible spacing
-                    // This ensures best visual separation even if 23° cannot be guaranteed for all
-                    const spacing = totalSpace / issuerNodes.length;
-                    issuerNodes.forEach((node, index) => {
-                        node.x = index * spacing;
-                    });
                 }
+                
+                // Apply RADIAL offset to create spiral/galaxy effect (each ISSUER node slightly further out)
+                issuerNodes.forEach((node, index) => {
+                    node.spiralRadius = node.y + (index * spiralRadiusStep);
+                });
             }
         });
 
@@ -415,7 +423,7 @@ function renderRadialTree(jsonData) {
             .attr('class', 'link')
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
-                .radius(d => d.y))
+                .radius(d => d.spiralRadius || d.y))
             .style('stroke', '#3f2c70')
             .style('stroke-width', '1.5px')
             .style('fill', 'none')
@@ -427,7 +435,8 @@ function renderRadialTree(jsonData) {
             .attr('class', 'node')
             .attr('transform', d => {
                 const angle = (d.x * 180 / Math.PI) - 90;
-                return `rotate(${angle})translate(${d.y},0)`;
+                const nodeRadius = d.spiralRadius || d.y;
+                return `rotate(${angle})translate(${nodeRadius},0)`;
             });
 
         node.append('circle')
