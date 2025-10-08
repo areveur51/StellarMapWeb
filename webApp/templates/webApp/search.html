@@ -465,8 +465,66 @@
             } catch (e) {
               this.highlightedAccountLineage = lineageJSON;
             }
+            
+            // Transform lineage data to tree structure and update visualization
+            this.buildTreeFromLineage();
           } else {
             this.highlightedAccountLineage = '';
+          }
+        },
+        buildTreeFromLineage() {
+          if (!this.account_lineage_data || this.account_lineage_data.length === 0) {
+            return;
+          }
+          
+          // Build a map of accounts for easy lookup
+          const accountMap = new Map();
+          
+          // First pass: create all nodes
+          this.account_lineage_data.forEach(record => {
+            accountMap.set(record.stellar_account, {
+              name: record.stellar_account,
+              node_type: 'ISSUER',
+              stellar_account: record.stellar_account,
+              created: record.stellar_account_created_at || '',
+              home_domain: record.home_domain || '',
+              xlm_balance: record.xlm_balance || 0,
+              creator_account: record.stellar_creator_account || '',
+              children: []
+            });
+          });
+          
+          // Second pass: build the tree structure (child -> parent relationship)
+          let rootNode = null;
+          this.account_lineage_data.forEach(record => {
+            const currentNode = accountMap.get(record.stellar_account);
+            const creatorAccount = record.stellar_creator_account;
+            
+            if (creatorAccount && accountMap.has(creatorAccount)) {
+              // This account has a creator in our dataset, add it as child of creator
+              const parentNode = accountMap.get(creatorAccount);
+              parentNode.children.push(currentNode);
+            } else {
+              // This account has no creator in our dataset, it's the root
+              rootNode = currentNode;
+            }
+          });
+          
+          // If we couldn't find a root (shouldn't happen), use the first account
+          if (!rootNode && this.account_lineage_data.length > 0) {
+            rootNode = accountMap.get(this.account_lineage_data[0].stellar_account);
+          }
+          
+          // Update tree_data and trigger visualization
+          if (rootNode) {
+            this.tree_data = rootNode;
+            
+            // Trigger tree rendering if renderRadialTree function exists
+            this.$nextTick(() => {
+              if (typeof renderRadialTree === 'function') {
+                renderRadialTree(this.tree_data);
+              }
+            });
           }
         },
         updatePendingAccountsDisplay() {
