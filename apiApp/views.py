@@ -326,3 +326,70 @@ def account_lineage_api(request):
         'lineage': account_lineage_data,
         'total_records': len(account_lineage_data)
     }, safe=False)
+
+
+def fetch_toml_api(request):
+    """
+    API endpoint to fetch stellar.toml files server-side (bypasses CORS).
+    
+    Query Parameters:
+        domain (str): The home domain to fetch TOML from.
+    
+    Returns:
+        JsonResponse: TOML content or error message.
+    """
+    import requests
+    import re
+    
+    domain = request.GET.get('domain', '').strip()
+    
+    # Validate domain parameter
+    if not domain:
+        return JsonResponse({
+            'error': 'Missing domain parameter'
+        }, status=400)
+    
+    # Basic domain validation (alphanumeric, dots, hyphens)
+    if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9\-\.]*[a-zA-Z0-9]$', domain):
+        return JsonResponse({
+            'error': 'Invalid domain format'
+        }, status=400)
+    
+    # Prevent private/localhost domains
+    if domain.lower() in ['localhost', '127.0.0.1', '0.0.0.0'] or domain.startswith('192.168.') or domain.startswith('10.'):
+        return JsonResponse({
+            'error': 'Cannot fetch from private/localhost domains'
+        }, status=400)
+    
+    toml_url = f'https://{domain}/.well-known/stellar.toml'
+    
+    try:
+        # Fetch TOML with timeout
+        response = requests.get(toml_url, timeout=10)
+        response.raise_for_status()
+        
+        return JsonResponse({
+            'domain': domain,
+            'url': toml_url,
+            'content': response.text,
+            'status': 'success'
+        })
+        
+    except requests.exceptions.Timeout:
+        return JsonResponse({
+            'error': f'Request timeout while fetching TOML from {toml_url}'
+        }, status=504)
+        
+    except requests.exceptions.RequestException as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': f'Failed to fetch TOML from {toml_url}',
+            'message': str(e)
+        }, status=502)
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)

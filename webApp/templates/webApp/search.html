@@ -697,20 +697,20 @@
           this.tomlModalTitle = `Stellar TOML: ${homeDomain}`;
           this.showTomlModal = true;
           
-          const tomlUrl = `https://${homeDomain}/.well-known/stellar.toml`;
+          const proxyUrl = `/api/fetch-toml/?domain=${encodeURIComponent(homeDomain)}`;
           
           try {
-            const response = await fetch(tomlUrl);
+            const response = await fetch(proxyUrl);
+            const data = await response.json();
             
             if (!response.ok) {
-              throw new Error(`Failed to fetch TOML: ${response.status} ${response.statusText}`);
+              throw new Error(data.error || `Failed to fetch TOML: ${response.status}`);
             }
             
-            const tomlText = await response.text();
-            this.tomlContent = tomlText;
+            this.tomlContent = data.content;
           } catch (error) {
             console.error('Error fetching TOML:', error);
-            this.tomlError = `Failed to load TOML file from ${tomlUrl}. ${error.message}`;
+            this.tomlError = `Failed to load TOML file for ${homeDomain}. ${error.message}`;
           } finally {
             this.tomlLoading = false;
           }
