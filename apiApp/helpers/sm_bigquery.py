@@ -205,6 +205,219 @@ class StellarBigQueryHelper:
             sentry_sdk.capture_exception(e)
             return None
     
+    def get_account_data(self, account: str) -> Optional[Dict]:
+        """
+        Get comprehensive account data from BigQuery including balance, flags, and assets.
+        
+        Args:
+            account: The Stellar account address to query
+        
+        Returns:
+            Dict containing account data:
+            {
+                'account_id': 'G...',
+                'balance': 1234567890,  # stroops
+                'buying_liabilities': 0,
+                'selling_liabilities': 0,
+                'num_subentries': 5,
+                'num_sponsored': 0,
+                'num_sponsoring': 0,
+                'sequence_number': 123456789,
+                'sequence_ledger': 123456,
+                'sequence_time': 1234567890,
+                'flags': 0,
+                'home_domain': 'example.com',
+                'master_weight': 1,
+                'threshold_low': 0,
+                'threshold_medium': 0,
+                'threshold_high': 0,
+                'last_modified_ledger': 123456,
+                'ledger_entry_change': 1,
+                'deleted': False,
+                'batch_id': '2025-01-01-000000',
+                'batch_run_date': '2025-01-01',
+                'closed_at': '2025-01-01T00:00:00Z'
+            }
+        """
+        if not self.is_available():
+            logger.warning("BigQuery not available. Returning None.")
+            return None
+        
+        try:
+            query = """
+                SELECT 
+                    account_id,
+                    balance,
+                    buying_liabilities,
+                    selling_liabilities,
+                    num_subentries,
+                    num_sponsored,
+                    num_sponsoring,
+                    sequence_number,
+                    sequence_ledger,
+                    sequence_time,
+                    flags,
+                    home_domain,
+                    master_weight,
+                    threshold_low,
+                    threshold_medium,
+                    threshold_high,
+                    last_modified_ledger,
+                    ledger_entry_change,
+                    deleted,
+                    batch_id,
+                    batch_run_date,
+                    closed_at
+                FROM `crypto-stellar.crypto_stellar.accounts_current`
+                WHERE account_id = @account
+                ORDER BY batch_run_date DESC
+                LIMIT 1
+            """
+            
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("account", "STRING", account)
+                ]
+            )
+            
+            logger.info(f"Querying BigQuery for account data of {account}")
+            query_job = self.client.query(query, job_config=job_config)
+            
+            for row in query_job:
+                result = {
+                    'account_id': row.account_id,
+                    'balance': row.balance,
+                    'buying_liabilities': row.buying_liabilities,
+                    'selling_liabilities': row.selling_liabilities,
+                    'num_subentries': row.num_subentries,
+                    'num_sponsored': row.num_sponsored,
+                    'num_sponsoring': row.num_sponsoring,
+                    'sequence_number': row.sequence_number,
+                    'sequence_ledger': row.sequence_ledger,
+                    'sequence_time': row.sequence_time,
+                    'flags': row.flags,
+                    'home_domain': row.home_domain or '',
+                    'master_weight': row.master_weight,
+                    'threshold_low': row.threshold_low,
+                    'threshold_medium': row.threshold_medium,
+                    'threshold_high': row.threshold_high,
+                    'last_modified_ledger': row.last_modified_ledger,
+                    'ledger_entry_change': row.ledger_entry_change,
+                    'deleted': row.deleted,
+                    'batch_id': row.batch_id,
+                    'batch_run_date': str(row.batch_run_date) if row.batch_run_date else None,
+                    'closed_at': row.closed_at.isoformat() if row.closed_at else None
+                }
+                logger.info(f"Found account data in BigQuery for {account}")
+                return result
+            
+            logger.warning(f"No account data found in BigQuery for {account}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"BigQuery query failed for account data: {e}")
+            sentry_sdk.capture_exception(e)
+            return None
+    
+    def get_account_assets(self, account: str) -> List[Dict]:
+        """
+        Get all asset holdings (trustlines) for an account from BigQuery.
+        
+        Args:
+            account: The Stellar account address to query
+        
+        Returns:
+            List of dicts containing asset holdings:
+            [
+                {
+                    'account_id': 'G...',
+                    'asset_type': 'credit_alphanum4',
+                    'asset_code': 'USDC',
+                    'asset_issuer': 'G...',
+                    'balance': 1234.5678,
+                    'limit': 10000,
+                    'buying_liabilities': 0,
+                    'selling_liabilities': 0,
+                    'flags': 1,
+                    'last_modified_ledger': 123456,
+                    'ledger_entry_change': 2,
+                    'deleted': False,
+                    'sponsor': None,
+                    'batch_run_date': '2025-01-01'
+                },
+                ...
+            ]
+        """
+        if not self.is_available():
+            logger.warning("BigQuery not available. Returning empty list.")
+            return []
+        
+        try:
+            query = """
+                SELECT 
+                    account_id,
+                    asset_type,
+                    asset_code,
+                    asset_issuer,
+                    balance,
+                    trust_line_limit as trust_limit,
+                    buying_liabilities,
+                    selling_liabilities,
+                    flags,
+                    last_modified_ledger,
+                    ledger_entry_change,
+                    deleted,
+                    sponsor,
+                    batch_run_date
+                FROM `crypto-stellar.crypto_stellar.trust_lines`
+                WHERE account_id = @account
+                  AND deleted = FALSE
+                ORDER BY batch_run_date DESC, asset_code ASC
+                LIMIT 1000
+            """
+            
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("account", "STRING", account)
+                ]
+            )
+            
+            logger.info(f"Querying BigQuery for assets of {account}")
+            query_job = self.client.query(query, job_config=job_config)
+            
+            results = []
+            seen_assets = set()
+            
+            for row in query_job:
+                asset_key = f"{row.asset_code}:{row.asset_issuer}"
+                
+                if asset_key not in seen_assets:
+                    seen_assets.add(asset_key)
+                    results.append({
+                        'account_id': row.account_id,
+                        'asset_type': row.asset_type,
+                        'asset_code': row.asset_code,
+                        'asset_issuer': row.asset_issuer,
+                        'balance': float(row.balance) if row.balance else 0.0,
+                        'limit': float(row.trust_limit) if row.trust_limit else 0.0,
+                        'buying_liabilities': float(row.buying_liabilities) if row.buying_liabilities else 0.0,
+                        'selling_liabilities': float(row.selling_liabilities) if row.selling_liabilities else 0.0,
+                        'flags': row.flags,
+                        'last_modified_ledger': row.last_modified_ledger,
+                        'ledger_entry_change': row.ledger_entry_change,
+                        'deleted': row.deleted,
+                        'sponsor': row.sponsor,
+                        'batch_run_date': str(row.batch_run_date) if row.batch_run_date else None
+                    })
+            
+            logger.info(f"Found {len(results)} assets in BigQuery for {account}")
+            return results
+            
+        except Exception as e:
+            logger.error(f"BigQuery query failed for account assets: {e}")
+            sentry_sdk.capture_exception(e)
+            return []
+    
     def get_dataset_info(self) -> Dict:
         """
         Get information about the Stellar BigQuery dataset.
