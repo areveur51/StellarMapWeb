@@ -99,6 +99,22 @@
                       <template #cell(xlm_balance)="data">
                         {{ data.value }} XLM
                       </template>
+                      <template #cell(stellar_account_created_at)="data">
+                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(created_at)="data">
+                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(updated_at)="data">
+                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(home_domain)="data">
+                        <span v-if="data.value && data.value.trim()">{{ data.value }}</span>
+                        <span v-else class="text-muted">-</span>
+                      </template>
                       <template #cell(status)="data">
                         <b-badge :variant="getLineageStatusVariant(data.value)">{{ data.value }}</b-badge>
                       </template>
@@ -302,9 +318,13 @@
           lineageTableFields: [
             { key: 'stellar_account', label: 'Account', sortable: true },
             { key: 'stellar_creator_account', label: 'Creator Account', sortable: true },
-            { key: 'xlm_balance', label: 'XLM Balance', sortable: true },
+            { key: 'network_name', label: 'Network', sortable: true },
+            { key: 'stellar_account_created_at', label: 'Account Created', sortable: true },
             { key: 'home_domain', label: 'Home Domain', sortable: true },
+            { key: 'xlm_balance', label: 'XLM Balance', sortable: true },
             { key: 'status', label: 'Status', sortable: true },
+            { key: 'created_at', label: 'Pipeline Created', sortable: true },
+            { key: 'updated_at', label: 'Pipeline Updated', sortable: true },
             { key: 'actions', label: 'JSON', sortable: false }
           ],
           showStageJsonModal: false,
@@ -497,6 +517,30 @@
           if (status === 'PENDING_HORIZON_API_DATASETS') return 'warning';
           if (status && status.includes('PENDING')) return 'info';
           return 'secondary';
+        },
+        formatDateTimeEST(dateString) {
+          if (!dateString) return '-';
+          
+          try {
+            const date = new Date(dateString);
+            
+            // Format to NY EST timezone
+            const options = {
+              timeZone: 'America/New_York',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            };
+            
+            return date.toLocaleString('en-US', options);
+          } catch (e) {
+            console.error('Error formatting date:', e);
+            return dateString;
+          }
         }
       },
       watch: {
