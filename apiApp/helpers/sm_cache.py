@@ -1,7 +1,12 @@
 # apiApp/helpers/sm_cache.py
 import datetime
 import json
-from apiApp.models import StellarAccountSearchCache, PENDING_MAKE_PARENT_LINEAGE, DONE_MAKE_PARENT_LINEAGE
+from apiApp.models import (
+    StellarAccountSearchCache, 
+    StellarCreatorAccountLineage,
+    PENDING_MAKE_PARENT_LINEAGE, 
+    DONE_MAKE_PARENT_LINEAGE
+)
 
 
 class StellarMapCacheHelpers:
@@ -100,12 +105,17 @@ class StellarMapCacheHelpers:
     
     def create_pending_entry(self, stellar_account, network_name):
         """
-        Create or update entry with PENDING_MAKE_PARENT_LINEAGE status to trigger cron job processing.
+        Create or update entry with PENDING_MAKE_PARENT_LINEAGE status to trigger BigQuery pipeline processing.
         
-        This triggers the cron_make_parent_account_lineage workflow which will:
-        1. Create StellarCreatorAccountLineage record with PENDING_HORIZON_API_DATASETS
-        2. Process through complete PlantUML workflow
-        3. Update cache with fresh data when complete
+        This creates entries in BOTH tables:
+        1. StellarAccountSearchCache (for web UI cache tracking)
+        2. StellarCreatorAccountLineage (for BigQuery pipeline processing)
+        
+        The BigQuery pipeline will:
+        1. Process the PENDING entry from StellarCreatorAccountLineage
+        2. Fetch data from BigQuery (account, assets, creator, children)
+        3. Update lineage record and queue children
+        4. Update cache with fresh data when complete
         
         IMPORTANT: If pipeline is already running (PENDING/IN_PROGRESS/RE_INQUIRY status), 
         DO NOT reset - let it complete naturally.
@@ -134,7 +144,6 @@ class StellarMapCacheHelpers:
             cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
             cache_entry.updated_at = datetime.datetime.utcnow()
             cache_entry.save()
-            return cache_entry
             
         except StellarAccountSearchCache.DoesNotExist:
             cache_entry = StellarAccountSearchCache.objects.create(
@@ -144,4 +153,29 @@ class StellarMapCacheHelpers:
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow()
             )
-            return cache_entry
+        
+        # CRITICAL FIX: Also create lineage entry so BigQuery pipeline can process it
+        # Check if lineage entry exists
+        try:
+            lineage_entry = StellarCreatorAccountLineage.objects.get(
+                stellar_account=stellar_account,
+                network_name=network_name
+            )
+            
+            # Only reset to PENDING if it's in a terminal state
+            if lineage_entry.status in ['BIGQUERY_COMPLETE', 'BIGQUERY_FAILED', 'ERROR']:
+                lineage_entry.status = 'PENDING'
+                lineage_entry.updated_at = datetime.datetime.utcnow()
+                lineage_entry.save()
+                
+        except StellarCreatorAccountLineage.DoesNotExist:
+            # Create new lineage entry for BigQuery pipeline to process
+            StellarCreatorAccountLineage.objects.create(
+                stellar_account=stellar_account,
+                network_name=network_name,
+                status='PENDING',
+                created_at=datetime.datetime.utcnow(),
+                updated_at=datetime.datetime.utcnow()
+            )
+        
+        return cache_entry
