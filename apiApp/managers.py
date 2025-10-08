@@ -128,6 +128,33 @@ class StellarCreatorAccountLineageManager:
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise
+    
+    async def async_update_status(self, id: uuid.UUID, status: str):
+        """Async update lineage record status by ID."""
+        try:
+            lineage = StellarCreatorAccountLineage.objects.filter(id=id).first()
+            if lineage:
+                lineage.status = status
+                lineage.save()
+                return lineage
+            return None
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise
+    
+    async def async_update_lineage(self, id: uuid.UUID, request: HttpRequest):
+        """Async update lineage record with data from request."""
+        try:
+            lineage = StellarCreatorAccountLineage.objects.filter(id=id).first()
+            if lineage:
+                for key, value in request.data.items():
+                    setattr(lineage, key, value)
+                lineage.save()
+                return lineage
+            return None
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            raise
 
     def get_lineage_by_account(self, account_id: str) -> pd.DataFrame:
         """Get lineage data for account as DataFrame."""

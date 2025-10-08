@@ -167,7 +167,8 @@ class Command(BaseCommand):
             sm_horizon_helpers = StellarMapHorizonAPIHelpers(
                 horizon_url=horizon_url, account_id=account_id)
             sm_horizon_helpers.set_cron_name(cron_name=cron_name)
-            operations_dict = sm_horizon_helpers.get_account_operations()
+            # Fetch operations in ascending order (oldest first) to get create_account operation
+            operations_dict = sm_horizon_helpers.get_account_operations(order='asc', limit=200)
 
             # Store JSON directly in Cassandra TEXT column
             lin_queryset.horizon_operations_json = json.dumps(operations_dict)

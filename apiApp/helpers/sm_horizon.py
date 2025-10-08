@@ -59,10 +59,21 @@ class StellarMapHorizonAPIHelpers(RetryMixin):
             raise
 
     @RetryMixin.retry_decorator
-    def get_account_operations(self) -> dict:
-        """Fetch account operations."""
+    def get_account_operations(self, order='asc', limit=200) -> dict:
+        """Fetch account operations.
+        
+        Args:
+            order: 'asc' for oldest first (to get creation), 'desc' for newest first
+            limit: Number of operations to fetch (default 200)
+        """
         try:
-            return self.server.operations().for_account(self.account_id).call()
+            query = self.server.operations().for_account(self.account_id)
+            if order == 'asc':
+                query = query.order(desc=False)
+            else:
+                query = query.order(desc=True)
+            query = query.limit(limit)
+            return query.call()
         except BaseRequestError as e:
             sentry_sdk.capture_exception(e)
             raise
@@ -113,11 +124,25 @@ class StellarMapHorizonAPIParserHelpers:
     def parse_operations_creator_account(self, stellar_account: str) -> dict:
         try:
             records = self.datastax_response.get('data', {}).get('raw_data', {}).get('_embedded', {}).get('records', [])
+            
+            # First try to find create_account operation
             for record in records:
                 if record.get('type') == 'create_account' and record.get('account') == stellar_account:
                     dt_helpers = StellarMapDateTimeHelpers()
                     created_at_obj = dt_helpers.convert_horizon_datetime_str_to_obj(record.get('created_at', ''))
                     return {'funder': record.get('funder', ''), 'created_at': created_at_obj}
+            
+            # Fallback: If no create_account operation, use source_account from first operation
+            # This handles accounts created through claimable balances or other mechanisms
+            if records and len(records) > 0:
+                first_op = records[0]
+                dt_helpers = StellarMapDateTimeHelpers()
+                created_at_obj = dt_helpers.convert_horizon_datetime_str_to_obj(first_op.get('created_at', ''))
+                return {
+                    'funder': first_op.get('source_account', ''),
+                    'created_at': created_at_obj
+                }
+            
             return {}
         except Exception as e:
             sentry_sdk.capture_exception(e)
