@@ -1,6 +1,6 @@
 # StellarMapWeb
 
-StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API and Stellar Expert, stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a fast, optimized data collection pipeline capable of processing an address in 2-3 minutes, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
+StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from Stellar's BigQuery/Hubble dataset (primary) and Horizon API/Stellar Expert (educational reference), stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a high-performance BigQuery pipeline capable of processing an address in 50-90 seconds (2-3x faster than API approach), discovering up to 100,000 child accounts per parent, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
 
 ## Quick Start
 
@@ -22,8 +22,9 @@ cp .env.example .env
 
 # Edit .env and set your DJANGO_SECRET_KEY (generate a secure one)
 # For local dev, USE_SQLITE=True is already set
+# Add GOOGLE_APPLICATION_CREDENTIALS_JSON for BigQuery access
 
-# Start services (Django server + Cron worker)
+# Start services (Django server + BigQuery pipeline)
 docker-compose up -d
 
 # View logs
@@ -67,7 +68,7 @@ python manage.py test
 #### 1. System Overview
 ![System Overview](./diagrams/01_system_overview.png)
 
-#### 2. Data Pipeline (8 Stages)
+#### 2. Data Pipeline (BigQuery & API Approaches)
 ![Data Pipeline](./diagrams/02_data_pipeline.png)
 
 #### 3. Database Schema
@@ -97,18 +98,42 @@ python manage.py test
 
 ### Data Collection Pipeline
 
-#### Fast Pipeline Architecture
-- **Consolidated Pipeline**: Consolidated 9 staggered cron jobs into a single sequential pipeline running every 2 minutes, reducing processing time to ~2-3 minutes per address.
-- **Automated Execution**: Background cron worker (`run_cron_jobs.py`) runs automatically, orchestrating 8 data collection stages.
+#### BigQuery Pipeline (Primary Method)
+- **High Performance**: Main data collection using Stellar's public BigQuery/Hubble dataset.
+- **Processing Speed**: 50-90 seconds per account (2-3x faster than API approach).
+- **No Rate Limits**: Direct BigQuery access eliminates API throttling concerns.
+- **4 Optimized Queries**:
+  1. **Account Data**: Balance, flags, thresholds from `accounts_current` table
+  2. **Asset Holdings**: Trustline data from `trust_lines_current` table
+  3. **Creator Discovery**: Find parent account from `enriched_history_operations` (type=0)
+  4. **Child Accounts**: Discover all child accounts created (paginated up to 100,000)
+- **Comprehensive Discovery**: Pagination with 10,000-row batches, deduplication by account address.
+- **Airdrop Support**: Handles transactions creating multiple accounts (common in airdrops).
+- **Cost Efficient**: ~$0.10-0.50 per 1,000 accounts (within Google Cloud free tier for most use cases).
+
+#### BigQuery Pipeline Command
+```bash
+# Process up to 100 accounts
+python manage.py bigquery_pipeline --limit 100
+
+# Reset all accounts to PENDING
+python manage.py bigquery_pipeline --reset
+```
+
+#### API-Based Pipeline (Educational Reference)
+- **Alternative Approach**: 8-stage sequential pipeline using Horizon API and Stellar Expert.
+- **Processing Time**: 2-3 minutes per account.
+- **Use Case**: Educational purposes, API-based data collection demonstrations.
+- **Not Enabled**: Available in codebase (`run_cron_jobs.py`) but not configured to run by default.
 - **8 Sequential Stages**:
-  1. **Stage 1**: Make Parent Lineage
-  2. **Stage 2**: Collect Horizon Data
-  3. **Stage 3**: Collect Account Attributes
-  4. **Stage 4**: Collect Account Assets
-  5. **Stage 5**: Collect Account Flags
-  6. **Stage 6**: Collect SE Directory
-  7. **Stage 7**: Collect Account Creator
-  8. **Stage 8**: Make Grandparent Lineage
+  1. Make Parent Lineage
+  2. Collect Horizon Data
+  3. Collect Account Attributes
+  4. Collect Account Assets
+  5. Collect Account Flags
+  6. Collect SE Directory
+  7. Collect Account Creator
+  8. Make Grandparent Lineage
 
 #### Workflow Management
 - **Comprehensive Tracking**: 18 status constants for tracking data collection:
@@ -116,28 +141,21 @@ python manage.py test
   - `FAILED`, `INVALID_HORIZON_STELLAR_ADDRESS` (terminal statuses)
   - Various stage-specific statuses
 
-#### Cron Health Monitoring
-- **Health Tracking**: `ManagementCronHealth` table tracks cron job health with `HEALTHY` and `UNHEALTHY_*` statuses.
-- **Failure Prevention**: Cron skips processing when any `UNHEALTHY` status exists to prevent cascading failures.
-- **Rate Limiting Recovery**: When Cassandra Document API rate limits occur, cron is marked `UNHEALTHY_RATE_LIMITED_BY_CASSANDRA_DOCUMENT_API`; old unhealthy records must be manually cleared via `.allow_filtering()` query and deletion by composite primary key (id, created_at, cron_name).
+#### BigQuery Integration
+- **Dataset**: `crypto-stellar.crypto_stellar_dbt` (Stellar Hubble public dataset)
+- **Key Tables**:
+  - `accounts_current`: Current account state (balance, flags, thresholds)
+  - `trust_lines_current`: Asset holdings and trustlines
+  - `enriched_history_operations`: Complete blockchain history (operations, transactions)
+- **Authentication**: Google Cloud service account with BigQuery access (GOOGLE_APPLICATION_CREDENTIALS_JSON)
+- **Creator Attribution**: Queries `create_account` operations (type=0) for funder/creator identification.
+- **Child Discovery**: Discovers all accounts where parent is the funder with proper pagination.
 
-#### Horizon API Validation
-- When Horizon API returns 404 (NotFoundError) for an address, both `StellarAccountSearchCache` and `StellarCreatorAccountLineage` records are marked with `INVALID_HORIZON_STELLAR_ADDRESS` status.
-- Processing immediately stops (operations/effects fetching skipped).
-
-#### Terminal Status Architecture
-- **Terminal Statuses**: `INVALID_HORIZON_STELLAR_ADDRESS` and `FAILED` are terminal statuses excluded from `STUCK_THRESHOLDS`.
-- **No Recovery**: Invalid addresses are never picked up by cron jobs or stuck record recovery.
-
-#### Stuck Record Recovery
-- **Automatic Detection**: Automatic detection and recovery system for stuck records in `STUCK_THRESHOLDS`.
-- **Recovery Actions**: Resets records to `PENDING` or marks as `FAILED` after multiple retries.
-- **Independent Operation**: Runs independently of cron health status.
-
-#### API Integration & Reliability
+#### API Integration & Reliability (API Pipeline)
 - **APIs Used**: Horizon API and Stellar Expert with asynchronous interactions (`async/await`).
 - **Retry Logic**: `Tenacity` library for robust API calls with exponential backoff.
-- **Prioritization**: New user searches (`PENDING_MAKE_PARENT_LINEAGE`) are prioritized over cache refreshes (`RE_INQUIRY`).
+- **Validation**: Horizon API 404 validation catches invalid addresses.
+- **Terminal Status**: `INVALID_HORIZON_STELLAR_ADDRESS` and `FAILED` are terminal statuses.
 
 ### Frontend Architecture
 
@@ -332,6 +350,7 @@ python manage.py test
 ### Key Libraries
 - **stellar-sdk**: Python SDK for Stellar blockchain
 - **django-cassandra-engine**: Django integration for Cassandra
+- **google-cloud-bigquery**: Google BigQuery client for Stellar Hubble dataset queries
 - **tenacity**: Retry library for robust operations
 - **pandas**: Data manipulation
 - **requests**: HTTP client
