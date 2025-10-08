@@ -225,19 +225,21 @@ def account_lineage_api(request):
                 instant_lineage = bigquery_helper.get_instant_lineage(account)
                 
                 if instant_lineage['account']:
-                    # Format BigQuery data for display
+                    # Format minimal BigQuery lineage data for display
+                    # NOTE: BigQuery now only provides lineage structure (parent-child relationships and dates)
+                    # Assets, balance, home_domain, flags will be fetched from Horizon/Stellar Expert APIs
                     hierarchical_lineage = []
                     
                     # Add creator if exists
                     if instant_lineage['creator']:
                         creator_record = {
-                            'stellar_account': instant_lineage['creator_address'],
+                            'stellar_account': instant_lineage['creator']['creator_account'],
                             'stellar_creator_account': None,
                             'network_name': network,
                             'stellar_account_created_at': instant_lineage['creator'].get('account_creation_date'),
-                            'home_domain': instant_lineage['creator'].get('home_domain', ''),
-                            'xlm_balance': instant_lineage['creator'].get('balance', 0) / 10000000.0,
-                            'assets': [],
+                            'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
+                            'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
+                            'assets': [],  # TODO: Fetch from Stellar Expert
                             'status': 'BIGQUERY_LIVE',
                             'created_at': None,
                             'updated_at': None,
@@ -247,14 +249,15 @@ def account_lineage_api(request):
                         hierarchical_lineage.append(creator_record)
                     
                     # Add searched account
+                    creator_address = instant_lineage['creator']['creator_account'] if instant_lineage['creator'] else None
                     account_record = {
                         'stellar_account': account,
-                        'stellar_creator_account': instant_lineage['creator_address'],
+                        'stellar_creator_account': creator_address,
                         'network_name': network,
                         'stellar_account_created_at': instant_lineage['account'].get('account_creation_date'),
-                        'home_domain': instant_lineage['account'].get('home_domain', ''),
-                        'xlm_balance': instant_lineage['account'].get('balance', 0) / 10000000.0,
-                        'assets': [{'name': a['asset_code'], 'asset_issuer': a['asset_issuer']} for a in instant_lineage['assets']],
+                        'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
+                        'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
+                        'assets': [],  # TODO: Fetch from Stellar Expert
                         'status': 'BIGQUERY_LIVE',
                         'created_at': None,
                         'updated_at': None,
