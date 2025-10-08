@@ -158,7 +158,7 @@ class StellarBigQueryHelper:
             sentry_sdk.capture_exception(e)
             return []
     
-    def get_account_creator(self, account: str) -> Optional[str]:
+    def get_account_creator(self, account: str) -> Optional[Dict]:
         """
         Find the creator (funder) of a specific account using BigQuery.
         
@@ -169,7 +169,12 @@ class StellarBigQueryHelper:
             account: The Stellar account address to query
         
         Returns:
-            The creator account address, or None if not found
+            Dict containing creator info:
+            {
+                'creator_account': 'G...',
+                'created_at': '2017-12-05T14:09:53Z'
+            }
+            or None if not found
         """
         if not self.is_available():
             logger.warning("BigQuery not available. Returning None.")
@@ -178,7 +183,8 @@ class StellarBigQueryHelper:
         try:
             query = """
                 SELECT 
-                    funder as creator
+                    funder as creator,
+                    closed_at as created_at
                 FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
                 WHERE type = 0
                   AND account = @account
@@ -196,9 +202,12 @@ class StellarBigQueryHelper:
             query_job = self.client.query(query, job_config=job_config)
             
             for row in query_job:
-                creator = row.creator
-                logger.info(f"Found creator {creator} for {account} in BigQuery")
-                return creator
+                result = {
+                    'creator_account': row.creator,
+                    'created_at': row.created_at.isoformat() if row.created_at else None
+                }
+                logger.info(f"Found creator {result['creator_account']} for {account} in BigQuery")
+                return result
             
             logger.info(f"No creator found in BigQuery for {account}")
             return None
