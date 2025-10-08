@@ -1,4 +1,4 @@
-@startuml Data Pipeline
+@startuml 02_data_pipeline
 
 skinparam backgroundColor #261D45
 skinparam activity {
@@ -9,6 +9,8 @@ skinparam activity {
 skinparam activityArrowColor #01C176
 skinparam activityStartColor #0BE784
 skinparam activityStopColor #E5526F
+skinparam activityDiamondBackgroundColor #231B3D
+skinparam activityDiamondBorderColor #0BE784
 skinparam defaultFontColor #96DDF2
 skinparam note {
   BackgroundColor #231B3D
@@ -16,52 +18,88 @@ skinparam note {
   FontColor #96DDF2
 }
 
-title <color:#0BE784>Data Collection Pipelines
+title <color:#0BE784>Data Collection Pipeline - Permanent Storage Architecture
 
-partition "<color:#0BE784>BigQuery Pipeline (Primary - 50-90 seconds)" {
+partition "<color:#0BE784>BigQuery Pipeline (Primary - Permanent Storage)" {
   start
   
   :User Searches Address;
   
-  :Query 1: Account Data;
+  if (<color:#0BE784>Lineage in Cassandra?) then (yes)
+    note right #231B3D
+      <color:#0BE784>REPEAT SEARCH
+      <color:#96DDF2>• <1 second response
+      <color:#96DDF2>• 0 BigQuery cost
+      <color:#96DDF2>• Cached lineage
+    end note
+    
+    :Read Lineage from Cassandra;
+    
+  else (no)
+    note right #231B3D
+      <color:#E5526F>FIRST-TIME SEARCH
+      <color:#96DDF2>• 50-90 second response
+      <color:#96DDF2>• ~265 MB BigQuery usage
+      <color:#96DDF2>• Permanent storage
+    end note
+    
+    :Query 1: Account Creation Date;
+    note right #231B3D
+      <color:#96DDF2>From <color:#0BE784>accounts_current
+      <color:#96DDF2>Creation timestamp
+    end note
+    
+    :Query 2: Creator Discovery;
+    note right #231B3D
+      <color:#96DDF2>From <color:#0BE784>enriched_history_operations
+      <color:#96DDF2>Find parent (type=0)
+    end note
+    
+    :Query 3: Child Accounts;
+    note right #231B3D
+      <color:#96DDF2>Paginated (10K batches)
+      <color:#96DDF2>Up to 100K children
+      <color:#96DDF2>Handles airdrops
+    end note
+    
+    :Store Lineage in Cassandra;
+    note right #231B3D
+      <color:#0BE784>PERMANENT STORAGE
+      <color:#96DDF2>• Never re-query BigQuery
+      <color:#96DDF2>• Free forever
+      <color:#96DDF2>• Costs decrease over time
+    end note
+  endif
+  
+  :API: Refresh Enrichment Data;
   note right #231B3D
-    <color:#96DDF2>From <color:#0BE784>accounts_current
-    <color:#96DDF2>Balance, flags, thresholds
+    <color:#96DDF2>From <color:#0BE784>Horizon API
+    <color:#96DDF2>Balance, flags, home_domain
+    <color:#96DDF2>
+    <color:#96DDF2>From <color:#0BE784>Stellar Expert
+    <color:#96DDF2>Current assets, trustlines
+    <color:#96DDF2>
+    <color:#E5526F>Every search (always fresh)
   end note
   
-  :Query 2: Asset Holdings;
-  note right #231B3D
-    <color:#96DDF2>From <color:#0BE784>trust_lines_current
-    <color:#96DDF2>Trustline data
-  end note
-  
-  :Query 3: Creator Discovery;
-  note right #231B3D
-    <color:#96DDF2>From <color:#0BE784>enriched_history_operations
-    <color:#96DDF2>Find parent (type=0)
-  end note
-  
-  :Query 4: Child Accounts;
-  note right #231B3D
-    <color:#96DDF2>Paginated (10K batches)
-    <color:#96DDF2>Up to 100K children
-    <color:#96DDF2>Handles airdrops
-  end note
-  
-  :Update Database;
+  :Return Complete Data to User;
   
   stop
   
   note left #231B3D
-    <color:#0BE784>BigQuery Features:
-    <color:#96DDF2>• 2-3x faster than API
+    <color:#0BE784>Cost Model (Realistic):
+    <color:#96DDF2>• 2,500 unique/month: <color:#0BE784>$0
+    <color:#96DDF2>• 5,000 unique/month: <color:#0BE784>$1-5
+    <color:#96DDF2>• Repeat searches: <color:#0BE784>FREE
+    <color:#96DDF2>
+    <color:#0BE784>Performance:
+    <color:#96DDF2>• First-time: 50-90 sec
+    <color:#96DDF2>• Repeat: <1 sec
     <color:#96DDF2>• No rate limits
-    <color:#96DDF2>• Complete history
-    <color:#96DDF2>• ~$0.10-0.50/1K accounts
   end note
 }
 
-partition "<color:#96DDF2>API Pipeline (Educational - 2-3 minutes)" {
+partition "<color:#96DDF2>API Pipeline (Educational Reference - 2-3 minutes)" {
   start
   
   :User Searches Address;
