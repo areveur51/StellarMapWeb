@@ -427,6 +427,78 @@ class StellarBigQueryHelper:
             sentry_sdk.capture_exception(e)
             return []
     
+    def get_instant_lineage(self, account: str) -> Dict:
+        """
+        Get instant lineage data for an account by querying BigQuery directly.
+        This is used for immediate display when a user searches for an account.
+        
+        Optimized to query only what's needed:
+        - Account data (full)
+        - Creator address and data (full)
+        - Child account addresses only (for display, full data fetched on-demand)
+        - Assets (full)
+        
+        Args:
+            account: The Stellar account address to query
+        
+        Returns:
+            Dict containing lineage data:
+            {
+                'account': {account_data},
+                'creator': {creator_account_data},
+                'creator_address': 'G...',
+                'children_addresses': ['G...', 'G...', ...],
+                'assets': [{asset1}, {asset2}, ...]
+            }
+        """
+        if not self.is_available():
+            logger.warning("BigQuery not available for instant lineage query")
+            return {
+                'account': None,
+                'creator': None,
+                'creator_address': None,
+                'children_addresses': [],
+                'assets': []
+            }
+        
+        try:
+            # Query account data
+            account_data = self.get_account_data(account)
+            
+            # Query assets
+            assets = self.get_account_assets(account)
+            
+            # Query creator and creator's data
+            creator_address = self.get_creator_account(account)
+            creator_data = None
+            if creator_address:
+                creator_data = self.get_account_data(creator_address)
+            
+            # Query child addresses only (limited to 100 for instant display)
+            children = self.get_child_accounts(account, limit=100)
+            children_addresses = [child['account'] for child in children]
+            
+            logger.info(f"Instant lineage query complete: account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}")
+            
+            return {
+                'account': account_data,
+                'creator': creator_data,
+                'creator_address': creator_address,
+                'children_addresses': children_addresses,
+                'assets': assets
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get instant lineage for {account}: {e}")
+            sentry_sdk.capture_exception(e)
+            return {
+                'account': None,
+                'creator': None,
+                'creator_address': None,
+                'children_addresses': [],
+                'assets': []
+            }
+    
     def get_dataset_info(self) -> Dict:
         """
         Get information about the Stellar BigQuery dataset.
