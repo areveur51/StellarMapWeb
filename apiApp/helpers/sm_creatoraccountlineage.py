@@ -118,6 +118,65 @@ class StellarMapCreatorAccountLineageHelpers:
         
         await manager.async_update_status(lin_queryset.id,
                                           DONE_GRANDPARENT_LINEAGE)
+    
+    @retry(wait=wait_exponential(multiplier=1, max=5),
+           stop=stop_after_attempt(5))
+    async def async_fetch_child_accounts(self, client_session, lin_queryset):
+        """
+        Fetch child accounts created by this account from Horizon API.
+        
+        Queries Horizon for create_account operations where this account
+        is the funder, then adds those child accounts to the database
+        for processing.
+        """
+        from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
+        
+        manager = StellarCreatorAccountLineageManager()
+        stellar_account = lin_queryset.stellar_account
+        network_name = lin_queryset.network_name
+        
+        # Determine Horizon URL based on network
+        horizon_url = 'https://horizon.stellar.org' if network_name == 'public' else 'https://horizon-testnet.stellar.org'
+        
+        try:
+            # Fetch child accounts from Horizon
+            horizon_helper = StellarMapHorizonAPIHelpers(
+                horizon_url=horizon_url,
+                account_id=stellar_account
+            )
+            child_accounts = horizon_helper.get_child_accounts(max_pages=5)
+            
+            # Add each child account to the database if not already present
+            for child_data in child_accounts:
+                child_account = child_data.get('account')
+                
+                if not child_account:
+                    continue
+                
+                # Check if child account already exists in database
+                existing_lineage = manager.get_queryset(
+                    stellar_account=child_account,
+                    network_name=network_name
+                )
+                
+                if not existing_lineage:
+                    # Create new lineage record for child account
+                    req = HttpRequest()
+                    req.data = {
+                        'stellar_account': child_account,
+                        'network_name': network_name,
+                        'status': PENDING_HORIZON_API_DATASETS
+                    }
+                    manager.create_lineage(req)
+                    print(f"[DEBUG] Added child account {child_account[-7:]} to database (parent: {stellar_account[-7:]})")
+            
+            if child_accounts:
+                print(f"[DEBUG] Found and processed {len(child_accounts)} child accounts for {stellar_account[-7:]}")
+            
+        except Exception as e:
+            # Don't fail the pipeline if child account fetching fails
+            sentry_sdk.capture_exception(e)
+            print(f"[WARNING] Failed to fetch child accounts for {stellar_account[-7:]}: {str(e)}")
 
     def get_account_genealogy_from_horizon(self, stellar_account, network_name, max_depth=10):
         """

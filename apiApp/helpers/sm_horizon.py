@@ -86,6 +86,66 @@ class StellarMapHorizonAPIHelpers(RetryMixin):
         except BaseRequestError as e:
             sentry_sdk.capture_exception(e)
             raise
+    
+    @RetryMixin.retry_decorator
+    def get_child_accounts(self, max_pages=5) -> list:
+        """
+        Fetch accounts created by this account (child accounts).
+        
+        Queries operations for this account in ascending order (oldest first) 
+        and filters for create_account operations where this account was the funder.
+        Paginates through multiple pages to find all child accounts.
+        
+        Args:
+            max_pages: Maximum number of pages to fetch (default 5, 200 ops per page = 1000 total)
+        
+        Returns:
+            list: List of child account addresses created by this account
+        """
+        try:
+            child_accounts = []
+            cursor = None
+            pages_fetched = 0
+            
+            # Fetch operations in ascending order (oldest first)
+            # This ensures create_account operations (usually early) are found
+            while pages_fetched < max_pages:
+                query = self.server.operations().for_account(self.account_id).order(desc=False).limit(200)
+                
+                if cursor:
+                    query = query.cursor(cursor)
+                
+                ops_response = query.call()
+                records = ops_response.get('_embedded', {}).get('records', [])
+                
+                if not records:
+                    break
+                
+                # Filter for create_account operations
+                for op in records:
+                    if op.get('type') == 'create_account':
+                        created_account = op.get('account')
+                        
+                        if created_account:
+                            child_accounts.append({
+                                'account': created_account,
+                                'starting_balance': op.get('starting_balance', '0'),
+                                'created_at': op.get('created_at', '')
+                            })
+                
+                # Get cursor for next page
+                cursor = records[-1].get('paging_token') if records else None
+                pages_fetched += 1
+                
+                # If we got less than 200 records, we've reached the end
+                if len(records) < 200:
+                    break
+            
+            return child_accounts
+            
+        except BaseRequestError as e:
+            sentry_sdk.capture_exception(e)
+            return []  # Return empty list on error rather than raising
 
 class StellarMapHorizonAPIParserHelpers:
     """

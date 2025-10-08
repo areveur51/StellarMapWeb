@@ -40,9 +40,16 @@ class Command(BaseCommand):
 
             lineage_helpers = StellarMapCreatorAccountLineageHelpers()
             async_helpers = StellarMapAsyncHelpers()
+            
+            # Create grandparent lineage
             async_helpers.execute_async(
                 [lin_queryset],
                 lineage_helpers.async_make_grandparent_account)
+            
+            # Fetch and add child accounts to database
+            async_helpers.execute_async(
+                [lin_queryset],
+                lineage_helpers.async_fetch_child_accounts)
             
             self.stdout.write(self.style.SUCCESS(f'Successfully ran {cron_name}'))
 
