@@ -75,6 +75,7 @@ class StellarBigQueryHelper:
         self, 
         parent_account: str,
         limit: int = 10000,
+        offset: int = 0,
         start_date: Optional[str] = None
     ) -> List[Dict]:
         """
@@ -86,6 +87,7 @@ class StellarBigQueryHelper:
         Args:
             parent_account: The Stellar account address to query
             limit: Maximum number of child accounts to return (default 10000)
+            offset: Number of results to skip for pagination (default 0)
             start_date: Optional start date filter (format: 'YYYY-MM-DD') to limit costs
         
         Returns:
@@ -130,6 +132,7 @@ class StellarBigQueryHelper:
                   {date_filter}
                 ORDER BY closed_at ASC
                 LIMIT {limit}
+                OFFSET {offset}
             """
             
             job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)

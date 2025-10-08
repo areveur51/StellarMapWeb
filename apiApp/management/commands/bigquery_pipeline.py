@@ -189,9 +189,9 @@ class Command(BaseCommand):
                     '    ⚠ Creator not found (might be root account)'
                 ))
             
-            # Step 4: Get child accounts
+            # Step 4: Get child accounts (paginated for high-fanout accounts)
             self.stdout.write('  → Fetching child accounts from BigQuery...')
-            children = bq_helper.get_child_accounts(account, limit=1000)
+            children = self._get_all_child_accounts(bq_helper, account)
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Found {len(children)} child accounts'
             ))
@@ -336,6 +336,52 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Queued {queued} new child accounts for processing'
             ))
+    
+    def _get_all_child_accounts(self, bq_helper, account):
+        """
+        Get ALL child accounts for a given parent, handling pagination for high-fanout accounts.
+        
+        Uses chunked retrieval to avoid BigQuery result limits and ensure complete data.
+        Deduplicates results by account address to prevent duplicate entries while allowing
+        multiple accounts from the same transaction (common in airdrops).
+        """
+        all_children = []
+        seen_accounts = set()
+        page_size = 10000
+        offset = 0
+        
+        while True:
+            # Get a page of child accounts with proper offset
+            children_page = bq_helper.get_child_accounts(
+                account, 
+                limit=page_size,
+                offset=offset
+            )
+            
+            if not children_page:
+                break
+            
+            # Deduplicate by account address (not tx hash, as one tx can create multiple accounts)
+            for child in children_page:
+                child_account = child.get('account')
+                if child_account and child_account not in seen_accounts:
+                    seen_accounts.add(child_account)
+                    all_children.append(child)
+            
+            # If we got fewer than page_size results, we've reached the end
+            if len(children_page) < page_size:
+                break
+            
+            offset += page_size
+            
+            # Safety limit: stop at 100,000 children to avoid runaway queries
+            if len(all_children) >= 100000:
+                self.stdout.write(self.style.WARNING(
+                    f'    ⚠ Reached safety limit of 100,000 children (actual count may be higher)'
+                ))
+                break
+        
+        return all_children
     
     def _reset_accounts(self):
         """Reset all accounts to PENDING status."""
