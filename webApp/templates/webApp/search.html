@@ -123,6 +123,19 @@
                         </span>{% endverbatim %}
                         <span v-else class="text-muted">0</span>
                       </template>
+                      <template #cell(se_url)="row">
+                        {% verbatim %}<a 
+                          v-if="row.item.stellar_account && row.item.network_name"
+                          :href="'https://stellar.expert/explorer/' + row.item.network_name + '/account/' + row.item.stellar_account"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View on Stellar Expert"
+                          class="btn btn-sm btn-outline-primary"
+                        >
+                          <i class="fas fa-external-link-alt"></i>
+                        </a>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
                       <template #cell(stellar_account_created_at)="data">
                         {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
@@ -376,6 +389,7 @@
             { key: 'home_domain', label: 'Home Domain', sortable: true },
             { key: 'xlm_balance', label: 'XLM Balance', sortable: true },
             { key: 'assets', label: 'Assets', sortable: true },
+            { key: 'se_url', label: 'SE URL', sortable: false },
             { key: 'status', label: 'Status', sortable: true },
             { key: 'created_at', label: 'Pipeline Created', sortable: true },
             { key: 'updated_at', label: 'Pipeline Updated', sortable: true },
