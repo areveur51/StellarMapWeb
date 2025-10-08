@@ -90,33 +90,33 @@
                       hover
                     >
                       <template #cell(stellar_account)="data">
-                        <span style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>
+                        {% verbatim %}<span style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>{% endverbatim %}
                       </template>
                       <template #cell(stellar_creator_account)="data">
-                        <span v-if="data.value" style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>
+                        {% verbatim %}<span v-if="data.value" style="font-family: monospace; font-size: 0.85em;">{{ data.value }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(xlm_balance)="data">
-                        {{ data.value }} XLM
+                        {% verbatim %}{{ data.value }} XLM{% endverbatim %}
                       </template>
                       <template #cell(stellar_account_created_at)="data">
-                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(created_at)="data">
-                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(updated_at)="data">
-                        <span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>
+                        {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(home_domain)="data">
-                        <span v-if="data.value && data.value.trim()">{{ data.value }}</span>
+                        {% verbatim %}<span v-if="data.value && data.value.trim()">{{ data.value }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(status)="data">
-                        <b-badge :variant="getLineageStatusVariant(data.value)">{{ data.value }}</b-badge>
+                        {% verbatim %}<b-badge :variant="getLineageStatusVariant(data.value)">{{ data.value }}</b-badge>{% endverbatim %}
                       </template>
                       <template #cell(actions)="row">
                         <b-button size="sm" variant="info" @click="showLineageJson(row.item)" title="View JSON">
