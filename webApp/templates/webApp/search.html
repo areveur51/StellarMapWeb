@@ -102,7 +102,7 @@
                           style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
                           :title="data.value"
                           @dblclick="copyToClipboard(data.value, 'Account address copied!')"
-                        >...{{ data.value.slice(-6) }}</span>{% endverbatim %}
+                        >...{{ data.value.slice(-7) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(stellar_creator_account)="data">
@@ -111,7 +111,7 @@
                           style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
                           :title="data.value"
                           @dblclick="copyToClipboard(data.value, 'Creator address copied!')"
-                        >...{{ data.value.slice(-6) }}</span>{% endverbatim %}
+                        >...{{ data.value.slice(-7) }}</span>{% endverbatim %}
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(xlm_balance)="data">
