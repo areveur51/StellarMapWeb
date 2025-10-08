@@ -168,6 +168,11 @@ def account_lineage_api(request):
     API endpoint that returns account lineage data for a specific address.
     Used for real-time lineage table updates in the Account Lineage tab.
     
+    NEW INSTANT SEARCH FLOW:
+    1. Query BigQuery directly for immediate results
+    2. Display results instantly to user
+    3. Queue account for background processing to persist in database
+    
     Returns hierarchical lineage from newest to oldest, with child accounts 
     nested under their parent issuers.
     
@@ -205,8 +210,90 @@ def account_lineage_api(request):
     
     try:
         from apiApp.models import StellarCreatorAccountLineage
+        from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
         from datetime import datetime
         import json
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        # INSTANT SEARCH: Query BigQuery directly first
+        bigquery_helper = StellarBigQueryHelper()
+        if bigquery_helper.is_available():
+            try:
+                logger.info(f"Querying BigQuery directly for instant lineage of {account}")
+                instant_lineage = bigquery_helper.get_instant_lineage(account)
+                
+                if instant_lineage['account']:
+                    # Format BigQuery data for display
+                    hierarchical_lineage = []
+                    
+                    # Add creator if exists
+                    if instant_lineage['creator']:
+                        creator_record = {
+                            'stellar_account': instant_lineage['creator_address'],
+                            'stellar_creator_account': None,
+                            'network_name': network,
+                            'stellar_account_created_at': instant_lineage['creator'].get('account_creation_date'),
+                            'home_domain': instant_lineage['creator'].get('home_domain', ''),
+                            'xlm_balance': instant_lineage['creator'].get('balance', 0) / 10000000.0,
+                            'assets': [],
+                            'status': 'BIGQUERY_LIVE',
+                            'created_at': None,
+                            'updated_at': None,
+                            'children': [],
+                            'hierarchy_level': 0
+                        }
+                        hierarchical_lineage.append(creator_record)
+                    
+                    # Add searched account
+                    account_record = {
+                        'stellar_account': account,
+                        'stellar_creator_account': instant_lineage['creator_address'],
+                        'network_name': network,
+                        'stellar_account_created_at': instant_lineage['account'].get('account_creation_date'),
+                        'home_domain': instant_lineage['account'].get('home_domain', ''),
+                        'xlm_balance': instant_lineage['account'].get('balance', 0) / 10000000.0,
+                        'assets': [{'name': a['asset_code'], 'asset_issuer': a['asset_issuer']} for a in instant_lineage['assets']],
+                        'status': 'BIGQUERY_LIVE',
+                        'created_at': None,
+                        'updated_at': None,
+                        'children': [],
+                        'hierarchy_level': 1 if instant_lineage['creator'] else 0
+                    }
+                    hierarchical_lineage.append(account_record)
+                    
+                    # Queue account for background processing
+                    try:
+                        existing = StellarCreatorAccountLineage.objects.filter(
+                            stellar_account=account,
+                            network_name=network
+                        ).first()
+                        
+                        if not existing:
+                            StellarCreatorAccountLineage.objects.create(
+                                stellar_account=account,
+                                network_name=network,
+                                status='PENDING',
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow()
+                            )
+                            logger.info(f"Queued {account} for background processing")
+                    except Exception as queue_error:
+                        logger.warning(f"Failed to queue account for background processing: {queue_error}")
+                    
+                    return JsonResponse({
+                        'account': account,
+                        'network': network,
+                        'lineage': hierarchical_lineage,
+                        'total_records': len(hierarchical_lineage),
+                        'source': 'bigquery_instant'
+                    }, safe=False)
+                
+            except Exception as bq_error:
+                logger.warning(f"BigQuery instant query failed, falling back to database: {bq_error}")
+        
+        # FALLBACK: Query database if BigQuery fails or unavailable
         
         def convert_timestamp(ts):
             if ts is None:
