@@ -232,11 +232,14 @@ def account_lineage_api(request):
                     
                     # Add creator if exists
                     if instant_lineage['creator']:
+                        # Prefer account_creation_date (creator's actual creation), fallback to created_at
+                        creator_created_at = instant_lineage['creator'].get('account_creation_date') or instant_lineage['creator'].get('created_at')
+                        
                         creator_record = {
                             'stellar_account': instant_lineage['creator']['creator_account'],
                             'stellar_creator_account': None,
                             'network_name': network,
-                            'stellar_account_created_at': instant_lineage['creator'].get('account_creation_date'),
+                            'stellar_account_created_at': creator_created_at,
                             'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
                             'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
                             'assets': [],  # TODO: Fetch from Stellar Expert
