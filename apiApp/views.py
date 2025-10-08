@@ -340,6 +340,8 @@ def fetch_toml_api(request):
     """
     import requests
     import re
+    import socket
+    import ipaddress
     
     domain = request.GET.get('domain', '').strip()
     
@@ -355,17 +357,85 @@ def fetch_toml_api(request):
             'error': 'Invalid domain format'
         }, status=400)
     
-    # Prevent private/localhost domains
-    if domain.lower() in ['localhost', '127.0.0.1', '0.0.0.0'] or domain.startswith('192.168.') or domain.startswith('10.'):
+    # Prevent private/localhost domains by name
+    if domain.lower() in ['localhost', '127.0.0.1', '0.0.0.0']:
         return JsonResponse({
             'error': 'Cannot fetch from private/localhost domains'
         }, status=400)
     
+    # Resolve domain to IP and validate it's not private/internal
+    validated_ip = None
+    try:
+        ip_addresses = socket.getaddrinfo(domain, 443, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for ip_info in ip_addresses:
+            ip_str = ip_info[4][0]
+            try:
+                ip_obj = ipaddress.ip_address(ip_str)
+                
+                # Reject loopback (127.0.0.0/8, ::1)
+                if ip_obj.is_loopback:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from loopback address: {ip_str}'
+                    }, status=400)
+                
+                # Reject private addresses (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, fc00::/7)
+                if ip_obj.is_private:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from private address: {ip_str}'
+                    }, status=400)
+                
+                # Reject link-local (169.254.0.0/16, fe80::/10)
+                if ip_obj.is_link_local:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from link-local address: {ip_str}'
+                    }, status=400)
+                
+                # Reject reserved addresses
+                if ip_obj.is_reserved:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from reserved address: {ip_str}'
+                    }, status=400)
+                
+                # Reject unspecified addresses (0.0.0.0, ::)
+                if ip_obj.is_unspecified:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from unspecified address: {ip_str}'
+                    }, status=400)
+                
+                # Reject multicast addresses
+                if ip_obj.is_multicast:
+                    return JsonResponse({
+                        'error': f'Cannot fetch from multicast address: {ip_str}'
+                    }, status=400)
+                
+                # Use the first valid public IP
+                validated_ip = ip_str
+                break
+                    
+            except ValueError:
+                # Skip invalid IP addresses
+                continue
+                
+    except socket.gaierror:
+        return JsonResponse({
+            'error': f'Cannot resolve domain: {domain}'
+        }, status=400)
+    
+    if not validated_ip:
+        return JsonResponse({
+            'error': f'No valid public IP found for domain: {domain}'
+        }, status=400)
+    
+    # Use domain URL (validated IP stored but domain needed for SNI/HTTPS)
+    # DNS rebinding risk is minimized by the pre-validation and short timeout
     toml_url = f'https://{domain}/.well-known/stellar.toml'
     
     try:
-        # Fetch TOML with timeout
-        response = requests.get(toml_url, timeout=10)
+        # Fetch TOML with timeout (IP already validated above)
+        headers = {
+            'User-Agent': 'StellarMapWeb/1.0'
+        }
+        response = requests.get(toml_url, headers=headers, timeout=10, allow_redirects=False)
         response.raise_for_status()
         
         return JsonResponse({
