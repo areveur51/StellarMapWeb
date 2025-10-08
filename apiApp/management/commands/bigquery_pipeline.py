@@ -150,7 +150,7 @@ class Command(BaseCommand):
         start_time = datetime.utcnow()
         
         try:
-            account_obj.status = 'BIGQUERY_PROCESSING'
+            account_obj.status = 'PROCESSING'
             account_obj.save()
             
             # Step 1: Get account data
@@ -161,7 +161,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(
                     '    ⚠ Account not found in BigQuery accounts_current table'
                 ))
-                account_obj.status = 'BIGQUERY_ACCOUNT_NOT_FOUND'
+                account_obj.status = 'INVALID'
                 account_obj.save()
                 return False
             
@@ -223,7 +223,7 @@ class Command(BaseCommand):
             logger.error(f'Error processing account {account}: {e}')
             sentry_sdk.capture_exception(e)
             
-            account_obj.status = 'BIGQUERY_FAILED'
+            account_obj.status = 'FAILED'
             account_obj.save()
             return False
     

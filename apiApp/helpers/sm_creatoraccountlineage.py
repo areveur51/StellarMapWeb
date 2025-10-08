@@ -11,13 +11,10 @@ from django.http import HttpRequest
 from .sm_horizon import StellarMapHorizonAPIParserHelpers, StellarMapHorizonAPIHelpers
 from .sm_stellarexpert import StellarMapStellarExpertAPIHelpers, StellarMapStellarExpertAPIParserHelpers
 from apiApp.models import (
-    PENDING_HORIZON_API_DATASETS,
-    IN_PROGRESS_UPDATING_FROM_RAW_DATA,
-    DONE_UPDATING_FROM_RAW_DATA,
-    IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA,
-    DONE_UPDATING_FROM_OPERATIONS_RAW_DATA,
-    IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE,
-    DONE_GRANDPARENT_LINEAGE
+    PENDING,
+    PROCESSING,
+    COMPLETE,
+    BIGQUERY_COMPLETE
 )
 
 
@@ -30,7 +27,7 @@ class StellarMapCreatorAccountLineageHelpers:
         """Modular update from accounts data."""
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
-                                          IN_PROGRESS_UPDATING_FROM_RAW_DATA)
+                                          PROCESSING)
         
         # Read JSON directly from Cassandra TEXT column
         if not lin_queryset.horizon_accounts_json:
@@ -43,7 +40,7 @@ class StellarMapCreatorAccountLineageHelpers:
         req.data = {
             'home_domain': parser.parse_account_home_domain(),
             'xlm_balance': parser.parse_account_native_balance(),
-            'status': DONE_UPDATING_FROM_RAW_DATA
+            'status': COMPLETE
         }
         await manager.async_update_lineage(lin_queryset.id, req)
 
@@ -54,7 +51,7 @@ class StellarMapCreatorAccountLineageHelpers:
         """Update lineage from operations data to extract creator account."""
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
-                                          IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA)
+                                          PROCESSING)
         
         # Read JSON directly from Cassandra TEXT column
         if not lin_queryset.horizon_operations_json:
@@ -85,7 +82,7 @@ class StellarMapCreatorAccountLineageHelpers:
         req.data = {
             'stellar_creator_account': creator_data.get('funder', ''),
             'stellar_account_created_at': creator_data.get('created_at'),
-            'status': DONE_UPDATING_FROM_OPERATIONS_RAW_DATA
+            'status': COMPLETE
         }
         await manager.async_update_lineage(lin_queryset.id, req)
 
@@ -96,7 +93,7 @@ class StellarMapCreatorAccountLineageHelpers:
         """Create grandparent lineage by processing creator account."""
         manager = StellarCreatorAccountLineageManager()
         await manager.async_update_status(lin_queryset.id,
-                                          IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE)
+                                          PROCESSING)
         
         creator_account = lin_queryset.stellar_creator_account
         network_name = lin_queryset.network_name
@@ -112,12 +109,12 @@ class StellarMapCreatorAccountLineageHelpers:
                 req.data = {
                     'stellar_account': creator_account,
                     'network_name': network_name,
-                    'status': PENDING_HORIZON_API_DATASETS
+                    'status': PENDING
                 }
                 manager.create_lineage(req)
         
         await manager.async_update_status(lin_queryset.id,
-                                          DONE_GRANDPARENT_LINEAGE)
+                                          COMPLETE)
     
     @retry(wait=wait_exponential(multiplier=1, max=5),
            stop=stop_after_attempt(5))
@@ -207,7 +204,7 @@ class StellarMapCreatorAccountLineageHelpers:
                     req.data = {
                         'stellar_account': child_account,
                         'network_name': network_name,
-                        'status': PENDING_HORIZON_API_DATASETS
+                        'status': PENDING
                     }
                     manager.create_lineage(req)
                     added_count += 1

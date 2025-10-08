@@ -5,60 +5,29 @@ from cassandra.cqlengine import columns as cassandra_columns
 from django_cassandra_engine.models import DjangoCassandraModel
 from django.conf import settings
 
-# Constants for choices (secure defaults)
-PENDING = 'pending'
-IN_PROGRESS = 'in_progress'
-COMPLETED = 'completed'
-STATUS_CHOICES = ((PENDING, 'Pending'), (IN_PROGRESS, 'In Progress'),
-                  (COMPLETED, 'Completed'))
-
-# Cron workflow status constants (based on PlantUML workflow)
-PENDING_HORIZON_API_DATASETS = 'PENDING_HORIZON_API_DATASETS'
-IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS = 'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS'
-DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS = 'DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS'
-IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS = 'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS'
-DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS = 'DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS'
-IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS = 'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS'
-DONE_HORIZON_API_DATASETS = 'DONE_HORIZON_API_DATASETS'
-IN_PROGRESS_UPDATING_FROM_RAW_DATA = 'IN_PROGRESS_UPDATING_FROM_RAW_DATA'
-DONE_UPDATING_FROM_RAW_DATA = 'DONE_UPDATING_FROM_RAW_DATA'
-IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA = 'IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA'
-DONE_UPDATING_FROM_OPERATIONS_RAW_DATA = 'DONE_UPDATING_FROM_OPERATIONS_RAW_DATA'
-IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE = 'IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE'
-DONE_GRANDPARENT_LINEAGE = 'DONE_GRANDPARENT_LINEAGE'
-PENDING_MAKE_PARENT_LINEAGE = 'PENDING_MAKE_PARENT_LINEAGE'
-IN_PROGRESS_MAKE_PARENT_LINEAGE = 'IN_PROGRESS_MAKE_PARENT_LINEAGE'
-DONE_MAKE_PARENT_LINEAGE = 'DONE_MAKE_PARENT_LINEAGE'
-RE_INQUIRY = 'RE_INQUIRY'
+# Simplified Status Constants (5 total)
+PENDING = 'PENDING'
+PROCESSING = 'PROCESSING'
+COMPLETE = 'COMPLETE'
 FAILED = 'FAILED'
-INVALID_HORIZON_STELLAR_ADDRESS = 'INVALID_HORIZON_STELLAR_ADDRESS'
+INVALID = 'INVALID'
 
-# Stuck record detection thresholds (in minutes)
-# Records exceeding these durations in a given status are considered stuck
-# User requirement: Auto-recover if PENDING/IN_PROGRESS/RE_INQUIRY stuck for 5+ minutes
-STUCK_THRESHOLDS = {
-    # Stage 1: Parent lineage collection
-    PENDING_MAKE_PARENT_LINEAGE: 5,
-    IN_PROGRESS_MAKE_PARENT_LINEAGE: 5,
-    RE_INQUIRY: 5,
-    
-    # Stage 2: Horizon data collection
-    PENDING_HORIZON_API_DATASETS: 5,
-    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS: 5,
-    DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS: 5,
-    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS: 5,
-    DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS: 5,
-    IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS: 5,
-    DONE_HORIZON_API_DATASETS: 5,
-    
-    # Stages 3-8: Enrichment stages
-    IN_PROGRESS_UPDATING_FROM_RAW_DATA: 5,
-    DONE_UPDATING_FROM_RAW_DATA: 5,
-    IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA: 5,
-    DONE_UPDATING_FROM_OPERATIONS_RAW_DATA: 5,
-    IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE: 5,
-    DONE_GRANDPARENT_LINEAGE: 5,
-}
+# BigQuery pipeline status (for backwards compatibility)
+BIGQUERY_COMPLETE = 'BIGQUERY_COMPLETE'
+
+# Status choices
+STATUS_CHOICES = (
+    (PENDING, 'Pending'),
+    (PROCESSING, 'Processing'),
+    (COMPLETE, 'Complete'),
+    (BIGQUERY_COMPLETE, 'Complete'),
+    (FAILED, 'Failed'),
+    (INVALID, 'Invalid'),
+)
+
+# Stuck record detection: 5 minutes for PENDING or PROCESSING
+STUCK_THRESHOLD_MINUTES = 5
+STUCK_STATUSES = [PENDING, PROCESSING]
 
 # Maximum retry attempts before marking as FAILED
 MAX_RETRY_ATTEMPTS = 3
@@ -103,8 +72,7 @@ class StellarAccountSearchCache(DjangoCassandraModel):
     
     stellar_account = cassandra_columns.Text(partition_key=True, max_length=56)
     network_name = cassandra_columns.Text(partition_key=True, max_length=9)
-    status = cassandra_columns.Text(max_length=127,
-                                    default=PENDING_HORIZON_API_DATASETS)  # Workflow status
+    status = cassandra_columns.Text(max_length=127, default=PENDING)
     cached_json = cassandra_columns.Text()  # Stores tree_data JSON for quick retrieval
     last_fetched_at = cassandra_columns.DateTime()  # Tracks cache freshness
     retry_count = cassandra_columns.Integer(default=0)  # Number of recovery attempts

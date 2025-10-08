@@ -4,19 +4,16 @@ import json
 from apiApp.models import (
     StellarAccountSearchCache, 
     StellarCreatorAccountLineage,
-    PENDING_MAKE_PARENT_LINEAGE, 
-    DONE_MAKE_PARENT_LINEAGE
+    PENDING,
+    PROCESSING,
+    COMPLETE,
+    BIGQUERY_COMPLETE,
 )
 
 
 class StellarMapCacheHelpers:
     """
-    Helper class for managing 12-hour Cassandra cache for Stellar account searches.
-    
-    Implements efficient caching strategy:
-    - Check for fresh data (< 12 hours)
-    - Return cached JSON if available
-    - Create PENDING entry to trigger cron jobs if stale/missing
+    Simplified helper class for managing 12-hour Cassandra cache.
     """
     
     CACHE_FRESHNESS_HOURS = 12
@@ -25,10 +22,6 @@ class StellarMapCacheHelpers:
         """
         Check if cached data exists and is fresh (< 12 hours old).
         
-        Args:
-            stellar_account (str): Stellar account address
-            network_name (str): Network name (public/testnet)
-            
         Returns:
             tuple: (is_fresh: bool, cache_entry: StellarAccountSearchCache or None)
         """
@@ -54,11 +47,8 @@ class StellarMapCacheHelpers:
         """
         Get cached JSON data from cache entry.
         
-        Args:
-            cache_entry (StellarAccountSearchCache): Cache entry object
-            
         Returns:
-            dict: Parsed tree_data JSON or None if not available
+            dict: Parsed tree_data JSON or None
         """
         if cache_entry and cache_entry.cached_json:
             try:
@@ -67,16 +57,10 @@ class StellarMapCacheHelpers:
                 return None
         return None
     
-    def update_cache(self, stellar_account, network_name, tree_data, status=DONE_MAKE_PARENT_LINEAGE):
+    def update_cache(self, stellar_account, network_name, tree_data, status=COMPLETE):
         """
-        Update cache with fresh tree data after cron job completion.
+        Update cache with fresh tree data.
         
-        Args:
-            stellar_account (str): Stellar account address
-            network_name (str): Network name (public/testnet)
-            tree_data (dict): Tree data to cache
-            status (str): Workflow status (default: DONE_MAKE_PARENT_LINEAGE)
-            
         Returns:
             StellarAccountSearchCache: Updated cache entry
         """
@@ -105,43 +89,30 @@ class StellarMapCacheHelpers:
     
     def create_pending_entry(self, stellar_account, network_name):
         """
-        Create or update entry with PENDING_MAKE_PARENT_LINEAGE status to trigger BigQuery pipeline processing.
+        Create or update entry with PENDING status to trigger BigQuery pipeline.
         
-        This creates entries in BOTH tables:
+        Creates entries in BOTH tables:
         1. StellarAccountSearchCache (for web UI cache tracking)
         2. StellarCreatorAccountLineage (for BigQuery pipeline processing)
         
-        The BigQuery pipeline will:
-        1. Process the PENDING entry from StellarCreatorAccountLineage
-        2. Fetch data from BigQuery (account, assets, creator, children)
-        3. Update lineage record and queue children
-        4. Update cache with fresh data when complete
+        If pipeline is already running (PENDING or PROCESSING), does nothing.
         
-        IMPORTANT: If pipeline is already running (PENDING/IN_PROGRESS/RE_INQUIRY status), 
-        DO NOT reset - let it complete naturally.
-        
-        Args:
-            stellar_account (str): Stellar account address
-            network_name (str): Network name (public/testnet)
-            
         Returns:
-            StellarAccountSearchCache: Cache entry (existing or new)
+            StellarAccountSearchCache: Cache entry
         """
+        # Create or update cache entry
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
             
-            # Check if pipeline is already running - DON'T reset status
-            if cache_entry.status and ('PENDING' in cache_entry.status or 
-                                       'IN_PROGRESS' in cache_entry.status or 
-                                       cache_entry.status == 'RE_INQUIRY'):
-                # Pipeline already running, return existing entry without modification
+            # Don't reset if already running
+            if cache_entry.status in [PENDING, PROCESSING]:
                 return cache_entry
             
-            # Only set to PENDING if it's DONE or another terminal status
-            cache_entry.status = PENDING_MAKE_PARENT_LINEAGE
+            # Set to PENDING if in terminal state
+            cache_entry.status = PENDING
             cache_entry.updated_at = datetime.datetime.utcnow()
             cache_entry.save()
             
@@ -149,31 +120,29 @@ class StellarMapCacheHelpers:
             cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
-                status=PENDING_MAKE_PARENT_LINEAGE,
+                status=PENDING,
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow()
             )
         
-        # CRITICAL FIX: Also create lineage entry so BigQuery pipeline can process it
-        # Check if lineage entry exists
+        # Create or update lineage entry for BigQuery pipeline
         try:
             lineage_entry = StellarCreatorAccountLineage.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
             
-            # Only reset to PENDING if it's in a terminal state
-            if lineage_entry.status in ['BIGQUERY_COMPLETE', 'BIGQUERY_FAILED', 'ERROR']:
-                lineage_entry.status = 'PENDING'
+            # Only reset to PENDING if in terminal state
+            if lineage_entry.status in [BIGQUERY_COMPLETE, COMPLETE, 'FAILED', 'INVALID']:
+                lineage_entry.status = PENDING
                 lineage_entry.updated_at = datetime.datetime.utcnow()
                 lineage_entry.save()
                 
         except StellarCreatorAccountLineage.DoesNotExist:
-            # Create new lineage entry for BigQuery pipeline to process
             StellarCreatorAccountLineage.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
-                status='PENDING',
+                status=PENDING,
                 created_at=datetime.datetime.utcnow(),
                 updated_at=datetime.datetime.utcnow()
             )
