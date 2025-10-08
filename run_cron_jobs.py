@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""
+EDUCATIONAL/REFERENCE CODE - NOT ENABLED BY DEFAULT
+
+This is the API-based Cron Pipeline (8-stage Horizon/Stellar Expert approach).
+The BigQuery Pipeline is now the primary data collection method.
+
+This file is retained for:
+- Educational purposes
+- API-based data collection demonstrations
+- Reference implementation of workflow tracking
+
+To use this pipeline: Manually create a workflow pointing to this file.
+NOT recommended for production use due to API rate limits and slower processing.
+"""
 import os
 import sys
 import time
