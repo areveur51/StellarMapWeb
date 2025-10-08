@@ -25,6 +25,8 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Fast Data Collection Pipeline**: An 8-stage sequential pipeline runs every 2 minutes, processing an address in 2-3 minutes. Includes automated execution, comprehensive workflow tracking (18 status constants), health monitoring, and stuck record recovery.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, using `Tenacity` for robust retries with exponential backoff.
 - **Two-Tier Creator Extraction**: Horizon operations fetched in ascending order (oldest first) to find `create_account` operations. For accounts created through claimable balances or other non-standard methods, Stellar Expert API serves as authoritative fallback source for creator attribution.
+- **BigQuery/Hubble Integration**: Complete child account discovery using Stellar's public BigQuery dataset (`crypto-stellar.crypto_stellar_dbt`). Two-tier approach: primary Horizon API (fast, ~1000 operations) with BigQuery fallback for complete historical data. Includes cost optimization through date-filtered queries and smart deduplication. Optional feature requiring Google Cloud service account with billing enabled.
+- **Automatic Child Account Discovery**: Pipeline Stage 8 automatically discovers and queues accounts created by each processed account. Merges results from Horizon pagination (1000 operations) and BigQuery (complete history), preventing duplicates and enabling bi-directional tree visualization (ancestors + descendants).
 - **Caching**: 12-hour caching for Stellar address searches to minimize API calls.
 - **Frontend Interactivity**: Django templates enhanced with Vue.js components, including a polling system for real-time updates and an interactive JSON viewer for detailed stage execution data.
 
@@ -66,6 +68,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **pandas**: Data manipulation.
 - **requests**: HTTP client.
 - **aiohttp**: Asynchronous HTTP client.
+- **google-cloud-bigquery**: Google BigQuery client for Stellar Hubble dataset queries.
 
 ## Frontend Dependencies
 - **D3.js**: Data visualization.
