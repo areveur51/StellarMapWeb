@@ -268,6 +268,7 @@ def account_lineage_api(request):
     try:
         from apiApp.models import StellarCreatorAccountLineage
         from datetime import datetime
+        import json
         
         def convert_timestamp(ts):
             if ts is None:
@@ -295,6 +296,30 @@ def account_lineage_api(request):
             ).all()
             
             for record in lineage_records:
+                assets = []
+                if record.horizon_accounts_json:
+                    try:
+                        horizon_data = json.loads(record.horizon_accounts_json)
+                        balances = horizon_data.get('balances', [])
+                        
+                        for balance in balances:
+                            asset_type = balance.get('asset_type', '')
+                            if asset_type != 'native':
+                                asset_code = balance.get('asset_code', '')
+                                asset_issuer = balance.get('asset_issuer', '')
+                                asset_balance = balance.get('balance', '0')
+                                
+                                assets.append({
+                                    'name': asset_code,
+                                    'node_type': 'ASSET',
+                                    'asset_type': asset_type,
+                                    'asset_code': asset_code,
+                                    'asset_issuer': asset_issuer,
+                                    'balance': float(asset_balance) if asset_balance else 0.0
+                                })
+                    except (json.JSONDecodeError, KeyError, ValueError) as e:
+                        pass
+                
                 record_data = {
                     'stellar_account': record.stellar_account,
                     'stellar_creator_account': record.stellar_creator_account,
@@ -302,6 +327,7 @@ def account_lineage_api(request):
                     'stellar_account_created_at': convert_timestamp(record.stellar_account_created_at),
                     'home_domain': record.home_domain,
                     'xlm_balance': record.xlm_balance,
+                    'assets': assets,
                     'status': record.status,
                     'created_at': convert_timestamp(record.created_at),
                     'updated_at': convert_timestamp(record.updated_at),
