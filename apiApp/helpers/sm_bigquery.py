@@ -210,36 +210,19 @@ class StellarBigQueryHelper:
     
     def get_account_data(self, account: str) -> Optional[Dict]:
         """
-        Get comprehensive account data from BigQuery including balance, flags, and assets.
+        Get minimal account lineage data from BigQuery (account ID and creation date only).
+        
+        All other account details (balance, flags, home_domain, assets, etc.) should be
+        retrieved from Stellar Expert or Horizon APIs to minimize BigQuery usage.
         
         Args:
             account: The Stellar account address to query
         
         Returns:
-            Dict containing account data:
+            Dict containing minimal account data for lineage tracking:
             {
                 'account_id': 'G...',
-                'balance': 1234567890,  # stroops
-                'buying_liabilities': 0,
-                'selling_liabilities': 0,
-                'num_subentries': 5,
-                'num_sponsored': 0,
-                'num_sponsoring': 0,
-                'sequence_number': 123456789,
-                'sequence_ledger': 123456,
-                'sequence_time': 1234567890,
-                'flags': 0,
-                'home_domain': 'example.com',
-                'master_weight': 1,
-                'threshold_low': 0,
-                'threshold_medium': 0,
-                'threshold_high': 0,
-                'last_modified_ledger': 123456,
-                'ledger_entry_change': 1,
-                'deleted': False,
-                'batch_id': '2025-01-01-000000',
-                'batch_run_date': '2025-01-01',
-                'closed_at': '2025-01-01T00:00:00Z'
+                'account_creation_date': '2017-12-05T14:09:53Z'
             }
         """
         if not self.is_available():
@@ -250,30 +233,7 @@ class StellarBigQueryHelper:
             query = """
                 SELECT 
                     account_id,
-                    account_creation_date,
-                    min_sequence_number,
-                    balance,
-                    buying_liabilities,
-                    selling_liabilities,
-                    num_subentries,
-                    num_sponsored,
-                    num_sponsoring,
-                    sequence_number,
-                    sequence_ledger,
-                    sequence_time,
-                    flags,
-                    home_domain,
-                    master_weight,
-                    threshold_low,
-                    threshold_medium,
-                    threshold_high,
-                    last_modified_ledger,
-                    ledger_entry_change,
-                    deleted,
-                    sponsor,
-                    inflation_destination,
-                    batch_run_date,
-                    closed_at
+                    account_creation_date
                 FROM `crypto-stellar.crypto_stellar_dbt.accounts_current`
                 WHERE account_id = @account
                 ORDER BY batch_run_date DESC
@@ -286,38 +246,15 @@ class StellarBigQueryHelper:
                 ]
             )
             
-            logger.info(f"Querying BigQuery for account data of {account}")
+            logger.info(f"Querying BigQuery for minimal account data of {account}")
             query_job = self.client.query(query, job_config=job_config)
             
             for row in query_job:
                 result = {
                     'account_id': row.account_id,
-                    'account_creation_date': row.account_creation_date.isoformat() if row.account_creation_date else None,
-                    'min_sequence_number': row.min_sequence_number,
-                    'balance': int(row.balance * 10000000) if row.balance else 0,
-                    'buying_liabilities': int(row.buying_liabilities * 10000000) if row.buying_liabilities else 0,
-                    'selling_liabilities': int(row.selling_liabilities * 10000000) if row.selling_liabilities else 0,
-                    'num_subentries': row.num_subentries,
-                    'num_sponsored': row.num_sponsored,
-                    'num_sponsoring': row.num_sponsoring,
-                    'sequence_number': row.sequence_number,
-                    'sequence_ledger': row.sequence_ledger,
-                    'sequence_time': row.sequence_time.isoformat() if row.sequence_time else None,
-                    'flags': row.flags,
-                    'home_domain': row.home_domain or '',
-                    'master_weight': row.master_weight,
-                    'threshold_low': row.threshold_low,
-                    'threshold_medium': row.threshold_medium,
-                    'threshold_high': row.threshold_high,
-                    'last_modified_ledger': row.last_modified_ledger,
-                    'ledger_entry_change': row.ledger_entry_change,
-                    'deleted': row.deleted,
-                    'sponsor': row.sponsor,
-                    'inflation_destination': row.inflation_destination,
-                    'batch_run_date': row.batch_run_date.isoformat() if row.batch_run_date else None,
-                    'closed_at': row.closed_at.isoformat() if row.closed_at else None
+                    'account_creation_date': row.account_creation_date.isoformat() if row.account_creation_date else None
                 }
-                logger.info(f"Found account data in BigQuery for {account}")
+                logger.info(f"Found account creation date in BigQuery for {account}")
                 return result
             
             logger.warning(f"No account data found in BigQuery for {account}")
