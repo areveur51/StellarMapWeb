@@ -375,26 +375,31 @@ class StellarBigQueryHelper:
     
     def get_instant_lineage(self, account: str) -> Dict:
         """
-        Get instant lineage data for an account by querying BigQuery directly.
+        Get instant MINIMAL lineage data for an account by querying BigQuery directly.
         This is used for immediate display when a user searches for an account.
         
-        Optimized to query only what's needed:
-        - Account data (full)
-        - Creator address and data (full)
-        - Child account addresses only (for display, full data fetched on-demand)
-        - Assets (full)
+        BigQuery returns ONLY lineage structure (parent-child relationships and creation dates).
+        All other data (assets, balance, home_domain, flags, etc.) should be fetched from
+        Horizon API or Stellar Expert to minimize BigQuery usage and costs.
+        
+        Optimized to query only essential lineage data:
+        - Account ID and creation date
+        - Creator account and creation date
+        - Child account addresses (for lineage tree structure)
         
         Args:
             account: The Stellar account address to query
         
         Returns:
-            Dict containing lineage data:
+            Dict containing minimal lineage data:
             {
-                'account': {account_data},
-                'creator': {creator_account_data},
-                'creator_address': 'G...',
-                'children_addresses': ['G...', 'G...', ...],
-                'assets': [{asset1}, {asset2}, ...]
+                'account': {'account_id': 'G...', 'account_creation_date': '...'},
+                'creator': {
+                    'creator_account': 'G...',
+                    'created_at': '...',
+                    'account_creation_date': '...'  # From get_account_data
+                },
+                'children_addresses': ['G...', 'G...', ...]
             }
         """
         if not self.is_available():
@@ -402,36 +407,34 @@ class StellarBigQueryHelper:
             return {
                 'account': None,
                 'creator': None,
-                'creator_address': None,
-                'children_addresses': [],
-                'assets': []
+                'children_addresses': []
             }
         
         try:
-            # Query account data
+            # Query minimal account data (ID and creation date only)
             account_data = self.get_account_data(account)
             
-            # Query assets
-            assets = self.get_account_assets(account)
-            
-            # Query creator and creator's data
-            creator_address = self.get_account_creator(account)
+            # Query creator info (address and creation date)
+            creator_info = self.get_account_creator(account)
             creator_data = None
-            if creator_address:
-                creator_data = self.get_account_data(creator_address)
+            if creator_info:
+                # Get creator's account creation date
+                creator_account_data = self.get_account_data(creator_info['creator_account'])
+                creator_data = {
+                    **creator_info,  # creator_account and created_at
+                    'account_creation_date': creator_account_data['account_creation_date'] if creator_account_data else None
+                }
             
             # Query child addresses only (limited to 100 for instant display)
             children = self.get_child_accounts(account, limit=100)
             children_addresses = [child['account'] for child in children]
             
-            logger.info(f"Instant lineage query complete: account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}")
+            logger.info(f"Instant minimal lineage query complete: account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}")
             
             return {
                 'account': account_data,
                 'creator': creator_data,
-                'creator_address': creator_address,
-                'children_addresses': children_addresses,
-                'assets': assets
+                'children_addresses': children_addresses
             }
             
         except Exception as e:
@@ -440,9 +443,7 @@ class StellarBigQueryHelper:
             return {
                 'account': None,
                 'creator': None,
-                'creator_address': None,
-                'children_addresses': [],
-                'assets': []
+                'children_addresses': []
             }
     
     def get_dataset_info(self) -> Dict:
