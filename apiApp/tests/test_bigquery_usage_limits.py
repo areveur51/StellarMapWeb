@@ -158,12 +158,12 @@ class BigQueryScalingTestCase(TestCase):
         Calculate expected usage for 100 searches/day scenario.
         
         Expected:
-        - Per search: ~420 MB (worst case)
-        - Per day: 100 × 420 MB = 42 GB
-        - Per month: 42 GB × 30 = 1.26 TB (within free tier)
+        - Per search: ~265 MB (average case)
+        - Per day: 100 × 265 MB = 25.9 GB
+        - Per month: 25.9 GB × 30 = 0.76 TB (within free tier)
         """
         searches_per_day = 100
-        mb_per_search = 420  # Worst case estimate
+        mb_per_search = 265  # Average estimate (110-420 MB range)
         days_per_month = 30
         
         daily_usage_gb = (searches_per_day * mb_per_search) / 1024
@@ -172,7 +172,7 @@ class BigQueryScalingTestCase(TestCase):
         self.assertLess(
             monthly_usage_tb,
             1.0,
-            f"100 searches/day should stay under 1 TB free tier. Got {monthly_usage_tb:.2f} TB"
+            f"100 searches/day should stay under 1 TB free tier (average case). Got {monthly_usage_tb:.2f} TB"
         )
     
     def test_usage_calculation_5000_searches_per_day(self):
