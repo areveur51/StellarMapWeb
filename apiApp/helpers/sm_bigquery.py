@@ -119,7 +119,7 @@ class StellarBigQueryHelper:
                     ledger_sequence
                 FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
                 WHERE type = 0
-                  AND source_account = @parent_account
+                  AND funder = @parent_account
                   {date_filter}
                 ORDER BY closed_at ASC
                 LIMIT {limit}
