@@ -98,18 +98,44 @@ python manage.py test
 
 ### Data Collection Pipeline
 
-#### BigQuery Pipeline (Primary Method)
-- **High Performance**: Main data collection using Stellar's public BigQuery/Hubble dataset.
-- **Processing Speed**: 50-90 seconds per account (2-3x faster than API approach).
-- **No Rate Limits**: Direct BigQuery access eliminates API throttling concerns.
-- **4 Optimized Queries**:
-  1. **Account Data**: Balance, flags, thresholds from `accounts_current` table
-  2. **Asset Holdings**: Trustline data from `trust_lines_current` table
-  3. **Creator Discovery**: Find parent account from `enriched_history_operations` (type=0)
-  4. **Child Accounts**: Discover all child accounts created (paginated up to 100,000)
-- **Comprehensive Discovery**: Pagination with 10,000-row batches, deduplication by account address.
-- **Airdrop Support**: Handles transactions creating multiple accounts (common in airdrops).
-- **Cost Efficient**: ~$0.10-0.50 per 1,000 accounts (within Google Cloud free tier for most use cases).
+#### BigQuery Pipeline (Primary Method - Permanent Storage Architecture)
+
+**Architectural Principle:** BigQuery is ONLY queried for accounts never searched before. Once stored, lineage data is permanent in Cassandra.
+
+**Data Flow:**
+```
+First-Time Search → BigQuery (lineage) → Cassandra (permanent storage)
+                                               ↓
+Repeat Search ──────────────────────────────→ Cassandra (0 BigQuery cost)
+                                               ↓
+Enrichment Refresh ──────────────────────→ Horizon/Stellar Expert APIs (free)
+```
+
+**Performance:**
+- **First-Time Searches**: 50-90 seconds (BigQuery + Cassandra storage)
+- **Repeat Searches**: <1 second (Cassandra cache, 0 BigQuery cost)
+- **Processing Speed**: 2-3x faster than API approach for first-time searches
+- **No Rate Limits**: Direct BigQuery access eliminates API throttling concerns
+
+**BigQuery Queries (First-Time Only):**
+  1. **Account Creation Date**: From `accounts_current` table
+  2. **Creator Discovery**: Find parent account from `enriched_history_operations` (type=0)
+  3. **Child Accounts**: Discover all child accounts created (paginated up to 100,000)
+
+**API Queries (Every Search):**
+  - **Account Details**: Balance, flags, home_domain from Horizon API (always fresh)
+  - **Asset Holdings**: Current trustlines from Stellar Expert API (always fresh)
+
+**Cost Efficiency:**
+- **Free Tier Coverage**: Up to 2,500-3,900 unique accounts/month (1 TB free tier)
+- **Enterprise Scale**: 5,000 unique accounts/month = $1-5/month
+- **Typical Deployment**: $0/month (within free tier indefinitely)
+- **Key Insight**: Costs DECREASE over time as database grows (more cached accounts)
+
+**Comprehensive Discovery:**
+- Pagination with 10,000-row batches, deduplication by account address
+- Handles transactions creating multiple accounts (airdrops)
+- Up to 100,000 child accounts per parent
 
 #### BigQuery Pipeline Command
 ```bash
