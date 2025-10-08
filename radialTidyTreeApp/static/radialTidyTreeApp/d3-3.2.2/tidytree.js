@@ -11,6 +11,11 @@ const dataURI = "";
 let hierarchy = {};
 let chart;
 
+// Persistent storage for ISSUER node spiral radii to prevent glitching on re-render
+const issuerSpiralRadii = {};
+// Track current root account to detect dataset changes
+let currentRootAccount = null;
+
 //Sizing
 let margin = ({top: 30, right: 60, bottom: 30, left: 30});
 const viewportWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
@@ -274,6 +279,13 @@ function renderRadialTree(jsonData) {
                 children: []
             };
         }
+        
+        // Clear spiral radii cache only when root account changes (dataset change)
+        const newRootAccount = processedData.stellar_account || processedData.name;
+        if (newRootAccount !== currentRootAccount) {
+            Object.keys(issuerSpiralRadii).forEach(key => delete issuerSpiralRadii[key]);
+            currentRootAccount = newRootAccount;
+        }
 
         console.log('Processing tree data:', processedData);
 
@@ -411,8 +423,20 @@ function renderRadialTree(jsonData) {
                 }
                 
                 // Apply RADIAL offset to create spiral/galaxy effect (each ISSUER node slightly further out)
-                issuerNodes.forEach((node, index) => {
-                    node.spiralRadius = node.y + (index * spiralRadiusStep);
+                // Use persistent storage to prevent glitching on re-render
+                issuerNodes.forEach((node) => {
+                    const nodeId = node.data.stellar_account || node.data.name;
+                    const depthKey = `${depth}_${nodeId}`;
+                    
+                    // If we haven't assigned a spiral radius for this node, assign one
+                    if (!(depthKey in issuerSpiralRadii)) {
+                        // Count how many ISSUER nodes at this depth already have assigned radii
+                        const existingCount = Object.keys(issuerSpiralRadii).filter(k => k.startsWith(`${depth}_`)).length;
+                        issuerSpiralRadii[depthKey] = node.y + (existingCount * spiralRadiusStep);
+                    }
+                    
+                    // Use the persistent spiral radius
+                    node.spiralRadius = issuerSpiralRadii[depthKey];
                 });
             }
         });

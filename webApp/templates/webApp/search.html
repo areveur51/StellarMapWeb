@@ -160,7 +160,7 @@
                   </div>
                 </template>
               </b-tab>
-              <b-tab title="JSON" :title-link-attributes="{ title: 'Raw JSON response data' }">
+              <b-tab title="Tree Data" :title-link-attributes="{ title: 'Raw JSON data structure used to render the radial tidy tree visualization' }">
                 <pre v-html="highlightedJSONResponse"></pre>
               </b-tab>
               <b-tab title="Search Cache" :title-link-attributes="{ title: 'Cache status and metadata for this search' }">
@@ -211,12 +211,6 @@
                     No stage execution data available for this address. Stages will appear once processing begins.
                   </div>
                 </template>
-              </b-tab>
-              <b-tab title="TOML" :title-link-attributes="{ title: 'Stellar TOML configuration files' }">
-                <b-card-text>TOML outputs</b-card-text>
-              </b-tab>
-              <b-tab title="TERMINAL" :title-link-attributes="{ title: 'Terminal output and logs' }">
-                <b-card-text>Terminal outputs</b-card-text>
               </b-tab>
             </b-tabs>
           </b-card>
