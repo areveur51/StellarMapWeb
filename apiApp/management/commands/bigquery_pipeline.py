@@ -137,14 +137,17 @@ class Command(BaseCommand):
     
     def _process_account(self, account_obj, bq_helper):
         """
-        Process a single account using BigQuery.
+        Process a single account using MINIMAL BigQuery data + Horizon/Stellar Expert APIs.
         
-        Steps:
-        1. Get account data (balance, flags)
-        2. Get asset holdings
-        3. Get creator account
-        4. Get child accounts
-        5. Update database
+        BigQuery provides ONLY lineage structure (minimizes costs):
+        1. Account creation date
+        2. Creator account and creation date
+        3. Child accounts
+        
+        Horizon/Stellar Expert provide account details:
+        4. Balance, home_domain, flags (from Horizon)
+        5. Assets (from Stellar Expert)
+        6. Update database
         """
         account = account_obj.stellar_account
         start_time = datetime.utcnow()
@@ -153,8 +156,8 @@ class Command(BaseCommand):
             account_obj.status = 'PROCESSING'
             account_obj.save()
             
-            # Step 1: Get account data
-            self.stdout.write('  → Fetching account data from BigQuery...')
+            # Step 1: Get MINIMAL account data from BigQuery (just creation date)
+            self.stdout.write('  → Fetching minimal account data from BigQuery...')
             account_data = bq_helper.get_account_data(account)
             
             if not account_data:
@@ -166,43 +169,52 @@ class Command(BaseCommand):
                 return False
             
             self.stdout.write(self.style.SUCCESS(
-                f'    ✓ Balance: {account_data["balance"]} stroops'
+                f'    ✓ Created: {account_data["account_creation_date"]}'
             ))
             
-            # Step 2: Get asset holdings
-            self.stdout.write('  → Fetching asset holdings from BigQuery...')
-            assets = bq_helper.get_account_assets(account)
-            self.stdout.write(self.style.SUCCESS(
-                f'    ✓ Found {len(assets)} assets'
-            ))
+            # Step 2: Get creator account from BigQuery
+            self.stdout.write('  → Fetching creator from BigQuery...')
+            creator_info = bq_helper.get_account_creator(account)
             
-            # Step 3: Get creator account
-            self.stdout.write('  → Fetching creator account from BigQuery...')
-            creator = bq_helper.get_account_creator(account)
-            
-            if creator:
+            if creator_info:
                 self.stdout.write(self.style.SUCCESS(
-                    f'    ✓ Creator: {creator}'
+                    f'    ✓ Creator: {creator_info["creator_account"]}'
                 ))
             else:
                 self.stdout.write(self.style.WARNING(
                     '    ⚠ Creator not found (might be root account)'
                 ))
             
-            # Step 4: Get child accounts (paginated for high-fanout accounts)
+            # Step 3: Get child accounts from BigQuery (paginated)
             self.stdout.write('  → Fetching child accounts from BigQuery...')
             children = self._get_all_child_accounts(bq_helper, account)
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Found {len(children)} child accounts'
             ))
             
-            # Step 5: Update database
+            # Step 4: Get account details from Horizon API (balance, home_domain, flags)
+            self.stdout.write('  → Fetching account details from Horizon API...')
+            horizon_data = self._fetch_horizon_account_data(account)
+            if horizon_data:
+                self.stdout.write(self.style.SUCCESS(
+                    f'    ✓ Balance: {horizon_data.get("balance", 0)} XLM'
+                ))
+            
+            # Step 5: Get assets from Stellar Expert API
+            self.stdout.write('  → Fetching assets from Stellar Expert API...')
+            assets = self._fetch_stellar_expert_assets(account)
+            self.stdout.write(self.style.SUCCESS(
+                f'    ✓ Found {len(assets)} assets'
+            ))
+            
+            # Step 6: Update database
             self.stdout.write('  → Updating database...')
             self._update_account_in_database(
                 account_obj, 
                 account_data, 
+                horizon_data,
                 assets, 
-                creator, 
+                creator_info, 
                 children,
                 start_time
             )
@@ -227,49 +239,128 @@ class Command(BaseCommand):
             account_obj.save()
             return False
     
+    def _fetch_horizon_account_data(self, account):
+        """
+        Fetch account details from Horizon API (balance, home_domain, flags).
+        Returns dict with account details or None if fetch fails.
+        """
+        try:
+            from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers, StellarMapHorizonAPIParserHelpers
+            
+            horizon_helper = StellarMapHorizonAPIHelpers(
+                horizon_url='https://horizon.stellar.org',
+                account_id=account
+            )
+            
+            account_response = horizon_helper.get_base_accounts()
+            
+            if not account_response:
+                logger.warning(f'Failed to fetch Horizon data for {account}')
+                return None
+            
+            parser = StellarMapHorizonAPIParserHelpers(account_response)
+            
+            return {
+                'balance': parser.parse_account_native_balance(),
+                'home_domain': parser.parse_account_home_domain(),
+                'flags': account_response.get('flags', {}),
+                'thresholds': account_response.get('thresholds', {}),
+                'signers': account_response.get('signers', []),
+                'sequence': account_response.get('sequence'),
+                'subentry_count': account_response.get('subentry_count', 0),
+                'num_sponsoring': account_response.get('num_sponsoring', 0),
+                'num_sponsored': account_response.get('num_sponsored', 0)
+            }
+            
+        except Exception as e:
+            logger.error(f'Error fetching Horizon data for {account}: {e}')
+            sentry_sdk.capture_exception(e)
+            return None
+    
+    def _fetch_stellar_expert_assets(self, account):
+        """
+        Fetch asset holdings from Stellar Expert API.
+        Returns list of assets or empty list if fetch fails.
+        """
+        try:
+            from apiApp.helpers.sm_stellarexpert import StellarMapStellarExpertAPIHelpers
+            
+            expert_helper = StellarMapStellarExpertAPIHelpers(
+                stellar_account=account,
+                network_name='public'
+            )
+            
+            assets_response = expert_helper.get_se_asset_list()
+            
+            if not assets_response:
+                return []
+            
+            # Parse and format assets
+            assets = []
+            if isinstance(assets_response, list):
+                for asset in assets_response:
+                    if isinstance(asset, dict):
+                        assets.append({
+                            'asset_code': asset.get('asset_code'),
+                            'asset_issuer': asset.get('asset_issuer'),
+                            'balance': asset.get('balance', 0),
+                            'asset_type': asset.get('asset_type')
+                        })
+            
+            return assets
+            
+        except Exception as e:
+            logger.error(f'Error fetching Stellar Expert assets for {account}: {e}')
+            sentry_sdk.capture_exception(e)
+            return []
+    
     def _update_account_in_database(
         self, 
         account_obj, 
-        account_data, 
-        assets, 
-        creator, 
-        children,
+        account_data,  # Minimal BigQuery data (account_id, account_creation_date)
+        horizon_data,  # Horizon API data (balance, home_domain, flags)
+        assets,  # Stellar Expert assets
+        creator_info,  # Creator info from BigQuery (dict with creator_account, created_at)
+        children,  # Children from BigQuery
         start_time
     ):
-        """Update account data in database."""
+        """
+        Update account data in database using combined data from:
+        - BigQuery: lineage structure (creation dates, parent-child relationships)
+        - Horizon API: account details (balance, home_domain, flags)
+        - Stellar Expert: assets
+        """
         try:
-            # Store account data
+            # Store account data (combined BigQuery + Horizon)
             account_obj.stellar_account_attributes_json = json.dumps({
-                'source': 'bigquery',
-                'balance': account_data['balance'],
-                'flags': account_data['flags'],
-                'home_domain': account_data['home_domain'],
-                'thresholds': {
-                    'low': account_data['threshold_low'],
-                    'medium': account_data['threshold_medium'],
-                    'high': account_data['threshold_high']
-                },
-                'master_weight': account_data['master_weight'],
-                'num_subentries': account_data['num_subentries'],
-                'num_sponsored': account_data['num_sponsored'],
-                'num_sponsoring': account_data['num_sponsoring'],
-                'sequence': account_data['sequence_number'],
-                'last_modified_ledger': account_data['last_modified_ledger'],
-                'batch_run_date': account_data['batch_run_date']
+                'source': 'bigquery_minimal + horizon + stellar_expert',
+                'account_creation_date': account_data.get('account_creation_date'),
+                'balance': int(horizon_data.get('balance', 0) * 10000000) if horizon_data else 0,
+                'home_domain': horizon_data.get('home_domain', '') if horizon_data else '',
+                'flags': horizon_data.get('flags', {}) if horizon_data else {},
+                'thresholds': horizon_data.get('thresholds', {}) if horizon_data else {},
+                'signers': horizon_data.get('signers', []) if horizon_data else [],
+                'sequence': horizon_data.get('sequence') if horizon_data else None,
+                'subentry_count': horizon_data.get('subentry_count', 0) if horizon_data else 0,
+                'num_sponsoring': horizon_data.get('num_sponsoring', 0) if horizon_data else 0,
+                'num_sponsored': horizon_data.get('num_sponsored', 0) if horizon_data else 0
             })
             
-            # Store assets
+            # Store assets (from Stellar Expert)
             account_obj.stellar_account_assets_json = json.dumps({
-                'source': 'bigquery',
+                'source': 'stellar_expert',
                 'count': len(assets),
                 'assets': assets
             })
             
-            # Store creator
-            if creator:
-                account_obj.stellar_creator_account = creator
+            # Store creator (from BigQuery)
+            if creator_info:
+                account_obj.stellar_creator_account = creator_info['creator_account']
+                account_obj.stellar_account_created_at = creator_info.get('created_at')
+            elif account_data.get('account_creation_date'):
+                account_obj.stellar_account_created_at = account_data['account_creation_date']
             
-            # Store child accounts
+            # Store child accounts (from BigQuery)
             account_obj.child_accounts_json = json.dumps({
                 'source': 'bigquery',
                 'count': len(children),
@@ -284,11 +375,20 @@ class Command(BaseCommand):
                 ]
             })
             
-            # Calculate flags
-            account_obj.stellar_flag_auth_required = bool(account_data['flags'] & 1)
-            account_obj.stellar_flag_auth_revocable = bool(account_data['flags'] & 2)
-            account_obj.stellar_flag_auth_immutable = bool(account_data['flags'] & 4)
-            account_obj.stellar_flag_auth_clawback_enabled = bool(account_data['flags'] & 8)
+            # Calculate flags from Horizon data
+            if horizon_data and 'flags' in horizon_data:
+                flags = horizon_data['flags']
+                if isinstance(flags, dict):
+                    account_obj.stellar_flag_auth_required = flags.get('auth_required', False)
+                    account_obj.stellar_flag_auth_revocable = flags.get('auth_revocable', False)
+                    account_obj.stellar_flag_auth_immutable = flags.get('auth_immutable', False)
+                    account_obj.stellar_flag_auth_clawback_enabled = flags.get('auth_clawback_enabled', False)
+                elif isinstance(flags, int):
+                    # Handle numeric flags
+                    account_obj.stellar_flag_auth_required = bool(flags & 1)
+                    account_obj.stellar_flag_auth_revocable = bool(flags & 2)
+                    account_obj.stellar_flag_auth_immutable = bool(flags & 4)
+                    account_obj.stellar_flag_auth_clawback_enabled = bool(flags & 8)
             
             # Update timestamps and status
             account_obj.last_fetched_at = datetime.utcnow()
@@ -296,8 +396,8 @@ class Command(BaseCommand):
             account_obj.save()
             
             # Queue creator account for processing
-            if creator:
-                self._queue_creator_account(creator, account_obj.stellar_account)
+            if creator_info:
+                self._queue_creator_account(creator_info['creator_account'], account_obj.stellar_account)
             
             # Queue child accounts for processing
             if children:
