@@ -249,20 +249,16 @@ function makeTree(data) {
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
     try {
-        // Clear any existing SVG
         const existingSvg = document.querySelector('#tree');
         if (existingSvg) {
             existingSvg.innerHTML = '';
         }
 
-        // Handle different data structures
         let processedData;
         if (jsonData && typeof jsonData === 'object') {
-            // If it's a hierarchical structure like {name: 'Root', children: [...]}
-            if (jsonData.name || jsonData.children) {
+            if (jsonData.name || jsonData.children || jsonData.stellar_account) {
                 processedData = jsonData;
             } else {
-                // Create a default root structure
                 processedData = {
                     name: jsonData.stellar_account || 'Root Node',
                     node_type: jsonData.node_type || 'ACCOUNT',
@@ -271,7 +267,6 @@ function renderRadialTree(jsonData) {
                 };
             }
         } else {
-            // Fallback data structure
             processedData = {
                 name: 'Sample Root',
                 node_type: 'ACCOUNT',
@@ -282,82 +277,233 @@ function renderRadialTree(jsonData) {
 
         console.log('Processing tree data:', processedData);
 
-        // Create hierarchy from the processed data
-        const root = d3.hierarchy(processedData);
-        
-        // Setup tree layout
-        const width = 800;
-        const height = 800;
-        
-        // Clear existing tree and create new one
+        const container = document.querySelector('.visualization-container') || document.body;
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || window.innerWidth;
+        const height = containerRect.height || window.innerHeight;
+        const size = Math.min(width, height);
+        const radius = size / 2 - 100;
+
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
-            // If no #tree element exists, append to body
-            d3.select('body').append('svg')
-                .attr('id', 'tree')
-                .attr('width', width)
-                .attr('height', height);
+            d3.select('body').append('svg').attr('id', 'tree');
         }
         
         const svg = d3.select('#tree')
-            .attr('width', width)
-            .attr('height', height);
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${size} ${size}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
             
-        svg.selectAll('*').remove(); // Clear existing content
+        svg.selectAll('*').remove();
 
-        const treeLayout = d3.tree()
-            .size([2 * Math.PI, Math.min(width, height) / 2 - 10]);
+        const g = svg.append('g')
+            .attr('transform', `translate(${size / 2},${size / 2})`);
 
-        // Apply tree layout
-        treeLayout(root);
+        const breadcrumbContainer = svg.append('g')
+            .attr('class', 'breadcrumb-container')
+            .attr('transform', 'translate(20, 20)');
 
-        // Create links
-        const links = svg.selectAll('.link')
+        const tree = d3.tree()
+            .size([2 * Math.PI, radius])
+            .separation((a, b) => {
+                return (a.parent === b.parent ? 3 : 4) / (a.depth + 1);
+            });
+
+        const root = d3.hierarchy(processedData);
+        console.log('Tree has', root.children ? root.children.length : 0, 'children');
+
+        tree(root);
+
+        // Calculate spiral positions for same-depth nodes
+        const nodesByDepth = {};
+        root.descendants().forEach(d => {
+            if (!nodesByDepth[d.depth]) nodesByDepth[d.depth] = [];
+            nodesByDepth[d.depth].push(d);
+        });
+
+        // Add spiral offset to avoid overlap
+        Object.keys(nodesByDepth).forEach(depth => {
+            const nodes = nodesByDepth[depth];
+            nodes.forEach((node, index) => {
+                // Create spiral effect by adding incremental radius offset
+                const spiralOffset = (index / nodes.length) * 20; // Spread nodes in spiral pattern
+                node.spiralRadius = node.y + spiralOffset;
+            });
+        });
+
+        const link = g.selectAll('.link')
             .data(root.links())
-            .enter()
-            .append('path')
+            .enter().append('path')
             .attr('class', 'link')
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
-                .radius(d => d.y))
+                .radius(d => d.spiralRadius || d.y))
+            .style('stroke', '#3f2c70')
+            .style('stroke-width', '1.5px')
             .style('fill', 'none')
-            .style('stroke', '#555')
-            .style('stroke-width', '2px');
+            .style('opacity', 0.6);
 
-        // Create nodes
-        const nodes = svg.selectAll('.node')
+        const node = g.selectAll('.node')
             .data(root.descendants())
-            .enter()
-            .append('g')
+            .enter().append('g')
             .attr('class', 'node')
-            .attr('transform', d => `
-                translate(${Math.cos(d.x - Math.PI / 2) * d.y + width / 2}, 
-                         ${Math.sin(d.x - Math.PI / 2) * d.y + height / 2})
-            `);
+            .attr('transform', d => {
+                const angle = (d.x * 180 / Math.PI) - 90;
+                const nodeRadius = d.spiralRadius || d.y;
+                return `rotate(${angle})translate(${nodeRadius},0)`;
+            });
 
-        // Add circles for nodes
-        nodes.append('circle')
-            .attr('r', 6)
-            .style('fill', '#69b3a2')
-            .style('stroke', '#333')
-            .style('stroke-width', '2px');
+        node.append('circle')
+            .attr('r', 5)
+            .attr('data-node-type', d => d.data.node_type)
+            .style('fill', '#3f2c70')
+            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
+            .style('stroke-width', '2px')
+            .on('mouseover', function(event, d) { showTooltip(event, d); })
+            .on('mouseout', function(event, d) { hideTooltip(); });
 
-        // Add labels
-        nodes.append('text')
-            .attr('dy', '.35em')
-            .attr('x', d => d.x < Math.PI === !d.children ? 6 : -6)
-            .style('text-anchor', d => d.x < Math.PI === !d.children ? 'start' : 'end')
-            .attr('transform', d => 'rotate(' + (d.x < Math.PI ? d.x - Math.PI / 2 : d.x + Math.PI / 2) * 180 / Math.PI + ')')
-            .text(d => d.data.name || d.data.stellar_account || 'Node')
-            .style('font-size', '12px')
-            .style('fill', '#333');
+        node.append('text')
+            .attr('dy', '.31em')
+            .attr('x', d => d.x < Math.PI ? 12 : -12)
+            .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
+            .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
+            .text(d => {
+                // For ISSUER nodes (stellar_account), show last 6 characters
+                if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
+                    return d.data.stellar_account.slice(-6);
+                }
+                // For ASSET nodes, show the asset code
+                return d.data.asset_code || d.data.name || 'Unnamed';
+            })
+            .style('fill', 'white')
+            .style('font-size', '13px')
+            .style('font-weight', '500')
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
+
+        let tooltip = d3.select('body').select('.tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0)
+                .style('position', 'absolute')
+                .style('color', 'black')
+                .style('padding', '10px')
+                .style('border-radius', '6px')
+                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
+                .style('font', '12px sans-serif')
+                .style('width', '250px')
+                .style('word-wrap', 'break-word')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+        }
+
+        function getPathToRoot(node) {
+            const path = [];
+            let current = node;
+            while (current) {
+                path.unshift(current);
+                current = current.parent;
+            }
+            return path;
+        }
+
+        function showTooltip(event, d) {
+            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
+            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
+            
+            const pathToRoot = getPathToRoot(d);
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
+            }
+            
+            link.style('stroke', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '3px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? 1 : 0.3;
+            });
+
+            breadcrumbContainer.selectAll('*').remove();
+            
+            let xOffset = 0;
+            pathToRoot.forEach((node, i) => {
+                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+                const breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
+                const textWidth = breadcrumbText.length * 7;
+                
+                breadcrumbContainer.append('rect')
+                    .attr('x', xOffset)
+                    .attr('y', 0)
+                    .attr('width', textWidth + 20)
+                    .attr('height', 25)
+                    .attr('fill', breadcrumbColor)
+                    .attr('rx', 4);
+                
+                breadcrumbContainer.append('text')
+                    .attr('x', xOffset + 10)
+                    .attr('y', 17)
+                    .text(breadcrumbText)
+                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold');
+                
+                xOffset += textWidth + 25;
+                
+                if (i < pathToRoot.length - 1) {
+                    breadcrumbContainer.append('text')
+                        .attr('x', xOffset)
+                        .attr('y', 17)
+                        .text('>')
+                        .style('fill', 'white')
+                        .style('font-size', '14px')
+                        .style('font-weight', 'bold');
+                    xOffset += 20;
+                }
+            });
+            
+            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
+            if (d.data.node_type === 'ASSET') {
+                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
+                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
+                tooltipHTML += '<b>Balance:</b> ' + (d.data.balance || '0') + '<br>';
+            } else {
+                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
+                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
+                tooltipHTML += '<b>XLM Balance:</b> ' + (d.data.xlm_balance || '0') + '<br>';
+                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
+            }
+            tooltip.html(tooltipHTML)
+                .style('background', backgroundColor)
+                .style('color', textColor)
+                .style('opacity', 1)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+        }
+
+        function hideTooltip() {
+            tooltip.style('opacity', 0);
+            
+            link.style('stroke', '#3f2c70')
+                .style('stroke-width', '1.5px')
+                .style('opacity', 0.6);
+            
+            breadcrumbContainer.selectAll('*').remove();
+        }
 
         console.log('Radial tree rendered successfully');
         
     } catch (error) {
         console.error('Error rendering radial tree:', error);
         
-        // Show a simple fallback visualization
         const svg = d3.select('#tree');
         if (!svg.empty()) {
             svg.selectAll('*').remove();
