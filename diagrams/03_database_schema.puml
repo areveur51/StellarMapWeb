@@ -81,12 +81,23 @@ note right of StellarAccountSearchCache #231B3D
   ])
 end note
 
+note right of StellarCreatorAccountLineage #231B3D
+  <color:#0BE784>Data Source:
+  <color:#96DDF2>Primary: <color:#0BE784>BigQuery Pipeline
+  <color:#96DDF2>• Account data
+  <color:#96DDF2>• Assets
+  <color:#96DDF2>• Creator info
+  <color:#96DDF2>• Child accounts
+  
+  <color:#96DDF2>Educational: API Pipeline
+end note
+
 note right of ManagementCronHealth #231B3D
   <color:#0BE784>Health Statuses:
   <color:#96DDF2>• HEALTHY
   <color:#E5526F>• UNHEALTHY_RATE_LIMITED
   
-  <color:#96DDF2>Cron skips when unhealthy
+  <color:#96DDF2>Monitors both pipelines
 end note
 
 @enduml

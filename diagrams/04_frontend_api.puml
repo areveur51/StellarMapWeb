@@ -77,12 +77,22 @@ note right of PendingAPI #231B3D
   <color:#01C176>Result: 88% fewer queries
 end note
 
+note right of SearchAPI #231B3D
+  <color:#0BE784>Pipeline Initiation:
+  <color:#96DDF2>1. Validate address
+  2. Queue as PENDING
+  3. <color:#0BE784>BigQuery Pipeline processes
+  <color:#96DDF2>4. Returns in 50-90 seconds
+  
+  <color:#96DDF2>Up to 100K children/parent
+end note
+
 note right of StagesAPI #231B3D
   <color:#0BE784>Features:
   <color:#96DDF2>• Real-time progress
   • Interactive JSON viewer
   • Immediate initialization
-  • 8 stages per address
+  • Pipeline tracking
 end note
 
 @enduml

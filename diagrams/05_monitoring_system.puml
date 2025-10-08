@@ -31,29 +31,46 @@ skinparam note {
 title <color:#0BE784>Monitoring & Health System
 
 package "Monitoring Components" #231B3D {
-  component "Cron Health\nMonitor" as CronHealth
+  component "Health\nMonitor" as HealthMonitor
   component "Stuck Record\nRecovery" as Recovery
-  component "Stage Execution\nTracker" as StageTracker
+  component "Progress\nTracker" as ProgressTracker
 }
 
-component "Cron Worker\n(run_cron_jobs.py)" as CronWorker
+component "BigQuery Pipeline\n(Primary)" as BQPipeline
+component "API Pipeline\n(Educational)" as APIPipeline
 
 database "ManagementCronHealth\nTable" as HealthDB
-database "Stage Execution\nTable" as StageDB
+database "Progress Tracking\nTable" as ProgressDB
 database "Cache & Lineage\nTables" as DataDB
 
-CronWorker -[#01C176]-> CronHealth : "Checks before run"
-CronHealth -[#01C176]-> HealthDB : "Reads status"
+BQPipeline -[#0BE784]-> ProgressTracker : "Tracks processing"
+APIPipeline -[#96DDF2,dashed]-> ProgressTracker : "(If enabled)"
 
-CronWorker -[#01C176]-> StageTracker : "Executes stages\n(if healthy)"
-StageTracker -[#01C176]-> StageDB : "Updates progress"
+ProgressTracker -[#01C176]-> ProgressDB : "Updates status"
 
-CronHealth -[#E5526F]-> CronWorker : "Skips processing\n(if unhealthy)"
+HealthMonitor -[#01C176]-> HealthDB : "Monitors health"
+HealthMonitor -[#01C176]-> BQPipeline : "Checks BigQuery"
+HealthMonitor -[#96DDF2,dashed]-> APIPipeline : "(If enabled)"
 
 Recovery -[#01C176]-> DataDB : "Finds stuck records"
 Recovery -[#01C176]-> DataDB : "Resets to PENDING"
 
-note right of CronHealth #231B3D
+note right of BQPipeline #231B3D
+  <color:#0BE784>BigQuery Pipeline:
+  <color:#96DDF2>• 50-90 second processing
+  <color:#96DDF2>• No rate limits
+  <color:#96DDF2>• Continuous operation
+  <color:#96DDF2>• Up to 100 accounts/batch
+end note
+
+note right of APIPipeline #231B3D
+  <color:#96DDF2>API Pipeline (Reference):
+  <color:#96DDF2>• 8 sequential stages
+  <color:#96DDF2>• Educational purposes
+  <color:#96DDF2>• Not enabled by default
+end note
+
+note right of HealthMonitor #231B3D
   <color:#0BE784>Health Statuses:
   <color:#96DDF2>• HEALTHY
   <color:#E5526F>• UNHEALTHY_RATE_LIMITED
@@ -75,13 +92,13 @@ note right of Recovery #231B3D
   • INVALID_HORIZON_STELLAR_ADDRESS
 end note
 
-note right of StageTracker #231B3D
-  <color:#0BE784>Stage Lifecycle:
-  <color:#96DDF2>1. Initialize all 8 stages
-  2. Update status per stage
-  3. Track execution time
-  4. Log errors
-  5. Display in UI
+note right of ProgressTracker #231B3D
+  <color:#0BE784>Tracking Features:
+  <color:#96DDF2>1. Real-time status updates
+  2. Execution time logging
+  3. Error tracking
+  4. UI display
+  5. JSON viewer support
 end note
 
 @enduml

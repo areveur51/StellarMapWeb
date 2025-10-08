@@ -55,12 +55,12 @@ package "Django Application" #231B3D {
 }
 
 package "Background Services" #231B3D {
-  component "BigQuery Pipeline\n(50-90 sec processing)" as BQPipeline #0BE784
+  component "BigQuery Pipeline\n(50-90 sec processing)" as BQPipeline
   component "API Pipeline (Educational)\n(8-stage, 2-3 min)" as APIPipeline
 }
 
 cloud "Data Sources" #231B3D {
-  database "BigQuery/Hubble\n(Stellar Dataset)" as BigQuery #0BE784
+  database "BigQuery/Hubble\n(Stellar Dataset)" as BigQuery
   component "Horizon API" as Horizon
   component "Stellar Expert" as Expert
 }

@@ -18,31 +18,41 @@ skinparam note {
 
 title <color:#0BE784>Data Collection: BigQuery (Primary) & API (Educational)
 
-|<b><color:#0BE784>BigQuery Pipeline (50-90 seconds)|
+|<b><color:#0BE784>BigQuery Pipeline (50-90 seconds)|<b><color:#96DDF2>API Pipeline (2-3 minutes) - Educational|
 
+start
 start
 
 :User Searches Address;
+:User Searches Address;
 
 :Query 1: Account Data;
+:Stage 1: Make Parent Lineage;
+
 note right #231B3D
   <color:#96DDF2>From <color:#0BE784>accounts_current
   <color:#96DDF2>Balance, flags, thresholds
 end note
 
 :Query 2: Asset Holdings;
+:Stage 2: Collect Horizon Data;
+
 note right #231B3D
   <color:#96DDF2>From <color:#0BE784>trust_lines_current
   <color:#96DDF2>Trustline data
 end note
 
 :Query 3: Creator Discovery;
+:Stage 3: Account Attributes;
+
 note right #231B3D
   <color:#96DDF2>From <color:#0BE784>enriched_history_operations
   <color:#96DDF2>Find parent (type=0)
 end note
 
 :Query 4: Child Accounts;
+:Stage 4: Account Assets;
+
 note right #231B3D
   <color:#96DDF2>Paginated (10K batches)
   <color:#96DDF2>Up to 100K children
@@ -50,8 +60,10 @@ note right #231B3D
 end note
 
 :Update Database;
+:Stage 5: Account Flags;
 
 stop
+:Stage 6: SE Directory;
 
 note left #231B3D
   <color:#0BE784>BigQuery Features:
@@ -61,23 +73,6 @@ note left #231B3D
   <color:#96DDF2>• ~$0.10-0.50/1K accounts
 end note
 
-|<b><color:#96DDF2>API Pipeline (2-3 minutes) - Educational|
-
-start
-
-:User Searches Address;
-
-:Stage 1: Make Parent Lineage;
-
-:Stage 2: Collect Horizon Data;
-
-:Stage 3: Account Attributes;
-
-:Stage 4: Account Assets;
-
-:Stage 5: Account Flags;
-
-:Stage 6: SE Directory;
 note right #231B3D
   <color:#96DDF2>Stellar Expert enrichment
 end note
