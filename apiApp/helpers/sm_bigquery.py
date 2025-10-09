@@ -353,19 +353,29 @@ class StellarBigQueryHelper:
             return None
         
         try:
+            # COST CONTROL: Add partition filter to accounts_current (partitioned by batch_run_date)
+            # Query only recent data (last 90 days) to minimize scan size
+            from datetime import datetime, timedelta
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=90)  # 90-day window for recent accounts
+            
             query = """
                 SELECT 
                     account_id,
                     account_creation_date
                 FROM `crypto-stellar.crypto_stellar_dbt.accounts_current`
                 WHERE account_id = @account
+                  AND batch_run_date >= DATETIME(@start_date)
+                  AND batch_run_date <= DATETIME(@end_date)
                 ORDER BY batch_run_date DESC
                 LIMIT 1
             """
             
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("account", "STRING", account)
+                    bigquery.ScalarQueryParameter("account", "STRING", account),
+                    bigquery.ScalarQueryParameter("start_date", "STRING", start_date.strftime('%Y-%m-%d')),
+                    bigquery.ScalarQueryParameter("end_date", "STRING", end_date.strftime('%Y-%m-%d'))
                 ]
             )
             

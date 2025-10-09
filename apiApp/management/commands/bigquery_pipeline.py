@@ -17,7 +17,7 @@ Data Retrieved:
 
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from apiApp.models import StellarCreatorAccountLineage
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
@@ -156,21 +156,28 @@ class Command(BaseCommand):
             account_obj.status = 'PROCESSING'
             account_obj.save()
             
-            # Step 1: Get MINIMAL account data from BigQuery (just creation date)
-            self.stdout.write('  → Fetching minimal account data from BigQuery...')
-            account_data = bq_helper.get_account_data(account)
+            # Step 1: Get account creation date from Horizon API (free, no BigQuery cost)
+            self.stdout.write('  → Fetching account creation date from Horizon API...')
+            horizon_data = self._fetch_horizon_account_data(account)
             
-            if not account_data:
+            if not horizon_data:
                 self.stdout.write(self.style.WARNING(
-                    '    ⚠ Account not found in BigQuery accounts_current table'
+                    '    ⚠ Account not found in Horizon API'
                 ))
                 account_obj.status = 'INVALID'
                 account_obj.save()
                 return False
             
+            # Extract creation date from Horizon last_modified_time
+            creation_date_str = horizon_data.get('last_modified_time', '2015-01-01T00:00:00Z')
             self.stdout.write(self.style.SUCCESS(
-                f'    ✓ Created: {account_data["account_creation_date"]}'
+                f'    ✓ Account found (last modified: {creation_date_str})'
             ))
+            
+            account_data = {
+                'account_id': account,
+                'account_creation_date': creation_date_str
+            }
             
             # Calculate safe date window for partition filters (avoids full table scans)
             creation_date_str = account_data.get('account_creation_date', '2015-01-01')
@@ -180,7 +187,6 @@ class Command(BaseCommand):
                 creation_date = creation_date_str
             
             # Use creation date minus 7 days as start (safety buffer) and today as end
-            from datetime import datetime, timedelta
             try:
                 start_dt = datetime.fromisoformat(creation_date.replace('Z', '')) - timedelta(days=7)
                 start_date = start_dt.strftime('%Y-%m-%d')
@@ -213,9 +219,8 @@ class Command(BaseCommand):
                 f'    ✓ Found {len(children)} child accounts'
             ))
             
-            # Step 4: Get account details from Horizon API (balance, home_domain, flags)
-            self.stdout.write('  → Fetching account details from Horizon API...')
-            horizon_data = self._fetch_horizon_account_data(account)
+            # Step 4: Use account details from Horizon API (already fetched in Step 1)
+            self.stdout.write('  → Using account details from Horizon API...')
             if horizon_data:
                 self.stdout.write(self.style.SUCCESS(
                     f'    ✓ Balance: {horizon_data.get("balance", 0)} XLM'
