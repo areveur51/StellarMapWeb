@@ -199,19 +199,28 @@ class Command(BaseCommand):
                 f'    📅 Date window: {start_date} to {end_date}'
             ))
             
-            # Step 2: Get creator account from BigQuery (with date filters)
+            # Step 2 & 3: Get creator, children, and issuers with CONSOLIDATED query (1 BigQuery scan)
             # If Cost Guard blocks the query, fall back to API-based method
-            self.stdout.write('  → Fetching creator from BigQuery...')
-            creator_info = bq_helper.get_account_creator(account, start_date=start_date, end_date=end_date)
+            self.stdout.write('  → Fetching lineage (creator + children + issuers) with CONSOLIDATED query...')
+            lineage_bundle = bq_helper.fetch_lineage_bundle(
+                target_account=account,
+                start_date=start_date,
+                end_date=end_date,
+                max_children=100000  # Full pagination for batch processing
+            )
+            
+            creator_info = lineage_bundle['creator']
+            children = lineage_bundle['children']
+            issuers = lineage_bundle['issuers']
             
             if creator_info:
                 self.stdout.write(self.style.SUCCESS(
-                    f'    ✓ Creator: {creator_info["creator_account"]} (from BigQuery)'
+                    f'    ✓ Creator: {creator_info["creator_account"]} (from CONSOLIDATED query)'
                 ))
             else:
                 # Fallback to API-based creator discovery (Horizon + Stellar Expert)
                 self.stdout.write(self.style.WARNING(
-                    '    ⚠ BigQuery creator query blocked/failed - using API fallback...'
+                    '    ⚠ CONSOLIDATED query blocked/failed - using API fallback...'
                 ))
                 creator_info = self._get_creator_from_api(account)
                 if creator_info:
@@ -223,16 +232,14 @@ class Command(BaseCommand):
                         '    ⚠ Creator not found (might be root account)'
                     ))
             
-            # Step 3: Get child accounts from BigQuery (paginated, with date filters)
-            # Note: If Cost Guard blocks this query, we skip child discovery
-            # (API-based child discovery is not used as it's less comprehensive)
-            self.stdout.write('  → Fetching child accounts from BigQuery...')
-            children = self._get_all_child_accounts(bq_helper, account, start_date=start_date, end_date=end_date)
-            
             if children:
                 self.stdout.write(self.style.SUCCESS(
-                    f'    ✓ Found {len(children)} child accounts (from BigQuery)'
+                    f'    ✓ Found {len(children)} child accounts (from CONSOLIDATED query)'
                 ))
+                if issuers:
+                    self.stdout.write(self.style.SUCCESS(
+                        f'    ✓ Found {len(issuers)} issuers in lineage'
+                    ))
             else:
                 self.stdout.write(self.style.WARNING(
                     '    ⚠ No child accounts found (query may have been blocked by Cost Guard)'
