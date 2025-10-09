@@ -11,7 +11,7 @@
   <style>
     /* Cyberpunk theme colors */
     .dashboard-container {
-        padding: 15px;
+        padding: 10px;
         background: #261D45; /* Main cyberpunk purple background */
         min-height: 100vh;
         color: #96DDF2; /* Cyberpunk cyan text */
@@ -19,9 +19,9 @@
     .stat-card {
         background: #231B3D; /* Secondary cyberpunk purple */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
-        border-radius: 6px;
-        padding: 12px;
-        margin-bottom: 12px;
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 8px;
         transition: transform 0.2s;
     }
     .stat-card:hover {
@@ -30,32 +30,32 @@
         box-shadow: 0 4px 15px rgba(150, 221, 242, 0.2);
     }
     .stat-value {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: bold;
         color: #96DDF2; /* Cyberpunk cyan for values */
         word-wrap: break-word;
         overflow-wrap: break-word;
-        margin: 4px 0;
+        margin: 2px 0;
     }
     .stat-label {
         color: #c4b5fd; /* Light purple for labels */
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 2px;
+        letter-spacing: 0.3px;
+        margin-bottom: 0;
     }
     .stat-card small {
         display: block;
         word-wrap: break-word;
         overflow-wrap: break-word;
         color: #a78bfa; /* Muted purple for small text */
-        font-size: 0.7rem;
-        margin-top: 2px;
+        font-size: 0.65rem;
+        margin-top: 1px;
     }
     .admin-link-btn {
-        margin-top: 6px;
-        font-size: 0.65rem;
-        padding: 3px 6px;
+        margin-top: 4px;
+        font-size: 0.6rem;
+        padding: 2px 5px;
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
     .btn-outline-info:hover,
@@ -88,18 +88,18 @@
     }
     .section-title {
         color: #0BE784; /* Cyberpunk green accent */
-        margin-bottom: 10px;
-        margin-top: 15px;
-        padding-bottom: 6px;
+        margin-bottom: 6px;
+        margin-top: 8px;
+        padding-bottom: 3px;
         border-bottom: 1px solid #3f2c70; /* Cyberpunk purple border */
-        font-size: 1.1rem;
+        font-size: 0.95rem;
     }
     .health-indicator {
         display: inline-block;
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
-        margin-right: 6px;
+        margin-right: 4px;
     }
     /* Keep original indicator colors */
     .health-good { background-color: #0BE784; } /* Cyberpunk green */
@@ -109,9 +109,18 @@
         background: #100D23; /* Dark cyberpunk background */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
         color: #96DDF2; /* Cyberpunk cyan text */
-        padding: 8px 12px;
-        margin-bottom: 8px;
-        font-size: 0.85rem;
+        padding: 6px 10px;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+    }
+    /* Reduce Bootstrap row gutters for tighter layout */
+    .row {
+        margin-left: -8px;
+        margin-right: -8px;
+    }
+    .row > [class*="col-"] {
+        padding-left: 8px;
+        padding-right: 8px;
     }
   </style>
 </head>
@@ -121,7 +130,7 @@
     {% include 'webApp/search_container_include.html' %}
 
     <div class="dashboard-container">
-        <h1 class="text-center mb-3" style="font-size: 1.8rem;">
+        <h1 class="text-center mb-2" style="font-size: 1.4rem; margin-top: 0;">
             System Dashboard
         </h1>
         
@@ -448,29 +457,29 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="row mb-3">
+        <div class="row mb-2">
             <div class="col-12">
                 <h3 class="section-title">
                     Quick Actions
                 </h3>
             </div>
             <div class="col-md-3">
-                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
                     Configure Pipeline
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/search" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                <a href="/search" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
                     Search Accounts
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/admin/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                <a href="/admin/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
                     Admin Panel
                 </a>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-sm btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2;">
+                <button class="btn btn-sm btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
                     Refresh Stats
                 </button>
             </div>
