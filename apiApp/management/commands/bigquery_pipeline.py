@@ -19,7 +19,7 @@ import logging
 import json
 from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
-from apiApp.models import StellarCreatorAccountLineage
+from apiApp.models import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
 import sentry_sdk
 
@@ -33,25 +33,92 @@ class Command(BaseCommand):
         parser.add_argument(
             '--limit',
             type=int,
-            default=10,
-            help='Maximum number of accounts to process per run (default: 10)'
+            default=None,
+            help='Maximum number of accounts to process per run (default: from configuration batch_size)'
         )
         parser.add_argument(
             '--reset',
             action='store_true',
             help='Reset all accounts to PENDING status for reprocessing'
         )
+    
+    def _load_config(self):
+        """
+        Load BigQuery pipeline configuration from database.
+        Creates default configuration if none exists.
+        """
+        try:
+            # Try to get existing configuration
+            config_query = BigQueryPipelineConfig.objects.filter(config_id='default').limit(1)
+            for config in config_query:
+                return config
+            
+            # No configuration exists - create default
+            config = BigQueryPipelineConfig.create(
+                config_id='default',
+                bigquery_enabled=True,
+                cost_limit_usd=0.71,
+                size_limit_mb=148900.0,
+                pipeline_mode='BIGQUERY_WITH_API_FALLBACK',
+                instant_query_max_age_days=365,
+                api_fallback_enabled=True,
+                horizon_max_operations=200,
+                horizon_child_max_pages=5,
+                bigquery_max_children=100000,
+                bigquery_child_page_size=10000,
+                batch_processing_enabled=True,
+                batch_size=100,
+                cache_ttl_hours=12,
+                updated_by='system',
+                notes='Auto-created default configuration'
+            )
+            self.stdout.write(self.style.WARNING(
+                'No configuration found - created default configuration. '
+                'Configure via Django admin at /admin/apiApp/bigquerypipelineconfig/'
+            ))
+            return config
+        except Exception as e:
+            logger.error(f'Error loading configuration: {e}')
+            # Return default values as fallback
+            class DefaultConfig:
+                bigquery_enabled = True
+                cost_limit_usd = 0.71
+                size_limit_mb = 148900.0
+                pipeline_mode = 'BIGQUERY_WITH_API_FALLBACK'
+                instant_query_max_age_days = 365
+                api_fallback_enabled = True
+                horizon_max_operations = 200
+                horizon_child_max_pages = 5
+                bigquery_max_children = 100000
+                bigquery_child_page_size = 10000
+                batch_processing_enabled = True
+                batch_size = 100
+                cache_ttl_hours = 12
+            return DefaultConfig()
 
     def handle(self, *args, **options):
         """
         Process accounts using BigQuery/Hubble dataset.
         """
-        limit = options['limit']
+        # Load pipeline configuration
+        self.config = self._load_config()
+        
+        limit = options.get('limit') or self.config.batch_size  # Use config batch_size as default
         reset = options['reset']
         
         if reset:
             self._reset_accounts()
             return
+        
+        # Check if BigQuery is enabled
+        if not self.config.bigquery_enabled:
+            self.stdout.write(self.style.WARNING(
+                'BigQuery is DISABLED in configuration. '
+                'Enable it in Django admin at /admin/apiApp/bigquerypipelineconfig/ '
+                'or use API_ONLY mode.'
+            ))
+            if self.config.pipeline_mode != 'API_ONLY':
+                return
         
         self.stdout.write(self.style.SUCCESS(
             f'\n{"="*60}\n'
@@ -60,10 +127,15 @@ class Command(BaseCommand):
             f'Strategy: Retrieve all data from BigQuery in one query\n'
             f'No API rate limits, no pagination issues\n'
             f'Processing up to {limit} accounts...\n'
+            f'Mode: {self.config.pipeline_mode}\n'
+            f'Cost Limit: ${self.config.cost_limit_usd} ({self.config.size_limit_mb/1024:.0f}GB)\n'
             f'{"="*60}\n'
         ))
         
-        bq_helper = StellarBigQueryHelper()
+        bq_helper = StellarBigQueryHelper(
+            cost_limit_usd=self.config.cost_limit_usd,
+            size_limit_mb=self.config.size_limit_mb
+        )
         
         if not bq_helper.is_available():
             self.stdout.write(self.style.ERROR(
@@ -206,7 +278,7 @@ class Command(BaseCommand):
                 target_account=account,
                 start_date=start_date,
                 end_date=end_date,
-                max_children=100000  # Full pagination for batch processing
+                max_children=self.config.bigquery_max_children  # Configured max children
             )
             
             creator_info = lineage_bundle['creator']
@@ -361,7 +433,10 @@ class Command(BaseCommand):
                 account_id=account
             )
             
-            operations_response = horizon_helper.get_account_operations(order='asc', limit=200)
+            operations_response = horizon_helper.get_account_operations(
+                order='asc', 
+                limit=self.config.horizon_max_operations
+            )
             
             if operations_response:
                 parser = StellarMapHorizonAPIParserHelpers({'data': {'raw_data': operations_response}})
@@ -415,8 +490,10 @@ class Command(BaseCommand):
                 account_id=account
             )
             
-            # Get child accounts (up to 5 pages = 1000 operations)
-            child_accounts_raw = horizon_helper.get_child_accounts(max_pages=5)
+            # Get child accounts (configured max pages)
+            child_accounts_raw = horizon_helper.get_child_accounts(
+                max_pages=self.config.horizon_child_max_pages
+            )
             
             # Extract just the account addresses (method returns list of dicts)
             if child_accounts_raw:

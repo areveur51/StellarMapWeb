@@ -23,12 +23,13 @@ logger = logging.getLogger(__name__)
 
 class BigQueryCostGuard:
     """
-    Cost guard that validates query size before execution.
-    Prevents queries over $0.71 to avoid unexpected costs.
+    Cost guard that validates query size and cost before execution.
+    Prevents queries exceeding configured cost/size limits to avoid unexpected costs.
     """
     
-    MAX_QUERY_SIZE_MB = 148900  # ~145 GB = $0.71 at $5/TB
+    MAX_QUERY_SIZE_MB = 148900  # ~145 GB = $0.71 at $5/TB (default, can be overridden)
     MAX_QUERY_SIZE_BYTES = MAX_QUERY_SIZE_MB * 1024 * 1024  # 148,900 MB in bytes
+    MAX_COST_USD = 0.71  # Maximum cost per query (default, can be overridden)
     COST_PER_TB = 5.0  # $5 per TB scanned
     
     def __init__(self, client: bigquery.Client):
@@ -66,21 +67,32 @@ class BigQueryCostGuard:
             size_mb = bytes_processed / (1024 * 1024)
             estimated_cost = (bytes_processed / (1024**4)) * self.COST_PER_TB  # Convert to TB
             
+            # Check both size AND cost limits
+            size_valid = bytes_processed <= self.MAX_QUERY_SIZE_BYTES
+            cost_valid = estimated_cost <= self.MAX_COST_USD
+            
             result = {
                 'bytes_processed': bytes_processed,
                 'size_mb': round(size_mb, 2),
                 'estimated_cost': round(estimated_cost, 4),
-                'is_valid': bytes_processed <= self.MAX_QUERY_SIZE_BYTES
+                'is_valid': size_valid and cost_valid  # Must pass BOTH checks
             }
             
             logger.info(f"Query cost estimate: {size_mb:.2f} MB (${estimated_cost:.4f})")
             
             if not result['is_valid']:
-                error_msg = (
-                    f"Query exceeds size limit! "
-                    f"Scans {size_mb:.2f} MB but limit is {self.MAX_QUERY_SIZE_MB} MB. "
-                    f"Estimated cost: ${estimated_cost:.4f}"
-                )
+                if not size_valid:
+                    error_msg = (
+                        f"Query exceeds size limit! "
+                        f"Scans {size_mb:.2f} MB but limit is {self.MAX_QUERY_SIZE_MB} MB. "
+                        f"Estimated cost: ${estimated_cost:.4f}"
+                    )
+                else:  # Cost exceeds limit
+                    error_msg = (
+                        f"Query exceeds cost limit! "
+                        f"Estimated cost ${estimated_cost:.4f} but limit is ${self.MAX_COST_USD}. "
+                        f"Scans {size_mb:.2f} MB"
+                    )
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             
@@ -99,13 +111,19 @@ class StellarBigQueryHelper:
     Helper class for querying Stellar's BigQuery/Hubble dataset.
     """
     
-    def __init__(self):
+    def __init__(self, cost_limit_usd=0.71, size_limit_mb=148900.0):
         """
         Initialize BigQuery client with service account credentials.
         Credentials should be stored in GOOGLE_APPLICATION_CREDENTIALS_JSON secret.
+        
+        Args:
+            cost_limit_usd: Maximum cost per query in USD (default: 0.71)
+            size_limit_mb: Maximum query size in MB (default: 148900 = ~145GB)
         """
         self.client = None
         self.cost_guard = None
+        self.cost_limit_usd = cost_limit_usd
+        self.size_limit_mb = size_limit_mb
         self._initialize_client()
     
     def _initialize_client(self):
@@ -127,10 +145,13 @@ class StellarBigQueryHelper:
                 project=credentials_dict.get('project_id')
             )
             
-            # Initialize cost guard
+            # Initialize cost guard with configured limits
             self.cost_guard = BigQueryCostGuard(self.client)
+            self.cost_guard.MAX_COST_USD = self.cost_limit_usd  # Set cost limit
+            self.cost_guard.MAX_QUERY_SIZE_MB = self.size_limit_mb  # Set size limit
+            self.cost_guard.MAX_QUERY_SIZE_BYTES = int(self.size_limit_mb * 1024 * 1024)
             
-            logger.info("BigQuery client and cost guard initialized successfully")
+            logger.info(f"BigQuery client and cost guard initialized successfully (Cost Limit: ${self.cost_limit_usd}, Size Limit: {self.size_limit_mb/1024:.0f}GB)")
             
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
