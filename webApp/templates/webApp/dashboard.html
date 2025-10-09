@@ -1,0 +1,423 @@
+{% extends 'webApp/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Vue CSS -->
+<link href="https://unpkg.com/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+
+<style>
+    .dashboard-container {
+        padding: 20px;
+        background: #1a1a2e;
+        min-height: 100vh;
+        color: #eee;
+    }
+    .stat-card {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        border-color: #00d4ff;
+    }
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #00d4ff;
+    }
+    .stat-label {
+        color: #a8b2d1;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .section-title {
+        color: #00d4ff;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #0f3460;
+    }
+    .health-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .health-good { background-color: #28a745; }
+    .health-warning { background-color: #ffc107; }
+    .health-danger { background-color: #dc3545; }
+    .progress {
+        background-color: #0f3460;
+        height: 25px;
+    }
+    .progress-bar {
+        background: linear-gradient(90deg, #00d4ff 0%, #0077b6 100%);
+    }
+    .alert-custom {
+        background: #0f3460;
+        border: 1px solid #00d4ff;
+        color: #eee;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app">
+    {% include 'webApp/navbar_sidebar.html' %}
+    
+    <div class="dashboard-container">
+        <h1 class="text-center mb-4">
+            <i class="bi bi-speedometer2"></i> System Dashboard
+        </h1>
+        
+        <!-- BigQuery Cost Tracking -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-currency-dollar"></i> BigQuery Cost Tracking
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Cost Limit</div>
+                    <div class="stat-value">${{ bigquery_stats.cost_limit_usd }}</div>
+                    <small>per query</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Size Limit</div>
+                    <div class="stat-value">{{ bigquery_stats.size_limit_gb|floatformat:0 }} GB</div>
+                    <small>max data scanned</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Est. Monthly Cost</div>
+                    <div class="stat-value">${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}</div>
+                    <small>based on 7-day avg</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Pipeline Mode</div>
+                    <div class="stat-value" style="font-size: 1.2rem;">
+                        {% if bigquery_stats.bigquery_enabled %}
+                            <span class="health-indicator health-good"></span>
+                        {% else %}
+                            <span class="health-indicator health-danger"></span>
+                        {% endif %}
+                        {{ bigquery_stats.pipeline_mode|truncatechars:15 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Health -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-database"></i> Database Health
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Total Accounts</div>
+                    <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
+                    <small>in cache</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Fresh Records</div>
+                    <div class="stat-value" style="color: #28a745;">{{ db_stats.fresh_accounts }}</div>
+                    <small>up to date</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Stale Records</div>
+                    <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
+                    <small>needs refresh</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Stuck Records</div>
+                    <div class="stat-value" style="color: #dc3545;">{{ db_stats.stuck_accounts }}</div>
+                    <small>⚠️ requires attention</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Status -->
+        <div class="row mt-3">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">{{ db_stats.pending_accounts }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">In Progress</div>
+                    <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value">{{ db_stats.completed_accounts }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Re-inquiry</div>
+                    <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lineage Data Integrity -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-diagram-3"></i> Lineage Data Integrity
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Total Lineage Records</div>
+                    <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Accounts with Lineage</div>
+                    <div class="stat-value">{{ db_stats.accounts_with_lineage }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Orphan Accounts</div>
+                    <div class="stat-value" style="{% if db_stats.orphan_accounts > 0 %}color: #ffc107;{% endif %}">
+                        {{ db_stats.orphan_accounts }}
+                    </div>
+                    <small>cached without lineage</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-graph-up"></i> Performance Metrics
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Avg Processing Time</div>
+                    <div class="stat-value">{{ performance_stats.avg_processing_time_minutes|floatformat:1 }}</div>
+                    <small>minutes</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Fastest Account</div>
+                    <div class="stat-value">
+                        {% if performance_stats.fastest_account_minutes %}
+                            {{ performance_stats.fastest_account_minutes|floatformat:1 }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <small>minutes</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Slowest Account</div>
+                    <div class="stat-value">
+                        {% if performance_stats.slowest_account_minutes %}
+                            {{ performance_stats.slowest_account_minutes|floatformat:1 }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    <small>minutes</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Processed (24h)</div>
+                    <div class="stat-value">{{ performance_stats.total_accounts_processed_24h }}</div>
+                    <small>accounts</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-heart-pulse"></i> System Health
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Cron Status</div>
+                    <div class="stat-value" style="font-size: 1.5rem;">
+                        {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
+                            <span class="health-indicator health-good"></span>
+                        {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
+                            <span class="health-indicator health-danger"></span>
+                        {% else %}
+                            <span class="health-indicator health-warning"></span>
+                        {% endif %}
+                        {{ cron_health.status }}
+                    </div>
+                    <small>Last run: {% if cron_health.last_run %}{{ cron_health.last_run|slice:":19" }}{% else %}Never{% endif %}</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Stage Executions</div>
+                    <div class="stat-value">{{ stage_health.total_stage_executions }}</div>
+                    <small>total tracked</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Failed Stages</div>
+                    <div class="stat-value" style="{% if stage_health.failed_stages > 0 %}color: #dc3545;{% endif %}">
+                        {{ stage_health.failed_stages }}
+                    </div>
+                    <small>requires investigation</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts and Recommendations -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-exclamation-triangle"></i> Alerts & Recommendations
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                {% if db_stats.stuck_accounts > 0 %}
+                <div class="alert alert-custom alert-warning">
+                    <strong><i class="bi bi-exclamation-triangle"></i> Stuck Records Alert:</strong>
+                    {{ db_stats.stuck_accounts }} accounts are stuck in processing. Check cron jobs and pipeline health.
+                </div>
+                {% endif %}
+                
+                {% if db_stats.orphan_accounts > 0 %}
+                <div class="alert alert-custom alert-warning">
+                    <strong><i class="bi bi-folder-x"></i> Data Integrity Warning:</strong>
+                    {{ db_stats.orphan_accounts }} accounts in cache have no lineage data. Consider re-processing.
+                </div>
+                {% endif %}
+                
+                {% if stage_health.failed_stages > 0 %}
+                <div class="alert alert-custom alert-danger">
+                    <strong><i class="bi bi-x-circle"></i> Pipeline Failures:</strong>
+                    {{ stage_health.failed_stages }} stage executions have failed. Check logs for error details.
+                </div>
+                {% endif %}
+                
+                {% if bigquery_stats.estimated_monthly_cost > 50 %}
+                <div class="alert alert-custom alert-info">
+                    <strong><i class="bi bi-cash-stack"></i> Cost Alert:</strong>
+                    Estimated monthly BigQuery cost is ${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}. 
+                    Consider adjusting cost limits or reducing processing frequency.
+                </div>
+                {% endif %}
+                
+                {% if db_stats.stuck_accounts == 0 and db_stats.orphan_accounts == 0 and stage_health.failed_stages == 0 %}
+                <div class="alert alert-custom alert-success">
+                    <strong><i class="bi bi-check-circle"></i> All Systems Healthy:</strong>
+                    No critical issues detected. System is operating normally.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4 mb-5">
+            <div class="col-12">
+                <h3 class="section-title">
+                    <i class="bi bi-lightning"></i> Quick Actions
+                </h3>
+            </div>
+            <div class="col-md-3">
+                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-outline-info btn-block">
+                    <i class="bi bi-gear"></i> Configure Pipeline
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="/search" class="btn btn-outline-info btn-block">
+                    <i class="bi bi-search"></i> Search Accounts
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="/admin/" class="btn btn-outline-info btn-block">
+                    <i class="bi bi-shield-check"></i> Admin Panel
+                </a>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-info btn-block" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Stats
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Vue.js -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
+<!-- Bootstrap and dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap Vue -->
+<script src="https://unpkg.com/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js"></script>
+
+<script>
+new Vue({
+    el: '#app',
+    data: {
+        // Dashboard-specific data can go here
+    },
+    methods: {
+        hide() {
+            this.$root.$emit('bv::toggle::collapse', 'sidebar-1');
+        }
+    }
+});
+</script>
+{% endblock %}
