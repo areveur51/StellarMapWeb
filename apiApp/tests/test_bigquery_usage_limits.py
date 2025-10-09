@@ -284,5 +284,200 @@ class BigQueryErrorHandlingTestCase(TestCase):
                 self.assertIn('403', error_msg, "Should log 403 error")
 
 
+class BigQueryCostGuardTestCase(TestCase):
+    """
+    Test BigQueryCostGuard to enforce <100MB query limit.
+    """
+    
+    def test_cost_guard_blocks_large_queries(self):
+        """Test that queries over 100MB are blocked."""
+        from apiApp.helpers.sm_bigquery import BigQueryCostGuard
+        from google.cloud import bigquery
+        
+        mock_client = Mock(spec=bigquery.Client)
+        mock_job = Mock()
+        mock_job.total_bytes_processed = 200 * 1024 * 1024  # 200 MB
+        mock_client.query.return_value = mock_job
+        
+        cost_guard = BigQueryCostGuard(mock_client)
+        
+        with self.assertRaises(ValueError) as context:
+            cost_guard.validate_query_cost("SELECT * FROM table")
+        
+        self.assertIn("exceeds size limit", str(context.exception))
+    
+    def test_cost_guard_allows_small_queries(self):
+        """Test that queries under 100MB are allowed."""
+        from apiApp.helpers.sm_bigquery import BigQueryCostGuard
+        from google.cloud import bigquery
+        
+        mock_client = Mock(spec=bigquery.Client)
+        mock_job = Mock()
+        mock_job.total_bytes_processed = 50 * 1024 * 1024  # 50 MB
+        mock_client.query.return_value = mock_job
+        
+        cost_guard = BigQueryCostGuard(mock_client)
+        result = cost_guard.validate_query_cost("SELECT * FROM table")
+        
+        self.assertTrue(result['is_valid'])
+        self.assertEqual(result['size_mb'], 50.0)
+    
+    def test_cost_estimation_calculation(self):
+        """Test cost estimation accuracy."""
+        from apiApp.helpers.sm_bigquery import BigQueryCostGuard
+        from google.cloud import bigquery
+        
+        mock_client = Mock(spec=bigquery.Client)
+        mock_job = Mock()
+        mock_job.total_bytes_processed = 50 * 1024 * 1024  # 50 MB
+        mock_client.query.return_value = mock_job
+        
+        cost_guard = BigQueryCostGuard(mock_client)
+        result = cost_guard.validate_query_cost("SELECT * FROM table")
+        
+        # 50 MB should cost less than $0.001
+        self.assertLess(result['estimated_cost'], 0.001)
+        self.assertGreater(result['estimated_cost'], 0)
+
+
+class PartitionFilterEnforcementTestCase(TestCase):
+    """
+    Test that partition filters are mandatory in all queries.
+    """
+    
+    def test_get_account_creator_has_partition_filters(self):
+        """Test that get_account_creator includes partition filters."""
+        helper = StellarBigQueryHelper()
+        
+        with patch.object(helper, 'client') as mock_client:
+            with patch.object(helper, 'cost_guard') as mock_guard:
+                mock_guard.validate_query_cost.return_value = {
+                    'bytes_processed': 10 * 1024 * 1024,
+                    'size_mb': 10.0,
+                    'estimated_cost': 0.0001,
+                    'is_valid': True
+                }
+                
+                mock_job = Mock()
+                mock_job.__iter__ = Mock(return_value=iter([]))
+                mock_client.query.return_value = mock_job
+                
+                helper.get_account_creator('GTEST', start_date='2024-01-01', end_date='2024-12-31')
+                
+                # Get the query that was validated
+                query = mock_guard.validate_query_cost.call_args[0][0]
+                
+                # Must have partition filters
+                self.assertIn('closed_at >= TIMESTAMP(@start_date)', query)
+                self.assertIn('closed_at <= TIMESTAMP(@end_date)', query)
+    
+    def test_get_child_accounts_has_partition_filters(self):
+        """Test that get_child_accounts includes partition filters."""
+        helper = StellarBigQueryHelper()
+        
+        with patch.object(helper, 'client') as mock_client:
+            with patch.object(helper, 'cost_guard') as mock_guard:
+                mock_guard.validate_query_cost.return_value = {
+                    'bytes_processed': 10 * 1024 * 1024,
+                    'size_mb': 10.0,
+                    'estimated_cost': 0.0001,
+                    'is_valid': True
+                }
+                
+                mock_job = Mock()
+                mock_job.__iter__ = Mock(return_value=iter([]))
+                mock_client.query.return_value = mock_job
+                
+                helper.get_child_accounts('GTEST', start_date='2024-01-01', end_date='2024-12-31')
+                
+                # Get the query that was validated
+                query = mock_guard.validate_query_cost.call_args[0][0]
+                
+                # Must have partition filters
+                self.assertIn('closed_at >= TIMESTAMP(@start_date)', query)
+                self.assertIn('closed_at <= TIMESTAMP(@end_date)', query)
+    
+    def test_default_date_ranges_prevent_full_scans(self):
+        """Test that default date ranges are safe."""
+        helper = StellarBigQueryHelper()
+        
+        with patch.object(helper, 'client') as mock_client:
+            with patch.object(helper, 'cost_guard') as mock_guard:
+                mock_guard.validate_query_cost.return_value = {
+                    'bytes_processed': 10 * 1024 * 1024,
+                    'size_mb': 10.0,
+                    'estimated_cost': 0.0001,
+                    'is_valid': True
+                }
+                
+                mock_job = Mock()
+                mock_job.__iter__ = Mock(return_value=iter([]))
+                mock_client.query.return_value = mock_job
+                
+                # Call without end_date (should default to today)
+                helper.get_account_creator('GTEST', start_date='2024-01-01')
+                
+                # Verify job_config has end_date parameter
+                job_config = mock_guard.validate_query_cost.call_args[0][1]
+                param_names = [p.name for p in job_config.query_parameters]
+                self.assertIn('end_date', param_names)
+    
+    def test_cost_guard_runs_before_query_execution(self):
+        """Test that cost guard validation happens before actual query."""
+        helper = StellarBigQueryHelper()
+        
+        with patch.object(helper, 'client') as mock_client:
+            with patch.object(helper, 'cost_guard') as mock_guard:
+                # Set up cost guard to reject query
+                mock_guard.validate_query_cost.side_effect = ValueError("Query too large")
+                
+                # Query should fail before execution
+                with self.assertRaises(ValueError):
+                    helper.get_account_creator('GTEST', start_date='2024-01-01')
+                
+                # Actual query should NOT have been executed
+                mock_client.query.assert_not_called()
+
+
+class FullTableScanPreventionTestCase(TestCase):
+    """
+    Test that full table scans are prevented.
+    """
+    
+    def test_partition_filters_reduce_scan_size(self):
+        """
+        Test that adding partition filters dramatically reduces scan size.
+        
+        Without partition filters: ~3-4 TB (full table)
+        With partition filters: ~10-100 MB (specific date range)
+        """
+        from apiApp.helpers.sm_bigquery import BigQueryCostGuard
+        from google.cloud import bigquery
+        
+        mock_client = Mock(spec=bigquery.Client)
+        
+        # Simulate query WITHOUT partition filters (full table scan)
+        mock_job_large = Mock()
+        mock_job_large.total_bytes_processed = 3 * 1024 * 1024 * 1024 * 1024  # 3 TB
+        
+        # Simulate query WITH partition filters (targeted scan)
+        mock_job_small = Mock()
+        mock_job_small.total_bytes_processed = 50 * 1024 * 1024  # 50 MB
+        
+        cost_guard = BigQueryCostGuard(mock_client)
+        
+        # Large query should be blocked
+        mock_client.query.return_value = mock_job_large
+        with self.assertRaises(ValueError):
+            cost_guard.validate_query_cost("SELECT * FROM ops WHERE account = 'G...'")
+        
+        # Small query should pass
+        mock_client.query.return_value = mock_job_small
+        result = cost_guard.validate_query_cost(
+            "SELECT * FROM ops WHERE account = 'G...' AND closed_at >= '2024-01-01'"
+        )
+        self.assertTrue(result['is_valid'])
+
+
 if __name__ == '__main__':
     unittest.main()

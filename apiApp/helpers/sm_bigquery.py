@@ -369,7 +369,14 @@ class StellarBigQueryHelper:
                 ]
             )
             
+            # COST GUARD: Validate query size before execution (accounts_current is small, but validate for safety)
+            logger.info(f"Validating query cost for account data of {account}")
+            cost_info = self.cost_guard.validate_query_cost(query, job_config)
+            logger.info(f"✅ Query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            # Execute query
             logger.info(f"Querying BigQuery for minimal account data of {account}")
+            job_config.dry_run = False  # Re-enable actual execution
             query_job = self.client.query(query, job_config=job_config)
             
             for row in query_job:
@@ -451,7 +458,14 @@ class StellarBigQueryHelper:
                 ]
             )
             
+            # COST GUARD: Validate query size before execution (trust_lines_current is small, but validate for safety)
+            logger.info(f"Validating query cost for assets of {account}")
+            cost_info = self.cost_guard.validate_query_cost(query, job_config)
+            logger.info(f"✅ Query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            # Execute query
             logger.info(f"Querying BigQuery for assets of {account}")
+            job_config.dry_run = False  # Re-enable actual execution
             query_job = self.client.query(query, job_config=job_config)
             
             results = []
