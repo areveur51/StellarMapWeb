@@ -348,10 +348,12 @@ class StellarBigQueryHelper:
                     SELECT COUNT(*) as total FROM child_ops_numbered
                 ),
                 lineage_accounts AS (
-                    -- Collect all lineage accounts for issuer lookup
+                    -- Collect ALL lineage accounts for issuer lookup (including target + all children)
+                    SELECT @target_account as account
+                    UNION DISTINCT
                     SELECT creator_account as account FROM creator_op
                     UNION DISTINCT
-                    SELECT account FROM child_ops_paginated
+                    SELECT account FROM child_ops_numbered  -- Use numbered (all children) not paginated
                 ),
                 issuer_accounts AS (
                     -- Find which lineage accounts are issuers (have created assets)
