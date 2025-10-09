@@ -6,4 +6,5 @@ app_name = 'webApp'
 urlpatterns = [
 # Root redirect removed - now handled at main project level
     path('search/', views.search_view, name='search_view'),  # Search endpoint
+    path('dashboard/', views.dashboard_view, name='dashboard_view'),  # Dashboard endpoint
 ]
