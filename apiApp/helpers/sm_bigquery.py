@@ -247,6 +247,257 @@ class StellarBigQueryHelper:
             sentry_sdk.capture_exception(e)
             return []
     
+    def fetch_lineage_bundle(
+        self,
+        target_account: str,
+        start_date: str = '2015-01-01',
+        end_date: Optional[str] = None,
+        max_children: int = 10000,
+        offset: int = 0
+    ) -> Dict:
+        """
+        **CONSOLIDATED QUERY**: Fetch creator, children, and issuers in a SINGLE BigQuery query.
+        
+        This replaces the old two-query approach (get_account_creator + get_child_accounts) with
+        a single optimized CTE-based query that scans enriched_history_operations once.
+        
+        Benefits:
+        - Reduces BigQuery costs (1 scan instead of 2)
+        - Reduces transactions (1 query instead of 2)
+        - Discovers issuers (accounts with issuer flag in lineage)
+        - Maintains 100MB cost guard compliance with partition filters
+        
+        Args:
+            target_account: The Stellar account to analyze
+            start_date: Start date for partition filter (YYYY-MM-DD)
+            end_date: End date for partition filter (YYYY-MM-DD), defaults to today
+            max_children: Maximum child accounts to return (default 10000)
+            offset: Pagination offset for child accounts (default 0)
+        
+        Returns:
+            Dict containing:
+            {
+                'creator': {'creator_account': 'G...', 'created_at': '...'},
+                'children': [{'account': 'G...', 'created_at': '...', ...}, ...],
+                'issuers': [{'account': 'G...', 'flags': 1, 'home_domain': '...'}, ...],
+                'pagination': {'total': 123, 'offset': 0, 'limit': 10000, 'has_more': True}
+            }
+        """
+        if not self.is_available():
+            logger.warning("BigQuery not available for lineage bundle query")
+            return {
+                'creator': None,
+                'children': [],
+                'issuers': [],
+                'pagination': {'total': 0, 'offset': 0, 'limit': max_children, 'has_more': False}
+            }
+        
+        if not end_date:
+            from datetime import datetime
+            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+        
+        try:
+            # CONSOLIDATED CTE QUERY: Single table scan for all lineage data
+            query = """
+                WITH filtered_ops AS (
+                    -- Single partition-filtered scan of create_account operations
+                    SELECT 
+                        account,
+                        funder,
+                        starting_balance,
+                        closed_at,
+                        transaction_hash,
+                        ledger_sequence
+                    FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
+                    WHERE type = 0  -- create_account operations only
+                      AND closed_at >= TIMESTAMP(@start_date)
+                      AND closed_at <= TIMESTAMP(@end_date)
+                      AND (account = @target_account OR funder = @target_account)
+                ),
+                creator_op AS (
+                    -- Find who created the target account
+                    SELECT 
+                        funder as creator_account,
+                        closed_at as created_at,
+                        transaction_hash,
+                        ledger_sequence
+                    FROM filtered_ops 
+                    WHERE account = @target_account
+                    ORDER BY closed_at ASC
+                    LIMIT 1
+                ),
+                child_ops_numbered AS (
+                    -- Find accounts created by target (with row numbers for pagination)
+                    SELECT 
+                        account,
+                        starting_balance,
+                        closed_at as created_at,
+                        transaction_hash,
+                        ledger_sequence,
+                        ROW_NUMBER() OVER (ORDER BY closed_at ASC) as row_num
+                    FROM filtered_ops 
+                    WHERE funder = @target_account
+                ),
+                child_ops_paginated AS (
+                    -- Apply pagination
+                    SELECT * FROM child_ops_numbered
+                    WHERE row_num > @offset AND row_num <= @offset + @max_children
+                ),
+                child_count AS (
+                    -- Count total children for pagination
+                    SELECT COUNT(*) as total FROM child_ops_numbered
+                ),
+                lineage_accounts AS (
+                    -- Collect all lineage accounts for issuer lookup
+                    SELECT creator_account as account FROM creator_op
+                    UNION DISTINCT
+                    SELECT account FROM child_ops_paginated
+                ),
+                issuer_accounts AS (
+                    -- Find which lineage accounts are issuers (have created assets)
+                    SELECT DISTINCT
+                        l.account,
+                        a.flags,
+                        a.home_domain
+                    FROM lineage_accounts l
+                    JOIN `crypto-stellar.crypto_stellar_dbt.accounts_current` a 
+                        ON l.account = a.account_id
+                    WHERE (a.flags & 1) = 1  -- Issuer flag bit
+                )
+                
+                -- Return all results in structured format
+                SELECT
+                    'creator' as result_type,
+                    creator_account as account,
+                    created_at,
+                    transaction_hash,
+                    ledger_sequence,
+                    NULL as starting_balance,
+                    NULL as flags,
+                    NULL as home_domain,
+                    NULL as total_count
+                FROM creator_op
+                
+                UNION ALL
+                
+                SELECT
+                    'child' as result_type,
+                    account,
+                    created_at,
+                    transaction_hash,
+                    ledger_sequence,
+                    starting_balance,
+                    NULL as flags,
+                    NULL as home_domain,
+                    NULL as total_count
+                FROM child_ops_paginated
+                
+                UNION ALL
+                
+                SELECT
+                    'issuer' as result_type,
+                    account,
+                    NULL as created_at,
+                    NULL as transaction_hash,
+                    NULL as ledger_sequence,
+                    NULL as starting_balance,
+                    flags,
+                    home_domain,
+                    NULL as total_count
+                FROM issuer_accounts
+                
+                UNION ALL
+                
+                SELECT
+                    'count' as result_type,
+                    NULL as account,
+                    NULL as created_at,
+                    NULL as transaction_hash,
+                    NULL as ledger_sequence,
+                    NULL as starting_balance,
+                    NULL as flags,
+                    NULL as home_domain,
+                    total as total_count
+                FROM child_count
+            """
+            
+            job_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("target_account", "STRING", target_account),
+                    bigquery.ScalarQueryParameter("start_date", "STRING", f"{start_date}T00:00:00Z"),
+                    bigquery.ScalarQueryParameter("end_date", "STRING", f"{end_date}T23:59:59Z"),
+                    bigquery.ScalarQueryParameter("max_children", "INT64", max_children),
+                    bigquery.ScalarQueryParameter("offset", "INT64", offset)
+                ]
+            )
+            
+            # COST GUARD: Validate consolidated query size
+            logger.info(f"🔍 Validating CONSOLIDATED lineage query for {target_account} (date range: {start_date} to {end_date})")
+            cost_info = self.cost_guard.validate_query_cost(query, job_config)
+            logger.info(f"✅ Consolidated query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            # Execute consolidated query
+            logger.info(f"🚀 Executing CONSOLIDATED lineage query for {target_account}")
+            job_config.dry_run = False
+            query_job = self.client.query(query, job_config=job_config)
+            
+            # Parse consolidated results
+            creator = None
+            children = []
+            issuers = []
+            total_children = 0
+            
+            for row in query_job:
+                if row.result_type == 'creator':
+                    creator = {
+                        'creator_account': row.account,
+                        'created_at': row.created_at.isoformat() if row.created_at else None,
+                        'transaction_hash': row.transaction_hash,
+                        'ledger_sequence': row.ledger_sequence
+                    }
+                elif row.result_type == 'child':
+                    children.append({
+                        'account': row.account,
+                        'starting_balance': row.starting_balance,
+                        'created_at': row.created_at.isoformat() if row.created_at else None,
+                        'transaction_hash': row.transaction_hash,
+                        'ledger_sequence': row.ledger_sequence
+                    })
+                elif row.result_type == 'issuer':
+                    issuers.append({
+                        'account': row.account,
+                        'flags': row.flags,
+                        'home_domain': row.home_domain
+                    })
+                elif row.result_type == 'count':
+                    total_children = row.total_count or 0
+            
+            has_more = (offset + len(children)) < total_children
+            
+            logger.info(f"✅ Consolidated query complete: creator={bool(creator)}, children={len(children)}/{total_children}, issuers={len(issuers)}")
+            
+            return {
+                'creator': creator,
+                'children': children,
+                'issuers': issuers,
+                'pagination': {
+                    'total': total_children,
+                    'offset': offset,
+                    'limit': max_children,
+                    'has_more': has_more
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Consolidated lineage query failed for {target_account}: {e}")
+            sentry_sdk.capture_exception(e)
+            return {
+                'creator': None,
+                'children': [],
+                'issuers': [],
+                'pagination': {'total': 0, 'offset': 0, 'limit': max_children, 'has_more': False}
+            }
+    
     def get_account_creator(
         self, 
         account: str,
