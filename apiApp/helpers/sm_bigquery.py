@@ -896,7 +896,7 @@ class StellarBigQueryHelper:
                 logger.warning(f"BigQuery blocked or no creator found for {account} - using API fallback")
                 
                 # Try Horizon operations first
-                operations_response = horizon_helper.get_base_operations()
+                operations_response = horizon_helper.get_account_operations()
                 if operations_response:
                     from apiApp.helpers.sm_horizon import StellarMapHorizonAPIParserHelpers
                     parser = StellarMapHorizonAPIParserHelpers({'data': {'raw_data': operations_response}})
