@@ -244,6 +244,17 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(
                     '    ⚠ No child accounts found (query may have been blocked by Cost Guard)'
                 ))
+                # Fallback to Horizon API for child account discovery
+                self.stdout.write('    → Attempting Horizon API fallback for child accounts...')
+                children = self._get_children_from_api(account)
+                if children:
+                    self.stdout.write(self.style.SUCCESS(
+                        f'    ✓ Found {len(children)} child accounts (from Horizon API fallback)'
+                    ))
+                else:
+                    self.stdout.write(self.style.WARNING(
+                        '    ⚠ No child accounts found via API fallback either'
+                    ))
             
             # Step 4: Use account details from Horizon API (already fetched in Step 1)
             self.stdout.write('  → Using account details from Horizon API...')
@@ -387,6 +398,37 @@ class Command(BaseCommand):
             logger.error(f'Error fetching creator from API for {account}: {e}')
             sentry_sdk.capture_exception(e)
             return None
+    
+    def _get_children_from_api(self, account):
+        """
+        Fallback method to get child accounts using Horizon API when BigQuery is blocked.
+        Uses Horizon operations API to discover accounts created by this account.
+        
+        Returns:
+            List of child account addresses, or empty list if none found
+        """
+        try:
+            from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
+            
+            horizon_helper = StellarMapHorizonAPIHelpers(
+                horizon_url='https://horizon.stellar.org',
+                account_id=account
+            )
+            
+            # Get child accounts (up to 5 pages = 1000 operations)
+            child_accounts_raw = horizon_helper.get_child_accounts(max_pages=5)
+            
+            # Extract just the account addresses (method returns list of dicts)
+            if child_accounts_raw:
+                child_accounts = [child['account'] for child in child_accounts_raw if 'account' in child]
+                return child_accounts
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f'Error fetching child accounts from API for {account}: {e}')
+            sentry_sdk.capture_exception(e)
+            return []
     
     def _fetch_stellar_expert_assets(self, account):
         """
