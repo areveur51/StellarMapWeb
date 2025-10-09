@@ -11,6 +11,18 @@ def api_home(request):
     })
 
 
+def health_check(request):
+    """
+    Health check endpoint for load balancers and monitoring.
+    Returns 200 OK if the service is healthy.
+    """
+    return JsonResponse({
+        'status': 'healthy',
+        'service': 'stellarmapweb',
+        'version': '1.0'
+    }, status=200)
+
+
 def pending_accounts_api(request):
     """
     API endpoint that returns pending accounts data as JSON.
