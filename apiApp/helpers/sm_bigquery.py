@@ -21,6 +21,79 @@ import sentry_sdk
 logger = logging.getLogger(__name__)
 
 
+class BigQueryCostGuard:
+    """
+    Cost guard that validates query size before execution.
+    Prevents queries over 100MB to avoid unexpected costs.
+    """
+    
+    MAX_QUERY_SIZE_MB = 100
+    MAX_QUERY_SIZE_BYTES = MAX_QUERY_SIZE_MB * 1024 * 1024  # 100 MB in bytes
+    COST_PER_TB = 5.0  # $5 per TB scanned
+    
+    def __init__(self, client: bigquery.Client):
+        self.client = client
+    
+    def validate_query_cost(self, query: str, job_config: bigquery.QueryJobConfig = None) -> Dict:
+        """
+        Perform a dry-run to estimate query cost and validate size limit.
+        
+        Args:
+            query: SQL query to validate
+            job_config: Optional query configuration
+            
+        Returns:
+            Dict with:
+                - bytes_processed: Estimated bytes to scan
+                - size_mb: Size in MB
+                - estimated_cost: Estimated cost in USD
+                - is_valid: Whether query is under size limit
+                
+        Raises:
+            ValueError: If query exceeds size limit
+        """
+        if not job_config:
+            job_config = bigquery.QueryJobConfig()
+        
+        # Enable dry-run mode
+        job_config.dry_run = True
+        job_config.use_query_cache = False
+        
+        try:
+            query_job = self.client.query(query, job_config=job_config)
+            
+            bytes_processed = query_job.total_bytes_processed
+            size_mb = bytes_processed / (1024 * 1024)
+            estimated_cost = (bytes_processed / (1024**4)) * self.COST_PER_TB  # Convert to TB
+            
+            result = {
+                'bytes_processed': bytes_processed,
+                'size_mb': round(size_mb, 2),
+                'estimated_cost': round(estimated_cost, 4),
+                'is_valid': bytes_processed <= self.MAX_QUERY_SIZE_BYTES
+            }
+            
+            logger.info(f"Query cost estimate: {size_mb:.2f} MB (${estimated_cost:.4f})")
+            
+            if not result['is_valid']:
+                error_msg = (
+                    f"Query exceeds size limit! "
+                    f"Scans {size_mb:.2f} MB but limit is {self.MAX_QUERY_SIZE_MB} MB. "
+                    f"Estimated cost: ${estimated_cost:.4f}"
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            return result
+            
+        except Exception as e:
+            if "Query exceeds size limit" in str(e):
+                raise
+            logger.error(f"Error validating query cost: {e}")
+            sentry_sdk.capture_exception(e)
+            raise
+
+
 class StellarBigQueryHelper:
     """
     Helper class for querying Stellar's BigQuery/Hubble dataset.
@@ -32,6 +105,7 @@ class StellarBigQueryHelper:
         Credentials should be stored in GOOGLE_APPLICATION_CREDENTIALS_JSON secret.
         """
         self.client = None
+        self.cost_guard = None
         self._initialize_client()
     
     def _initialize_client(self):
@@ -53,7 +127,10 @@ class StellarBigQueryHelper:
                 project=credentials_dict.get('project_id')
             )
             
-            logger.info("BigQuery client initialized successfully")
+            # Initialize cost guard
+            self.cost_guard = BigQueryCostGuard(self.client)
+            
+            logger.info("BigQuery client and cost guard initialized successfully")
             
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
@@ -76,7 +153,8 @@ class StellarBigQueryHelper:
         parent_account: str,
         limit: int = 10000,
         offset: int = 0,
-        start_date: Optional[str] = None
+        start_date: str = '2015-01-01',
+        end_date: Optional[str] = None
     ) -> List[Dict]:
         """
         Fetch all accounts created by a specific parent account from BigQuery.
@@ -84,11 +162,14 @@ class StellarBigQueryHelper:
         This queries the Stellar Hubble dataset for create_account operations
         where the parent account is the funder.
         
+        IMPORTANT: Always requires date range filters to avoid full table scans.
+        
         Args:
             parent_account: The Stellar account address to query
             limit: Maximum number of child accounts to return (default 10000)
             offset: Number of results to skip for pagination (default 0)
-            start_date: Optional start date filter (format: 'YYYY-MM-DD') to limit costs
+            start_date: Start date for partition filter (YYYY-MM-DD), defaults to Stellar genesis
+            end_date: End date for partition filter (YYYY-MM-DD), defaults to today
         
         Returns:
             List of dicts containing child account info:
@@ -107,18 +188,12 @@ class StellarBigQueryHelper:
             logger.warning("BigQuery not available. Returning empty results.")
             return []
         
+        if not end_date:
+            from datetime import datetime
+            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+        
         try:
-            date_filter = ""
-            query_parameters = [
-                bigquery.ScalarQueryParameter("parent_account", "STRING", parent_account)
-            ]
-            
-            if start_date:
-                date_filter = "AND closed_at >= TIMESTAMP(@start_date)"
-                query_parameters.append(
-                    bigquery.ScalarQueryParameter("start_date", "STRING", f"{start_date}T00:00:00Z")
-                )
-            
+            # MANDATORY: Add partition filters to avoid full table scan
             query = f"""
                 SELECT 
                     account,
@@ -129,15 +204,29 @@ class StellarBigQueryHelper:
                 FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
                 WHERE type = 0
                   AND funder = @parent_account
-                  {date_filter}
+                  AND closed_at >= TIMESTAMP(@start_date)
+                  AND closed_at <= TIMESTAMP(@end_date)
                 ORDER BY closed_at ASC
                 LIMIT {limit}
                 OFFSET {offset}
             """
             
+            query_parameters = [
+                bigquery.ScalarQueryParameter("parent_account", "STRING", parent_account),
+                bigquery.ScalarQueryParameter("start_date", "STRING", f"{start_date}T00:00:00Z"),
+                bigquery.ScalarQueryParameter("end_date", "STRING", f"{end_date}T23:59:59Z")
+            ]
+            
             job_config = bigquery.QueryJobConfig(query_parameters=query_parameters)
             
+            # COST GUARD: Validate query size before execution
+            logger.info(f"Validating query cost for child accounts of {parent_account} (date range: {start_date} to {end_date})")
+            cost_info = self.cost_guard.validate_query_cost(query, job_config)
+            logger.info(f"✅ Query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            # Execute query
             logger.info(f"Querying BigQuery for child accounts of {parent_account}")
+            job_config.dry_run = False  # Re-enable actual execution
             query_job = self.client.query(query, job_config=job_config)
             
             results = []
@@ -158,15 +247,24 @@ class StellarBigQueryHelper:
             sentry_sdk.capture_exception(e)
             return []
     
-    def get_account_creator(self, account: str) -> Optional[Dict]:
+    def get_account_creator(
+        self, 
+        account: str,
+        start_date: str = '2015-01-01',
+        end_date: Optional[str] = None
+    ) -> Optional[Dict]:
         """
         Find the creator (funder) of a specific account using BigQuery.
         
         This is useful as a fallback when Horizon operations are too deep
         or when the account was created through non-standard methods.
         
+        IMPORTANT: Always requires date range filters to avoid full table scans.
+        
         Args:
             account: The Stellar account address to query
+            start_date: Start date for partition filter (YYYY-MM-DD), defaults to Stellar genesis
+            end_date: End date for partition filter (YYYY-MM-DD), defaults to today
         
         Returns:
             Dict containing creator info:
@@ -180,7 +278,12 @@ class StellarBigQueryHelper:
             logger.warning("BigQuery not available. Returning None.")
             return None
         
+        if not end_date:
+            from datetime import datetime
+            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+        
         try:
+            # MANDATORY: Add partition filters to avoid full table scan
             query = """
                 SELECT 
                     funder as creator,
@@ -188,17 +291,28 @@ class StellarBigQueryHelper:
                 FROM `crypto-stellar.crypto_stellar_dbt.enriched_history_operations`
                 WHERE type = 0
                   AND account = @account
+                  AND closed_at >= TIMESTAMP(@start_date)
+                  AND closed_at <= TIMESTAMP(@end_date)
                 ORDER BY closed_at ASC
                 LIMIT 1
             """
             
             job_config = bigquery.QueryJobConfig(
                 query_parameters=[
-                    bigquery.ScalarQueryParameter("account", "STRING", account)
+                    bigquery.ScalarQueryParameter("account", "STRING", account),
+                    bigquery.ScalarQueryParameter("start_date", "STRING", f"{start_date}T00:00:00Z"),
+                    bigquery.ScalarQueryParameter("end_date", "STRING", f"{end_date}T23:59:59Z")
                 ]
             )
             
+            # COST GUARD: Validate query size before execution
+            logger.info(f"Validating query cost for creator of {account} (date range: {start_date} to {end_date})")
+            cost_info = self.cost_guard.validate_query_cost(query, job_config)
+            logger.info(f"✅ Query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            # Execute query
             logger.info(f"Querying BigQuery for creator of {account}")
+            job_config.dry_run = False  # Re-enable actual execution
             query_job = self.client.query(query, job_config=job_config)
             
             for row in query_job:
