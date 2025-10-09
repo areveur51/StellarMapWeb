@@ -61,6 +61,80 @@ python manage.py test
 
 ---
 
+## Production Deployment Options
+
+### Option 1: Hybrid Architecture (Recommended for Production)
+
+Cost-effective hybrid deployment separating web app from background jobs:
+
+**Architecture:**
+```
+Cloudflare (DDoS) → Replit Autoscale (Web App) → Astra DB
+                          ↓
+                    Linode VPS (Cron Jobs)
+```
+
+**Components:**
+- **Replit Autoscale**: Web application (auto-scales 0 to N based on traffic)
+- **Linode VPS**: BigQuery cron jobs (reliable 24/7 execution)
+- **Cloudflare**: DDoS protection + CDN (free tier)
+- **Astra DB**: Shared database for both services
+
+**Setup:**
+1. **Deploy web app to Replit Autoscale**:
+   - Uses existing `.replit` deployment config
+   - Auto-scales based on traffic
+   - Scales to zero when idle (saves costs)
+
+2. **Deploy cron jobs to Linode VPS**:
+   ```bash
+   # On Linode VPS
+   docker compose -f docker-compose.cron.yml up -d
+   ```
+   - Runs BigQuery pipeline every hour
+   - Always-on for reliable processing
+
+**Total Cost: $10-32/month**
+- Linode: $5-12/month (Nanode 1GB or Linode 2GB)
+- Replit: ~$5-15/month (pay-per-use, scales to zero)
+- Cloudflare: $0 (free tier)
+- Astra DB: $0 (free tier, up to 80GB)
+- BigQuery: $0-5/month (permanent storage model)
+
+**See:** [LINODE_DEPLOYMENT.md](./LINODE_DEPLOYMENT.md) for complete setup guide
+
+### Option 2: Self-Hosted with Load Balancing
+
+Full production stack with Nginx load balancer and Redis:
+
+```bash
+# For multi-instance production with Redis
+docker compose -f docker-compose.redis.yml up -d
+
+# For single instance testing
+docker compose -f docker-compose.nginx.yml up -d
+```
+
+**Features:**
+- Nginx load balancer across 2+ Django instances
+- Redis for cluster-wide rate limiting
+- Health checks and monitoring
+- Cloudflare integration
+
+**See:** [CLOUDFLARE_SETUP.md](./CLOUDFLARE_SETUP.md) for complete setup guide
+
+### Option 3: Simple Docker Deployment
+
+Single-instance deployment for small-scale production:
+
+```bash
+docker-compose up -d
+```
+
+Includes web server and BigQuery cron job in one stack.
+
+---
+
 ## System Architecture
 
 ### Architecture Diagrams

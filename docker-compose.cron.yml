@@ -1,0 +1,56 @@
+version: '3.8'
+
+# VPS-only configuration for BigQuery cron jobs
+# Deploy this on Linode/DigitalOcean/AWS for reliable 24/7 pipeline execution
+# The web app runs separately on Replit Autoscale
+
+services:
+  # BigQuery pipeline cron job
+  bigquery_cron:
+    build: .
+    container_name: stellarmapweb_cron
+    command: >
+      sh -c "while true; do
+        echo '[$(date)] Starting BigQuery pipeline...';
+        python manage.py bigquery_pipeline --limit 100;
+        EXIT_CODE=$$?;
+        if [ $$EXIT_CODE -eq 0 ]; then
+          echo '[$(date)] ✅ Pipeline completed successfully';
+        else
+          echo '[$(date)] ❌ Pipeline failed with exit code $$EXIT_CODE';
+        fi;
+        echo '[$(date)] Sleeping for $${CRON_INTERVAL_MINUTES:-60} minutes...';
+        sleep $$((($${CRON_INTERVAL_MINUTES:-60}) * 60));
+      done"
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=StellarMapWeb.settings
+      - CRON_INTERVAL_MINUTES=${CRON_INTERVAL_MINUTES:-60}
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "python"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Add a second cron job for different intervals
+  # bigquery_cron_fast:
+  #   build: .
+  #   container_name: stellarmapweb_cron_fast
+  #   command: >
+  #     sh -c "while true; do
+  #       python manage.py bigquery_pipeline --limit 50;
+  #       sleep 1800;
+  #     done"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     - DJANGO_SETTINGS_MODULE=StellarMapWeb.settings
+  #   restart: unless-stopped

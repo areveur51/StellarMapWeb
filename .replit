@@ -12,8 +12,9 @@ packages = ["glibcLocales", "graphviz", "iana-etc", "libev", "plantuml"]
 language = "python3"
 
 [deployment]
-run = ["python", "manage.py", "runserver", "0.0.0.0:3000"]
-deploymentTarget = "gce"
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "StellarMapWeb.wsgi:application"]
+deploymentTarget = "autoscale"
+build = ["python", "manage.py", "collectstatic", "--noinput"]
 
 [[ports]]
 localPort = 3000
