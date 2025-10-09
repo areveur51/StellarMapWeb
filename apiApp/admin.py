@@ -267,10 +267,9 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
     def config_summary(self, obj):
         """Display configuration status summary."""
         if obj.bigquery_enabled:
-            status = format_html('<span style="color:green">✓ Enabled</span>')
+            return format_html('<span style="color:green">✓ BigQuery Enabled</span>')
         else:
-            status = format_html('<span style="color:red">✗ Disabled</span>')
-        return format_html('BigQuery: {}', status)
+            return format_html('<span style="color:red">✗ BigQuery Disabled</span>')
     config_summary.short_description = 'Status'
     
     def cost_limit_display(self, obj):
@@ -297,11 +296,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         """Override to show single config or creation form."""
         try:
-            config = BigQueryPipelineConfig.objects.all().limit(1)
-            config_exists = False
-            for c in config:
-                config_exists = True
-                break
+            config_exists = BigQueryPipelineConfig.objects.filter(config_id='default').exists()
             
             if not config_exists:
                 # Redirect to add form if no config exists
