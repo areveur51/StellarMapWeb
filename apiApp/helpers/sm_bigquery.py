@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 class BigQueryCostGuard:
     """
     Cost guard that validates query size before execution.
-    Prevents queries over 100MB to avoid unexpected costs.
+    Prevents queries over $0.71 to avoid unexpected costs.
     """
     
-    MAX_QUERY_SIZE_MB = 100
-    MAX_QUERY_SIZE_BYTES = MAX_QUERY_SIZE_MB * 1024 * 1024  # 100 MB in bytes
+    MAX_QUERY_SIZE_MB = 148900  # ~145 GB = $0.71 at $5/TB
+    MAX_QUERY_SIZE_BYTES = MAX_QUERY_SIZE_MB * 1024 * 1024  # 148,900 MB in bytes
     COST_PER_TB = 5.0  # $5 per TB scanned
     
     def __init__(self, client: bigquery.Client):
