@@ -505,6 +505,17 @@ django = ">=4.2,<6.0"
 scylla-driver = ">=3.29,<4.0"
 
 [[package]]
+name = "django-ratelimit"
+version = "4.1.0"
+description = "Cache-based rate-limiting for Django."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "django-ratelimit-4.1.0.tar.gz", hash = "sha256:555943b283045b917ad59f196829530d63be2a39adb72788d985b90c81ba808b"},
+    {file = "django_ratelimit-4.1.0-py2.py3-none-any.whl", hash = "sha256:d047a31cf94d83ef1465d7543ca66c6fc16695559b5f8d814d1b51df15110b92"},
+]
+
+[[package]]
 name = "frozenlist"
 version = "1.7.0"
 description = "A list-like structure which implements collections.abc.MutableSequence"
@@ -2304,4 +2315,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "59dad13a9175473ce2f518bf186b41e6c2bc0f5afb2c352d1cdb64fd3b38ef89"
+content-hash = "dc17c582b42aa048a0cef300555b19d14ab368540c1637824d71dc2123df8ce7"

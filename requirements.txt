@@ -16,6 +16,7 @@ cyclonedx-python-lib==9.1.0
 defusedxml==0.7.1
 Django==5.0.2
 django-cassandra-engine==1.10.0
+django-ratelimit==4.1.0
 filelock==3.19.1
 frozenlist==1.7.0
 geomet==0.2.1.post1
