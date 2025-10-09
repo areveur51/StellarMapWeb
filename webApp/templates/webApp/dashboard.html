@@ -1,15 +1,14 @@
-{% extends 'webApp/base.html' %}
 {% load static %}
 
-{% block extra_head %}
-<!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Vue CSS -->
-<link href="https://unpkg.com/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-
-<style>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StellarMap Web - Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  
+  <style>
     .dashboard-container {
         padding: 20px;
         background: #1a1a2e;
@@ -55,35 +54,28 @@
     .health-good { background-color: #28a745; }
     .health-warning { background-color: #ffc107; }
     .health-danger { background-color: #dc3545; }
-    .progress {
-        background-color: #0f3460;
-        height: 25px;
-    }
-    .progress-bar {
-        background: linear-gradient(90deg, #00d4ff 0%, #0077b6 100%);
-    }
     .alert-custom {
         background: #0f3460;
         border: 1px solid #00d4ff;
         color: #eee;
     }
-</style>
-{% endblock %}
+  </style>
+</head>
+<body class="bg-color-261D45">
+  <div id="app">
+    <!-- Include shared search container and sidebar -->
+    {% include 'webApp/search_container_include.html' %}
 
-{% block content %}
-<div id="app">
-    {% include 'webApp/navbar_sidebar.html' %}
-    
     <div class="dashboard-container">
         <h1 class="text-center mb-4">
-            <i class="bi bi-speedometer2"></i> System Dashboard
+            <i class="fa fa-tachometer-alt"></i> System Dashboard
         </h1>
         
         <!-- BigQuery Cost Tracking -->
         <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-currency-dollar"></i> BigQuery Cost Tracking
+                    <i class="fa fa-dollar-sign"></i> BigQuery Cost Tracking
                 </h3>
             </div>
         </div>
@@ -128,7 +120,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-database"></i> Database Health
+                    <i class="fa fa-database"></i> Database Health
                 </h3>
             </div>
         </div>
@@ -195,7 +187,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-diagram-3"></i> Lineage Data Integrity
+                    <i class="fa fa-project-diagram"></i> Lineage Data Integrity
                 </h3>
             </div>
         </div>
@@ -227,7 +219,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-graph-up"></i> Performance Metrics
+                    <i class="fa fa-chart-line"></i> Performance Metrics
                 </h3>
             </div>
         </div>
@@ -278,7 +270,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-heart-pulse"></i> System Health
+                    <i class="fa fa-heartbeat"></i> System Health
                 </h3>
             </div>
         </div>
@@ -321,7 +313,7 @@
         <div class="row mt-4">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-exclamation-triangle"></i> Alerts & Recommendations
+                    <i class="fa fa-exclamation-triangle"></i> Alerts & Recommendations
                 </h3>
             </div>
         </div>
@@ -329,28 +321,28 @@
             <div class="col-12">
                 {% if db_stats.stuck_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
-                    <strong><i class="bi bi-exclamation-triangle"></i> Stuck Records Alert:</strong>
+                    <strong><i class="fa fa-exclamation-triangle"></i> Stuck Records Alert:</strong>
                     {{ db_stats.stuck_accounts }} accounts are stuck in processing. Check cron jobs and pipeline health.
                 </div>
                 {% endif %}
                 
                 {% if db_stats.orphan_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
-                    <strong><i class="bi bi-folder-x"></i> Data Integrity Warning:</strong>
+                    <strong><i class="fa fa-folder-minus"></i> Data Integrity Warning:</strong>
                     {{ db_stats.orphan_accounts }} accounts in cache have no lineage data. Consider re-processing.
                 </div>
                 {% endif %}
                 
                 {% if stage_health.failed_stages > 0 %}
                 <div class="alert alert-custom alert-danger">
-                    <strong><i class="bi bi-x-circle"></i> Pipeline Failures:</strong>
+                    <strong><i class="fa fa-times-circle"></i> Pipeline Failures:</strong>
                     {{ stage_health.failed_stages }} stage executions have failed. Check logs for error details.
                 </div>
                 {% endif %}
                 
                 {% if bigquery_stats.estimated_monthly_cost > 50 %}
                 <div class="alert alert-custom alert-info">
-                    <strong><i class="bi bi-cash-stack"></i> Cost Alert:</strong>
+                    <strong><i class="fa fa-money-bill-wave"></i> Cost Alert:</strong>
                     Estimated monthly BigQuery cost is ${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}. 
                     Consider adjusting cost limits or reducing processing frequency.
                 </div>
@@ -358,7 +350,7 @@
                 
                 {% if db_stats.stuck_accounts == 0 and db_stats.orphan_accounts == 0 and stage_health.failed_stages == 0 %}
                 <div class="alert alert-custom alert-success">
-                    <strong><i class="bi bi-check-circle"></i> All Systems Healthy:</strong>
+                    <strong><i class="fa fa-check-circle"></i> All Systems Healthy:</strong>
                     No critical issues detected. System is operating normally.
                 </div>
                 {% endif %}
@@ -369,55 +361,64 @@
         <div class="row mt-4 mb-5">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="bi bi-lightning"></i> Quick Actions
+                    <i class="fa fa-bolt"></i> Quick Actions
                 </h3>
             </div>
             <div class="col-md-3">
                 <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-outline-info btn-block">
-                    <i class="bi bi-gear"></i> Configure Pipeline
+                    <i class="fa fa-cog"></i> Configure Pipeline
                 </a>
             </div>
             <div class="col-md-3">
                 <a href="/search" class="btn btn-outline-info btn-block">
-                    <i class="bi bi-search"></i> Search Accounts
+                    <i class="fa fa-search"></i> Search Accounts
                 </a>
             </div>
             <div class="col-md-3">
                 <a href="/admin/" class="btn btn-outline-info btn-block">
-                    <i class="bi bi-shield-check"></i> Admin Panel
+                    <i class="fa fa-shield-alt"></i> Admin Panel
                 </a>
             </div>
             <div class="col-md-3">
                 <button class="btn btn-outline-info btn-block" onclick="location.reload()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh Stats
+                    <i class="fa fa-sync-alt"></i> Refresh Stats
                 </button>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+  </div>
 
-{% block extra_js %}
-<!-- Vue.js -->
-<script src="https://cdn.jsdelivr.net/npm/vue@2.7.14/dist/vue.js"></script>
-<!-- Bootstrap and dependencies -->
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Bootstrap Vue -->
-<script src="https://unpkg.com/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js"></script>
-
-<script>
-new Vue({
-    el: '#app',
-    data: {
-        // Dashboard-specific data can go here
-    },
-    methods: {
-        hide() {
-            this.$root.$emit('bv::toggle::collapse', 'sidebar-1');
+  <!-- Load required Bootstrap and BootstrapVue CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
+  
+  <!-- Load Vue followed by BootstrapVue -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  
+  <script>
+    // Register BootstrapVue with Vue
+    Vue.use(BootstrapVue);
+    
+    var vm = new Vue({
+        el: '#app',
+        data: {
+          query_account: '',
+          network_toggle: true,
+          network_selected: 'public',
+        },
+        methods: {
+          async search() {
+            if (this.query_account && this.query_account.trim()) {
+              const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
+              window.location.href = searchUrl;
+            }
+          },
+          toggleNetwork() {
+            this.network_selected = this.network_toggle ? 'public' : 'testnet'
+          }
         }
-    }
-});
-</script>
-{% endblock %}
+    });
+  </script>
+</body>
+</html>

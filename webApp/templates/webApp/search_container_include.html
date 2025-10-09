@@ -1,0 +1,63 @@
+<!-- Shared search container and sidebar component -->
+<div class="top-container">
+  {% verbatim %}
+    <div class="search-container">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <b-button class="sidebar-button" v-b-toggle href="#sidebar-menu" @click.prevent><i class="fa fa-bars"></i></b-button>
+          </div>
+          <div class="col">
+            <div class="row align-items-center">
+              <b-form-checkbox 
+                v-model="network_toggle" 
+                switch 
+                @change="toggleNetwork"
+                :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
+              >{{network_selected}}</b-form-checkbox>
+              <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Search Stellar Address">
+            </div>
+          </div>
+          <div class="col-auto">
+            <button @click="search"><i class="fa fa-space-shuttle"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endverbatim %}
+</div>
+
+<!-- Shared sidebar component -->
+<b-sidebar id="sidebar-menu" title="StellarMap.Network" shadow>
+  <div class="px-3 py-2">
+    This web application allows users to generate the lineage of Stellar addresses 
+    and visualize them in a radial, tidy tree format. The tree maps address types 
+    and activity, providing a clear and organized view of the relationships between addresses.
+    
+    <hr style="border-color: #0f3460; margin: 20px 0;">
+    
+    <h6 style="color: #00d4ff; margin-bottom: 15px;">Quick Navigation</h6>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+        <a href="/" class="btn btn-sm btn-outline-info">
+            <i class="fa fa-home"></i> Home
+        </a>
+        <a href="/search" class="btn btn-sm btn-outline-info">
+            <i class="fa fa-search"></i> Search Accounts
+        </a>
+        <a href="/dashboard" class="btn btn-sm btn-outline-primary">
+            <i class="fa fa-tachometer-alt"></i> System Dashboard
+        </a>
+        <a href="/admin" class="btn btn-sm btn-outline-info">
+            <i class="fa fa-cog"></i> Admin Panel
+        </a>
+    </div>
+  </div>
+
+  <template #footer="{ hide }">
+    <div class="d-flex text-light align-items-center px-3 py-2">
+      <b-button class="close-button" @click="hide">
+        <i class="fas fa-sign-out icon-pad"></i> Close
+      </b-button>
+    </div>
+  </template>
+</b-sidebar>
