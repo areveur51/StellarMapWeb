@@ -133,7 +133,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('📊 BigQuery Cost Controls', {
             'fields': ('bigquery_enabled', 'cost_limit_usd', 'size_limit_mb'),
             'description': format_html(
-                '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:10px 0;">'
+                '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>⚠️ COST PROTECTION:</strong> These settings prevent runaway BigQuery costs.<br>'
                 '<strong>Current Limits:</strong><br>'
                 '• Cost: $0.71 per query (processes ~145GB of data)<br>'
@@ -151,7 +151,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('🔧 Pipeline Strategy', {
             'fields': ('pipeline_mode',),
             'description': format_html(
-                '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;">'
+                '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>📋 PIPELINE MODES:</strong><br><br>'
                 '<strong>1. BIGQUERY_WITH_API_FALLBACK</strong> (RECOMMENDED)<br>'
                 '• Tries BigQuery first for fast, comprehensive data<br>'
@@ -172,7 +172,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('📅 Age Restrictions', {
             'fields': ('instant_query_max_age_days', 'cache_ttl_hours'),
             'description': format_html(
-                '<div style="background:#d4edda;border-left:4px solid #28a745;padding:12px;margin:10px 0;">'
+                '<div style="background:#d4edda;border-left:4px solid #28a745;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>⏰ AGE-BASED QUERY OPTIMIZATION:</strong><br><br>'
                 '<strong>instant_query_max_age_days (Default: 365)</strong><br>'
                 '• Accounts younger than this: Instant BigQuery queries<br>'
@@ -192,7 +192,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('🔌 API Fallback Settings', {
             'fields': ('api_fallback_enabled', 'horizon_max_operations', 'horizon_child_max_pages'),
             'description': format_html(
-                '<div style="background:#f8d7da;border-left:4px solid #dc3545;padding:12px;margin:10px 0;">'
+                '<div style="background:#f8d7da;border-left:4px solid #dc3545;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>🚨 API FALLBACK BEHAVIOR:</strong><br><br>'
                 '<strong>api_fallback_enabled</strong><br>'
                 '• If TRUE: Falls back to APIs when BigQuery blocked by cost controls<br>'
@@ -212,7 +212,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('👶 Child Account Collection', {
             'fields': ('bigquery_max_children', 'bigquery_child_page_size'),
             'description': format_html(
-                '<div style="background:#e2e3e5;border-left:4px solid #6c757d;padding:12px;margin:10px 0;">'
+                '<div style="background:#e2e3e5;border-left:4px solid #6c757d;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>🔗 CHILD ACCOUNT DISCOVERY:</strong><br><br>'
                 '<strong>bigquery_max_children (Default: 100,000)</strong><br>'
                 '• Maximum child accounts to discover per parent via BigQuery<br>'
@@ -229,7 +229,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('⚙️ Batch Processing', {
             'fields': ('batch_processing_enabled', 'batch_size'),
             'description': format_html(
-                '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:10px 0;">'
+                '<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>📦 BATCH PROCESSING OPTIONS:</strong><br><br>'
                 '<strong>batch_processing_enabled</strong><br>'
                 '• Controls whether cron job processes PENDING accounts<br>'
@@ -248,7 +248,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         ('📝 Metadata', {
             'fields': ('updated_by', 'notes', 'created_at', 'updated_at'),
             'description': format_html(
-                '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;">'
+                '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>📄 CONFIGURATION TRACKING:</strong><br><br>'
                 '<strong>updated_by:</strong> Username of admin who last modified settings<br>'
                 '<strong>notes:</strong> Document why changes were made<br>'
