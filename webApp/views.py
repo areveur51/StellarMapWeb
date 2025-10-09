@@ -504,14 +504,20 @@ def dashboard_view(request):
         StellarCreatorAccountLineage,
         StellarAccountStageExecution,
         ManagementCronHealth,
-        PENDING_MAKE_PARENT_LINEAGE,
-        IN_PROGRESS_MAKE_PARENT_LINEAGE,
-        DONE_MAKE_PARENT_LINEAGE,
-        RE_INQUIRY,
-        STUCK_THRESHOLDS,
+        PENDING,
+        PROCESSING,
+        COMPLETE,
+        STUCK_THRESHOLD_MINUTES,
+        STUCK_STATUSES,
     )
     from datetime import datetime, timedelta
     import json
+    
+    # Status constants (using string literals for pipeline-specific statuses)
+    PENDING_MAKE_PARENT_LINEAGE = 'PENDING_MAKE_PARENT_LINEAGE'
+    IN_PROGRESS_MAKE_PARENT_LINEAGE = 'IN_PROGRESS_MAKE_PARENT_LINEAGE'
+    DONE_MAKE_PARENT_LINEAGE = 'DONE_MAKE_PARENT_LINEAGE'
+    RE_INQUIRY = 'RE_INQUIRY'
     
     # Get BigQuery configuration
     bigquery_config = None
@@ -569,9 +575,10 @@ def dashboard_view(request):
                 else:
                     stale_count += 1
                 
-                # Check if stuck
+                # Check if stuck (using model-defined thresholds)
                 age_minutes = (datetime.utcnow() - record.updated_at).total_seconds() / 60
-                threshold = STUCK_THRESHOLDS.get(record.status, 30)
+                # Use 5-minute threshold for core statuses (PENDING, PROCESSING), 30 min for others
+                threshold = STUCK_THRESHOLD_MINUTES if record.status in STUCK_STATUSES else 30
                 if age_minutes > threshold:
                     stuck_count += 1
         
