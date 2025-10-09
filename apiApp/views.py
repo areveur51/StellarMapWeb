@@ -253,14 +253,19 @@ def account_lineage_api(request):
                         account_age = datetime.now(account_created_at.tzinfo) - account_created_at
                         
                         if account_age > timedelta(days=365):
-                            logger.info(f"Account {account} is {account_age.days} days old (>1 year) - skipping BigQuery, queuing for batch pipeline")
-                            # Queue for batch pipeline processing
+                            logger.info(f"Account {account} is {account_age.days} days old (>1 year) - checking for existing data")
+                            # Check if lineage data already exists in database
                             existing = StellarCreatorAccountLineage.objects.filter(
                                 stellar_account=account,
                                 network_name=network
                             ).first()
                             
-                            if not existing:
+                            if existing and existing.status == 'BIGQUERY_COMPLETE':
+                                # Data exists - skip BigQuery and use database directly
+                                logger.info(f"Found existing complete lineage data for {account} - skipping BigQuery, using database")
+                                raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
+                            elif not existing:
+                                # No data exists - queue for batch pipeline
                                 StellarCreatorAccountLineage.objects.create(
                                     stellar_account=account,
                                     network_name=network,
@@ -269,21 +274,27 @@ def account_lineage_api(request):
                                     updated_at=datetime.utcnow()
                                 )
                                 logger.info(f"Queued {account} for batch pipeline processing")
-                            
-                            # Return message to user
-                            return JsonResponse({
-                                'account': account,
-                                'network': network,
-                                'lineage': [],
-                                'total_records': 0,
-                                'source': 'queued_for_batch',
-                                'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
-                            }, safe=False)
+                                # Return message to user
+                                return JsonResponse({
+                                    'account': account,
+                                    'network': network,
+                                    'lineage': [],
+                                    'total_records': 0,
+                                    'source': 'queued_for_batch',
+                                    'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
+                                }, safe=False)
+                            else:
+                                # Data exists but not complete - skip BigQuery and use database to show current status
+                                logger.info(f"Found incomplete lineage data for {account} (status: {existing.status}) - skipping BigQuery, using database")
+                                raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
                         else:
                             logger.info(f"Account {account} is {account_age.days} days old (<1 year) - proceeding with BigQuery instant query")
                     else:
                         logger.warning(f"Could not determine account age for {account} - continuing with BigQuery")
                 except Exception as horizon_error:
+                    if str(horizon_error) == "Skip_BigQuery_Use_Database":
+                        # This is intentional - skip to database fallback
+                        raise
                     logger.warning(f"Failed to get account age from Horizon: {horizon_error}")
                     # Continue with BigQuery if we can't determine age
                 
