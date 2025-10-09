@@ -280,11 +280,16 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
             color = 'orange'
         else:
             color = 'green'
+        
+        # Pre-format numeric values to avoid SafeString format code errors
+        cost_str = f'${obj.cost_limit_usd:.2f}'
+        size_gb_str = f'{obj.size_limit_mb / 1024:.0f} GB'
+        
         return format_html(
-            '<span style="color:{}"><strong>${:.2f}</strong> / <small>{:.0f} GB</small></span>',
+            '<span style="color:{}"><strong>{}</strong> / <small>{}</small></span>',
             color,
-            obj.cost_limit_usd,
-            obj.size_limit_mb / 1024
+            cost_str,
+            size_gb_str
         )
     cost_limit_display.short_description = 'Cost Limit'
     
