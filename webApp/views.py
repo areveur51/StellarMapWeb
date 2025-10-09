@@ -485,3 +485,247 @@ def search_view(request):
     response['Pragma'] = 'no-cache'
     response['Expires'] = '0'
     return response
+
+
+def dashboard_view(request):
+    """
+    Dashboard view for monitoring system health, BigQuery costs, and database stats.
+    
+    Displays:
+    - BigQuery cost and size tracking
+    - Performance metrics
+    - Cassandra DB health indicators
+    - Stale records tracking
+    - Other stats to prevent data loss
+    """
+    from apiApp.models import (
+        BigQueryPipelineConfig,
+        StellarAccountSearchCache,
+        StellarCreatorAccountLineage,
+        StellarAccountStageExecution,
+        ManagementCronHealth,
+        PENDING_MAKE_PARENT_LINEAGE,
+        IN_PROGRESS_MAKE_PARENT_LINEAGE,
+        DONE_MAKE_PARENT_LINEAGE,
+        RE_INQUIRY,
+        STUCK_THRESHOLDS,
+    )
+    from datetime import datetime, timedelta
+    import json
+    
+    # Get BigQuery configuration
+    bigquery_config = None
+    try:
+        bigquery_config = BigQueryPipelineConfig.objects.get(config_id='default')
+    except Exception:
+        pass
+    
+    # Calculate database health stats
+    db_stats = {
+        'total_cached_accounts': 0,
+        'fresh_accounts': 0,
+        'stale_accounts': 0,
+        'pending_accounts': 0,
+        'in_progress_accounts': 0,
+        'completed_accounts': 0,
+        're_inquiry_accounts': 0,
+        'stuck_accounts': 0,
+        'total_lineage_records': 0,
+        'accounts_with_lineage': 0,
+        'orphan_accounts': 0,
+    }
+    
+    # Count cache records
+    try:
+        all_cache_records = StellarAccountSearchCache.objects.all()
+        db_stats['total_cached_accounts'] = len(list(all_cache_records))
+        
+        # Count by status
+        db_stats['pending_accounts'] = len(list(
+            StellarAccountSearchCache.objects.filter(status=PENDING_MAKE_PARENT_LINEAGE).all()
+        ))
+        db_stats['in_progress_accounts'] = len(list(
+            StellarAccountSearchCache.objects.filter(status=IN_PROGRESS_MAKE_PARENT_LINEAGE).all()
+        ))
+        db_stats['completed_accounts'] = len(list(
+            StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all()
+        ))
+        db_stats['re_inquiry_accounts'] = len(list(
+            StellarAccountSearchCache.objects.filter(status=RE_INQUIRY).all()
+        ))
+        
+        # Count fresh vs stale (using cache TTL from config)
+        cache_ttl_hours = bigquery_config.cache_ttl_hours if bigquery_config else 12
+        staleness_threshold = datetime.utcnow() - timedelta(hours=cache_ttl_hours)
+        
+        fresh_count = 0
+        stale_count = 0
+        stuck_count = 0
+        
+        for record in all_cache_records:
+            if hasattr(record, 'updated_at') and record.updated_at:
+                if record.updated_at > staleness_threshold:
+                    fresh_count += 1
+                else:
+                    stale_count += 1
+                
+                # Check if stuck
+                age_minutes = (datetime.utcnow() - record.updated_at).total_seconds() / 60
+                threshold = STUCK_THRESHOLDS.get(record.status, 30)
+                if age_minutes > threshold:
+                    stuck_count += 1
+        
+        db_stats['fresh_accounts'] = fresh_count
+        db_stats['stale_accounts'] = stale_count
+        db_stats['stuck_accounts'] = stuck_count
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    # Count lineage records
+    try:
+        all_lineage_records = StellarCreatorAccountLineage.objects.all()
+        db_stats['total_lineage_records'] = len(list(all_lineage_records))
+        
+        # Count unique accounts with lineage
+        unique_accounts = set()
+        for record in all_lineage_records:
+            unique_accounts.add(record.stellar_account)
+        db_stats['accounts_with_lineage'] = len(unique_accounts)
+        
+        # Find orphan accounts (in cache but no lineage)
+        try:
+            cache_accounts = set()
+            for record in StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all():
+                cache_accounts.add(record.stellar_account)
+            
+            orphans = cache_accounts - unique_accounts
+            db_stats['orphan_accounts'] = len(orphans)
+        except Exception:
+            pass
+            
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    # Performance metrics
+    performance_stats = {
+        'avg_processing_time_minutes': 0,
+        'fastest_account_minutes': None,
+        'slowest_account_minutes': None,
+        'total_accounts_processed_24h': 0,
+        'total_accounts_processed_7d': 0,
+    }
+    
+    try:
+        # Calculate average processing time from completed accounts
+        now = datetime.utcnow()
+        processing_times = []
+        
+        completed_records = StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all()
+        for record in completed_records:
+            if hasattr(record, 'created_at') and hasattr(record, 'updated_at'):
+                if record.created_at and record.updated_at:
+                    delta = record.updated_at - record.created_at
+                    minutes = delta.total_seconds() / 60
+                    processing_times.append(minutes)
+                    
+                    # Count accounts processed in last 24h and 7d
+                    if record.updated_at > now - timedelta(hours=24):
+                        performance_stats['total_accounts_processed_24h'] += 1
+                    if record.updated_at > now - timedelta(days=7):
+                        performance_stats['total_accounts_processed_7d'] += 1
+        
+        if processing_times:
+            performance_stats['avg_processing_time_minutes'] = sum(processing_times) / len(processing_times)
+            performance_stats['fastest_account_minutes'] = min(processing_times)
+            performance_stats['slowest_account_minutes'] = max(processing_times)
+    
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    # BigQuery cost tracking (estimated from config and usage)
+    bigquery_stats = {
+        'cost_limit_usd': 0.71,
+        'size_limit_gb': 145,
+        'estimated_cost_per_account': 0.35,
+        'estimated_monthly_cost': 0,
+        'accounts_remaining_in_budget': 0,
+        'bigquery_enabled': False,
+        'pipeline_mode': 'UNKNOWN',
+    }
+    
+    if bigquery_config:
+        bigquery_stats['cost_limit_usd'] = bigquery_config.cost_limit_usd
+        bigquery_stats['size_limit_gb'] = bigquery_config.size_limit_mb / 1024
+        bigquery_stats['bigquery_enabled'] = bigquery_config.bigquery_enabled
+        bigquery_stats['pipeline_mode'] = bigquery_config.pipeline_mode
+        
+        # Estimate monthly costs based on processing rate
+        if performance_stats['total_accounts_processed_7d'] > 0:
+            weekly_accounts = performance_stats['total_accounts_processed_7d']
+            monthly_accounts = (weekly_accounts / 7) * 30
+            bigquery_stats['estimated_monthly_cost'] = monthly_accounts * bigquery_stats['estimated_cost_per_account']
+            
+            # Calculate how many more accounts can be processed within budget (assume $100/month budget)
+            monthly_budget = 100.0
+            if bigquery_stats['estimated_cost_per_account'] > 0:
+                bigquery_stats['accounts_remaining_in_budget'] = int(
+                    (monthly_budget - bigquery_stats['estimated_monthly_cost']) / 
+                    bigquery_stats['estimated_cost_per_account']
+                )
+    
+    # Cron health check
+    cron_health = {
+        'last_run': None,
+        'status': 'UNKNOWN',
+        'total_runs': 0,
+    }
+    
+    try:
+        cron_records = ManagementCronHealth.objects.all()
+        cron_list = list(cron_records)
+        cron_health['total_runs'] = len(cron_list)
+        
+        if cron_list:
+            latest_cron = max(cron_list, key=lambda x: x.created_at if hasattr(x, 'created_at') and x.created_at else datetime.min)
+            cron_health['last_run'] = latest_cron.created_at.isoformat() if hasattr(latest_cron, 'created_at') and latest_cron.created_at else None
+            cron_health['status'] = latest_cron.status if hasattr(latest_cron, 'status') else 'UNKNOWN'
+    
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    # Stage execution health
+    stage_health = {
+        'total_stage_executions': 0,
+        'failed_stages': 0,
+        'in_progress_stages': 0,
+        'completed_stages': 0,
+    }
+    
+    try:
+        stage_records = StellarAccountStageExecution.objects.all()
+        stage_list = list(stage_records)
+        stage_health['total_stage_executions'] = len(stage_list)
+        
+        for record in stage_list:
+            if hasattr(record, 'status'):
+                if 'ERROR' in record.status or 'FAILED' in record.status:
+                    stage_health['failed_stages'] += 1
+                elif 'IN_PROGRESS' in record.status:
+                    stage_health['in_progress_stages'] += 1
+                elif 'DONE' in record.status or 'COMPLETE' in record.status:
+                    stage_health['completed_stages'] += 1
+    
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    context = {
+        'db_stats': db_stats,
+        'performance_stats': performance_stats,
+        'bigquery_stats': bigquery_stats,
+        'cron_health': cron_health,
+        'stage_health': stage_health,
+        'bigquery_config': bigquery_config,
+    }
+    
+    return render(request, 'webApp/dashboard.html', context)
