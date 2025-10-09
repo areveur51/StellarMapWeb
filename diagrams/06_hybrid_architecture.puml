@@ -1,0 +1,157 @@
+@startuml 06_hybrid_architecture
+
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
+
+skinparam cloud {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam node {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam component {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam package {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam actor {
+  BackgroundColor #0BE784
+  BorderColor #0BE784
+  FontColor #100D23
+}
+
+title <color:#0BE784>Hybrid Production Architecture - Cost-Effective Deployment
+
+actor "Users" as Users #0BE784
+
+cloud "Cloudflare CDN" as Cloudflare #100D23 {
+  component "DDoS Protection\nSSL/TLS Termination\nCaching" as CDN
+  note right of CDN #231B3D
+    <color:#0BE784>FREE TIER
+    <color:#96DDF2>• Unlimited DDoS protection
+    <color:#96DDF2>• Global CDN
+    <color:#96DDF2>• SSL certificates
+    <color:#96DDF2>• $0/month
+  end note
+}
+
+cloud "Replit Autoscale" as Replit #100D23 {
+  package "Web Application" #231B3D {
+    component "Django 1" as Django1
+    component "Django 2" as Django2
+    component "Django N" as DjangoN
+    component "..." as More
+  }
+  note right of Replit #231B3D
+    <color:#0BE784>AUTO-SCALING
+    <color:#96DDF2>• Scales 0 → N instances
+    <color:#96DDF2>• Pay per compute unit
+    <color:#96DDF2>• Built-in load balancing
+    <color:#96DDF2>• ~$5-15/month
+  end note
+}
+
+node "Linode VPS" as Linode #100D23 {
+  package "Background Jobs" #231B3D {
+    component "BigQuery Cron\n(Every 60 min)" as Cron
+  }
+  note right of Linode #231B3D
+    <color:#0BE784>ALWAYS-ON VPS
+    <color:#96DDF2>• Reliable 24/7 execution
+    <color:#96DDF2>• Nanode 1GB or 2GB
+    <color:#96DDF2>• Docker containerized
+    <color:#96DDF2>• $5-12/month
+  end note
+}
+
+database "Astra DB\n(Cassandra)" as AstraDB
+note right of AstraDB #231B3D
+  <color:#0BE784>SHARED DATABASE
+  <color:#96DDF2>• Both services connect
+  <color:#96DDF2>• Permanent lineage storage
+  <color:#96DDF2>• Free tier (80GB)
+  <color:#96DDF2>• $0/month
+end note
+
+cloud "Data Sources" as DataSources #100D23 {
+  database "BigQuery/Hubble\n(Stellar Dataset)" as BigQuery
+  component "Horizon API" as Horizon
+  component "Stellar Expert" as Expert
+}
+
+note right of BigQuery #231B3D
+  <color:#0BE784>PERMANENT STORAGE
+  <color:#96DDF2>• Query once per account
+  <color:#96DDF2>• Store forever in Cassandra
+  <color:#96DDF2>• Repeat searches = FREE
+  <color:#96DDF2>• $0-5/month
+end note
+
+' User flow
+Users -[#01C176]-> CDN : "<color:#96DDF2>HTTPS Requests"
+
+' Cloudflare to Replit
+CDN -[#01C176]-> Django1 : "<color:#96DDF2>Load Balanced"
+CDN -[#01C176]-> Django2
+CDN -[#01C176]-> DjangoN
+
+' Web app to database
+Django1 -[#01C176]-> AstraDB : "<color:#96DDF2>Read/Write"
+Django2 -[#01C176]-> AstraDB
+DjangoN -[#01C176]-> AstraDB
+
+' Cron to database
+Cron -[#01C176]-> AstraDB : "<color:#96DDF2>Pipeline Data"
+
+' Cron to BigQuery
+Cron -[#0BE784,bold]-> BigQuery : "<color:#0BE784><b>First-Time Queries"
+
+' Web app to APIs (enrichment)
+Django1 -[#96DDF2,dashed]-> Horizon : "<color:#96DDF2>Enrichment"
+Django1 -[#96DDF2,dashed]-> Expert : "<color:#96DDF2>Assets"
+
+' Architecture benefits
+note bottom #231B3D
+  <color:#0BE784>Total Cost: $10-32/month
+  
+  <color:#96DDF2><b>Cost Breakdown:</b>
+  <color:#96DDF2>• Cloudflare: $0 (Free Tier)
+  <color:#96DDF2>• Replit Autoscale: ~$5-15 (Scales to zero)
+  <color:#96DDF2>• Linode VPS: $5-12 (Always-on)
+  <color:#96DDF2>• Astra DB: $0 (Free Tier, 80GB)
+  <color:#96DDF2>• BigQuery: $0-5 (Permanent storage model)
+  
+  <color:#0BE784><b>Benefits:</b>
+  <color:#96DDF2>• Web app scales automatically with traffic
+  <color:#96DDF2>• Cron jobs run reliably 24/7
+  <color:#96DDF2>• DDoS protected by Cloudflare
+  <color:#96DDF2>• Predictable, low costs
+end note
+
+@enduml

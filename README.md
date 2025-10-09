@@ -154,6 +154,9 @@ Includes web server and BigQuery cron job in one stack.
 #### 5. Monitoring System
 ![Monitoring System](./diagrams/05_monitoring_system.png)
 
+#### 6. Hybrid Production Architecture
+![Hybrid Architecture](./diagrams/06_hybrid_architecture.png)
+
 ---
 
 ### Framework and Structure
