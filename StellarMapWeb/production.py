@@ -65,7 +65,7 @@ def get_real_ip(request):
     return ip
 
 # Configure django-ratelimit to use real IP
-RATELIMIT_VIEW = 'webApp.views.ratelimited'  # Custom rate limit exceeded view (optional)
+# Note: For multi-instance deployments, use Redis/Memcached for shared rate limiting
 RATELIMIT_USE_CACHE = 'default'
 
 # Static files (WhiteNoise for production)
@@ -111,15 +111,35 @@ LOGGING = {
 }
 
 # Cache configuration (for rate limiting)
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'stellarmapweb-cache',
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000
+# Use Redis for cluster-wide rate limiting (recommended for production)
+# Set REDIS_URL env var or use default
+
+import os
+
+REDIS_URL = os.environ.get('REDIS_URL', None)
+
+if REDIS_URL:
+    # Redis cache (cluster-wide rate limiting)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_URL,
         }
     }
-}
+    print(f"✅ Using Redis cache for cluster-wide rate limiting: {REDIS_URL}")
+else:
+    # LocMemCache fallback (SINGLE INSTANCE ONLY)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'stellarmapweb-cache',
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000
+            }
+        }
+    }
+    print("⚠️  WARNING: Using LocMemCache (single instance only)")
+    print("⚠️  For load balancing, set REDIS_URL environment variable")
 
 # Admin site customization
 ADMIN_URL = config('ADMIN_URL', default='admin/')

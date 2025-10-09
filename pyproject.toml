@@ -19,6 +19,7 @@ gunicorn = "^23.0.0"
 whitenoise = "^6.11.0"
 google-cloud-bigquery = "^3.38.0"
 django-ratelimit = "^4.1.0"
+redis = "^6.4.0"
 [tool.poetry.dev-dependencies]
 
 [tool.pyright]
