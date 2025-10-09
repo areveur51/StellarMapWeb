@@ -98,20 +98,20 @@
 
 /* Sidebar button styles (hover/focus for accessibility) */
 .sidebar-button {
-    background-color: transparent;
-    border-color: transparent;
+    background-color: var(--search-container-bg-color); /* Match search bar background */
+    border: 1px solid transparent;
     padding: 0.5rem 1rem;
-    color: #96DDF2; /* Cyberpunk cyan */
+    color: var(--search-container-border); /* Match search bar border color */
     font-size: 1.5rem;
     transition: all 0.2s ease;
 }
 
 .sidebar-button:hover,
 .sidebar-button:focus {
-    background-color: rgba(150, 221, 242, 0.1);
-    border-color: transparent;
-    color: #96DDF2;
-    box-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
+    background-color: var(--search-container-bg-color);
+    border: 1px solid var(--search-container-border);
+    color: var(--search-container-border);
+    box-shadow: 0 0 8px rgba(63, 44, 112, 0.4);
 }
 
 /* Sidebar header/body/footer */
