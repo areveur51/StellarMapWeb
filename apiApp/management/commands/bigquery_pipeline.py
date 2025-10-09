@@ -350,7 +350,7 @@ class Command(BaseCommand):
                 account_id=account
             )
             
-            operations_response = horizon_helper.get_base_operations()
+            operations_response = horizon_helper.get_account_operations(order='asc', limit=200)
             
             if operations_response:
                 parser = StellarMapHorizonAPIParserHelpers({'data': {'raw_data': operations_response}})
