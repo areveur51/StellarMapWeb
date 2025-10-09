@@ -200,24 +200,43 @@ class Command(BaseCommand):
             ))
             
             # Step 2: Get creator account from BigQuery (with date filters)
+            # If Cost Guard blocks the query, fall back to API-based method
             self.stdout.write('  → Fetching creator from BigQuery...')
             creator_info = bq_helper.get_account_creator(account, start_date=start_date, end_date=end_date)
             
             if creator_info:
                 self.stdout.write(self.style.SUCCESS(
-                    f'    ✓ Creator: {creator_info["creator_account"]}'
+                    f'    ✓ Creator: {creator_info["creator_account"]} (from BigQuery)'
+                ))
+            else:
+                # Fallback to API-based creator discovery (Horizon + Stellar Expert)
+                self.stdout.write(self.style.WARNING(
+                    '    ⚠ BigQuery creator query blocked/failed - using API fallback...'
+                ))
+                creator_info = self._get_creator_from_api(account)
+                if creator_info:
+                    self.stdout.write(self.style.SUCCESS(
+                        f'    ✓ Creator: {creator_info["creator_account"]} (from API fallback)'
+                    ))
+                else:
+                    self.stdout.write(self.style.WARNING(
+                        '    ⚠ Creator not found (might be root account)'
+                    ))
+            
+            # Step 3: Get child accounts from BigQuery (paginated, with date filters)
+            # Note: If Cost Guard blocks this query, we skip child discovery
+            # (API-based child discovery is not used as it's less comprehensive)
+            self.stdout.write('  → Fetching child accounts from BigQuery...')
+            children = self._get_all_child_accounts(bq_helper, account, start_date=start_date, end_date=end_date)
+            
+            if children:
+                self.stdout.write(self.style.SUCCESS(
+                    f'    ✓ Found {len(children)} child accounts (from BigQuery)'
                 ))
             else:
                 self.stdout.write(self.style.WARNING(
-                    '    ⚠ Creator not found (might be root account)'
+                    '    ⚠ No child accounts found (query may have been blocked by Cost Guard)'
                 ))
-            
-            # Step 3: Get child accounts from BigQuery (paginated, with date filters)
-            self.stdout.write('  → Fetching child accounts from BigQuery...')
-            children = self._get_all_child_accounts(bq_helper, account, start_date=start_date, end_date=end_date)
-            self.stdout.write(self.style.SUCCESS(
-                f'    ✓ Found {len(children)} child accounts'
-            ))
             
             # Step 4: Use account details from Horizon API (already fetched in Step 1)
             self.stdout.write('  → Using account details from Horizon API...')
@@ -300,6 +319,65 @@ class Command(BaseCommand):
             
         except Exception as e:
             logger.error(f'Error fetching Horizon data for {account}: {e}')
+            sentry_sdk.capture_exception(e)
+            return None
+    
+    def _get_creator_from_api(self, account):
+        """
+        Fallback method to get creator using API-based approach (like cron pipeline).
+        Uses Horizon operations API first, then falls back to Stellar Expert if needed.
+        
+        Returns:
+            Dict with creator_account and created_at, or None if not found
+        """
+        try:
+            from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers, StellarMapHorizonAPIParserHelpers
+            from apiApp.helpers.sm_stellarexpert import (
+                StellarMapStellarExpertAPIHelpers, 
+                StellarMapStellarExpertAPIParserHelpers
+            )
+            
+            # Try Horizon operations first (same as cron pipeline)
+            horizon_helper = StellarMapHorizonAPIHelpers(
+                horizon_url='https://horizon.stellar.org',
+                account_id=account
+            )
+            
+            operations_response = horizon_helper.get_base_operations()
+            
+            if operations_response:
+                parser = StellarMapHorizonAPIParserHelpers({'data': {'raw_data': operations_response}})
+                creator_data = parser.parse_operations_creator_account(account)
+                
+                if creator_data and creator_data.get('funder'):
+                    return {
+                        'creator_account': creator_data['funder'],
+                        'created_at': creator_data.get('created_at').isoformat() if creator_data.get('created_at') else None
+                    }
+            
+            # Fallback to Stellar Expert (same as cron pipeline)
+            self.stdout.write(self.style.WARNING(
+                '    → Falling back to Stellar Expert for creator...'
+            ))
+            
+            expert_helper = StellarMapStellarExpertAPIHelpers(
+                stellar_account=account,
+                network_name='public'
+            )
+            
+            expert_data = expert_helper.get_account()
+            
+            if expert_data:
+                expert_parser = StellarMapStellarExpertAPIParserHelpers({'data': {'raw_data': expert_data}})
+                return {
+                    'creator_account': expert_parser.parse_account_creator(),
+                    'created_at': expert_parser.parse_account_created_at()
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f'Error fetching creator from API for {account}: {e}')
             sentry_sdk.capture_exception(e)
             return None
     

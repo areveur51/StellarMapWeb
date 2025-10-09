@@ -60,16 +60,45 @@ WHERE closed_at >= TIMESTAMP(@start_date)
 | `get_child_accounts()` | enriched_history_operations | ✅ **YES** | ✅ Yes |
 | `get_account_assets()` | trust_lines_current | No (small table) | ✅ Yes |
 
-### 4. Pipeline Integration
+### 4. API Fallback Mechanism
+
+**When Cost Guard Blocks Queries:**
+
+The pipeline gracefully falls back to free API-based methods to ensure processing always completes:
+
+**Creator Account Discovery:**
+- ✅ **Primary**: BigQuery `enriched_history_operations` (fast, comprehensive)
+- ✅ **Fallback 1**: Horizon API operations (free, uses oldest operations)
+- ✅ **Fallback 2**: Stellar Expert API (free, authoritative source)
+
+**Child Account Discovery:**
+- ✅ **Primary**: BigQuery `enriched_history_operations` (discovers up to 100,000 children)
+- ⚠️ **No Fallback**: Skipped if blocked (API-based discovery less comprehensive, limited pagination)
+
+**Implementation:**
+```python
+# Try BigQuery first
+creator_info = bq_helper.get_account_creator(account, start_date, end_date)
+
+if not creator_info:
+    # Cost Guard blocked - use API fallback
+    creator_info = self._get_creator_from_api(account)
+    # Uses Horizon operations → Stellar Expert fallback
+```
+
+This ensures the pipeline **always completes successfully** even when Cost Guard blocks queries due to large date ranges (e.g., old 2015 accounts).
+
+### 5. Pipeline Integration
 
 **Location:** `apiApp/management/commands/bigquery_pipeline.py`
 
 **Flow:**
-1. Fetch account creation date from `accounts_current`
+1. Fetch account creation date from Horizon API (free)
 2. Calculate safe date window (creation date - 7 days to today)
 3. Pass date window to ALL BigQuery queries
 4. Cost guard validates each query before execution
-5. Log cost estimates for monitoring
+5. If blocked, fall back to API-based methods (creator only)
+6. Log cost estimates for monitoring
 
 **Example:**
 ```python
