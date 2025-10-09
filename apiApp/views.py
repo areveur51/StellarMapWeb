@@ -229,10 +229,64 @@ def account_lineage_api(request):
         
         logger = logging.getLogger(__name__)
         
-        # INSTANT SEARCH: Query BigQuery directly first
+        # INSTANT SEARCH: Query BigQuery directly first (only for accounts <1 year old)
         bigquery_helper = StellarBigQueryHelper()
         if bigquery_helper.is_available():
             try:
+                # Check account age first - only use BigQuery for accounts <1 year old
+                from stellar_sdk import Server
+                from datetime import timedelta
+                
+                horizon_server = Server(horizon_url="https://horizon.stellar.org")
+                try:
+                    # Get account creation date from first transaction
+                    transactions = horizon_server.transactions().for_account(account).order(desc=False).limit(1).call()
+                    
+                    account_created_at_str = None
+                    if transactions and '_embedded' in transactions and 'records' in transactions['_embedded']:
+                        records = transactions['_embedded']['records']
+                        if records:
+                            account_created_at_str = records[0].get('created_at')
+                    
+                    if account_created_at_str:
+                        account_created_at = datetime.fromisoformat(account_created_at_str.replace('Z', '+00:00'))
+                        account_age = datetime.now(account_created_at.tzinfo) - account_created_at
+                        
+                        if account_age > timedelta(days=365):
+                            logger.info(f"Account {account} is {account_age.days} days old (>1 year) - skipping BigQuery, queuing for batch pipeline")
+                            # Queue for batch pipeline processing
+                            existing = StellarCreatorAccountLineage.objects.filter(
+                                stellar_account=account,
+                                network_name=network
+                            ).first()
+                            
+                            if not existing:
+                                StellarCreatorAccountLineage.objects.create(
+                                    stellar_account=account,
+                                    network_name=network,
+                                    status='PENDING',
+                                    created_at=datetime.utcnow(),
+                                    updated_at=datetime.utcnow()
+                                )
+                                logger.info(f"Queued {account} for batch pipeline processing")
+                            
+                            # Return message to user
+                            return JsonResponse({
+                                'account': account,
+                                'network': network,
+                                'lineage': [],
+                                'total_records': 0,
+                                'source': 'queued_for_batch',
+                                'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
+                            }, safe=False)
+                        else:
+                            logger.info(f"Account {account} is {account_age.days} days old (<1 year) - proceeding with BigQuery instant query")
+                    else:
+                        logger.warning(f"Could not determine account age for {account} - continuing with BigQuery")
+                except Exception as horizon_error:
+                    logger.warning(f"Failed to get account age from Horizon: {horizon_error}")
+                    # Continue with BigQuery if we can't determine age
+                
                 logger.info(f"Querying BigQuery directly for instant lineage of {account}")
                 instant_lineage = bigquery_helper.get_instant_lineage(account)
                 
