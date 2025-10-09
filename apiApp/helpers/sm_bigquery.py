@@ -842,20 +842,21 @@ class StellarBigQueryHelper:
             
             end_date = datetime.utcnow().strftime('%Y-%m-%d')
             
-            # Step 3: Query creator info with date filters (BigQuery)
-            creator_info = self.get_account_creator(account, start_date=start_date, end_date=end_date)
-            creator_data = None
+            # Step 3: Use CONSOLIDATED query to fetch creator, children, and issuers in ONE query
+            lineage_bundle = self.fetch_lineage_bundle(
+                target_account=account,
+                start_date=start_date,
+                end_date=end_date,
+                max_children=100  # Limit for instant display
+            )
             
-            if creator_info:
-                # BigQuery succeeded
-                creator_data = {
-                    **creator_info,
-                    'account_creation_date': None  # Optional: fetch creator's creation date if needed
-                }
-                logger.info(f"Creator found via BigQuery for {account}")
-            else:
-                # Cost Guard blocked or no result - use API fallback
-                logger.warning(f"BigQuery blocked for creator of {account} - using API fallback")
+            creator_data = lineage_bundle['creator']
+            children_addresses = [child['account'] for child in lineage_bundle['children']]
+            issuers = lineage_bundle['issuers']
+            
+            # Step 4: API Fallback if BigQuery blocked or no creator found
+            if not creator_data:
+                logger.warning(f"BigQuery blocked or no creator found for {account} - using API fallback")
                 
                 # Try Horizon operations first
                 operations_response = horizon_helper.get_base_operations()
@@ -889,11 +890,7 @@ class StellarBigQueryHelper:
                         }
                         logger.info(f"Creator found via Stellar Expert for {account}")
             
-            # Step 4: Query child addresses (limited to 100 for instant display)
-            children = self.get_child_accounts(account, limit=100, start_date=start_date, end_date=end_date)
-            children_addresses = [child['account'] for child in children]
-            
-            logger.info(f"Instant minimal lineage query complete: account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}")
+            logger.info(f"✅ Instant lineage (CONSOLIDATED): account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}, issuers={len(issuers)}")
             
             return {
                 'account': account_data,
