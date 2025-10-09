@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.conf import settings
 from django.core.cache import cache  # For efficient caching
 from django.http import Http404  # For secure error handling
+from django_ratelimit.decorators import ratelimit
 import sentry_sdk
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
@@ -24,10 +25,12 @@ def index_view(request):
     return render(request, 'webApp/index.html')
 
 
+@ratelimit(key='ip', rate='20/m', method='GET', block=True)
 def search_view(request):
     """
     Handle search view: Validate params, fetch genealogy, render with context.
     
+    Rate limited to 20 requests per minute per IP address.
     If no account is provided, loads default test data from test.json.
     Uses caching for genealogy data to reduce API/DB load.
 
