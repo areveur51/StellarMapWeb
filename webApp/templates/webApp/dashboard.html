@@ -31,12 +31,24 @@
         font-size: 2rem;
         font-weight: bold;
         color: #00d4ff;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
     .stat-label {
         color: #a8b2d1;
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 1px;
+    }
+    .stat-card small {
+        display: block;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    .admin-link-btn {
+        margin-top: 10px;
+        font-size: 0.75rem;
+        padding: 4px 8px;
     }
     .section-title {
         color: #00d4ff;
@@ -130,6 +142,9 @@
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
                     <small>in cache</small>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
@@ -137,6 +152,9 @@
                     <div class="stat-label">Fresh Records</div>
                     <div class="stat-value" style="color: #28a745;">{{ db_stats.fresh_accounts }}</div>
                     <small>up to date</small>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
@@ -144,6 +162,9 @@
                     <div class="stat-label">Stale Records</div>
                     <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
                     <small>needs refresh</small>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
@@ -151,6 +172,9 @@
                     <div class="stat-label">Stuck Records</div>
                     <div class="stat-value" style="color: #dc3545;">{{ db_stats.stuck_accounts }}</div>
                     <small>⚠️ requires attention</small>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-danger admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
         </div>
@@ -161,24 +185,36 @@
                 <div class="stat-card">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ db_stats.pending_accounts }}</div>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">In Progress</div>
                     <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Completed</div>
                     <div class="stat-value">{{ db_stats.completed_accounts }}</div>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Re-inquiry</div>
                     <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
         </div>
@@ -196,12 +232,18 @@
                 <div class="stat-card">
                     <div class="stat-label">Total Lineage Records</div>
                     <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
+                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-info admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-label">Accounts with Lineage</div>
                     <div class="stat-value">{{ db_stats.accounts_with_lineage }}</div>
+                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-success admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
             <div class="col-md-4">
@@ -211,6 +253,9 @@
                         {{ db_stats.orphan_accounts }}
                     </div>
                     <small>cached without lineage</small>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
         </div>
@@ -305,6 +350,9 @@
                         {{ stage_health.failed_stages }}
                     </div>
                     <small>requires investigation</small>
+                    <a href="/admin/apiApp/stellaraccountstageexecution/" class="btn btn-sm btn-outline-danger admin-link-btn">
+                        <i class="fa fa-cog"></i> View in Admin
+                    </a>
                 </div>
             </div>
         </div>
