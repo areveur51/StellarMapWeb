@@ -15,6 +15,8 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Responsive Design**: Bootstrap-based frontend for adaptive layouts.
 - **Real-time Feedback**: Displays pending accounts and pipeline stage progress using Vue.js for immediate user feedback.
 - **Consistent Theming**: Replit cyberpunk theme applied across the application and architecture diagrams.
+- **Compact Dashboard Design**: Optimized System Dashboard with reduced spacing (15px container padding, 12px card padding), smaller font sizes (1.5rem stat values, 0.75rem labels), and minimal icon usage for better space utilization and cleaner visual appearance.
+- **Icon-Free Navigation**: Clean, cyberpunk-styled Quick Navigation buttons without icons, using consistent cyan (#96DDF2) outline styling throughout the sidebar and dashboard.
 - **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
 ## Technical Implementation
