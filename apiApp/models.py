@@ -122,6 +122,12 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     horizon_accounts_json = cassandra_columns.Text()
     horizon_operations_json = cassandra_columns.Text()
     horizon_effects_json = cassandra_columns.Text()
+    
+    # BigQuery pipeline fields
+    stellar_account_attributes_json = cassandra_columns.Text()
+    stellar_account_assets_json = cassandra_columns.Text()
+    child_accounts_json = cassandra_columns.Text()
+    
     status = cassandra_columns.Text(max_length=127)
     retry_count = cassandra_columns.Integer(default=0)
     last_error = cassandra_columns.Text()
