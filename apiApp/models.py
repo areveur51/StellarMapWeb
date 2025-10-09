@@ -58,6 +58,71 @@ class BaseModel(DjangoCassandraModel):
         abstract = True
 
 
+class BigQueryPipelineConfig(DjangoCassandraModel):
+    """
+    Configuration settings for BigQuery pipeline behavior.
+    
+    Singleton model - only one configuration record should exist.
+    Controls cost limits, pipeline modes, age restrictions, and API fallback behavior.
+    """
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'bigquery_pipeline_config'
+    
+    # Singleton primary key
+    config_id = cassandra_columns.Text(primary_key=True, default='default')
+    
+    # BigQuery Cost Controls
+    bigquery_enabled = cassandra_columns.Boolean(default=True)
+    cost_limit_usd = cassandra_columns.Float(default=0.71)  # Maximum cost per query in USD
+    size_limit_mb = cassandra_columns.Float(default=148900.0)  # Maximum query size in MB (~145GB)
+    
+    # Pipeline Strategy
+    pipeline_mode = cassandra_columns.Text(default='BIGQUERY_WITH_API_FALLBACK')
+    # Options: 
+    # - 'BIGQUERY_ONLY': Use only BigQuery, fail if blocked by cost controls
+    # - 'API_ONLY': Use only Horizon/Stellar Expert APIs (no BigQuery)
+    # - 'BIGQUERY_WITH_API_FALLBACK': Try BigQuery first, fall back to APIs if blocked (RECOMMENDED)
+    
+    # Age Restrictions (in days)
+    instant_query_max_age_days = cassandra_columns.Integer(default=365)  # 1 year
+    # Accounts older than this use existing data or queue for batch processing
+    
+    # API Fallback Settings
+    api_fallback_enabled = cassandra_columns.Boolean(default=True)
+    horizon_max_operations = cassandra_columns.Integer(default=200)  # Max operations to fetch for creator discovery
+    horizon_child_max_pages = cassandra_columns.Integer(default=5)  # Max pages for child account discovery (200 ops/page)
+    
+    # Child Account Collection
+    bigquery_max_children = cassandra_columns.Integer(default=100000)  # Max child accounts to discover via BigQuery
+    bigquery_child_page_size = cassandra_columns.Integer(default=10000)  # Pagination size for child queries
+    
+    # Batch Processing
+    batch_processing_enabled = cassandra_columns.Boolean(default=True)
+    batch_size = cassandra_columns.Integer(default=100)  # Number of accounts to process per batch run
+    
+    # Data Freshness
+    cache_ttl_hours = cassandra_columns.Integer(default=12)  # How long before data is considered stale
+    
+    # Metadata
+    created_at = cassandra_columns.DateTime()
+    updated_at = cassandra_columns.DateTime()
+    updated_by = cassandra_columns.Text(max_length=255)  # Admin username who last updated
+    notes = cassandra_columns.Text()  # Admin notes about configuration changes
+    
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps on save."""
+        if not self.created_at:
+            self.created_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.utcnow()
+        return super().save(*args, **kwargs)
+    
+    class Meta:
+        get_pk_field = 'config_id'
+
+    def __str__(self):
+        return f"BigQuery Pipeline Config (Cost Limit: ${self.cost_limit_usd}, Mode: {self.pipeline_mode})"
+
+
 class StellarAccountSearchCache(DjangoCassandraModel):
     """
     Model for Stellar account search caching with 12-hour freshness.
