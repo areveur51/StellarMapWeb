@@ -356,9 +356,21 @@ class Command(BaseCommand):
             # Store creator (from BigQuery)
             if creator_info:
                 account_obj.stellar_creator_account = creator_info['creator_account']
-                account_obj.stellar_account_created_at = creator_info.get('created_at')
+                # Parse datetime string if needed
+                created_at_str = creator_info.get('created_at')
+                if created_at_str and isinstance(created_at_str, str):
+                    from dateutil.parser import parse as parse_datetime
+                    account_obj.stellar_account_created_at = parse_datetime(created_at_str)
+                else:
+                    account_obj.stellar_account_created_at = created_at_str
             elif account_data.get('account_creation_date'):
-                account_obj.stellar_account_created_at = account_data['account_creation_date']
+                # Parse datetime string from BigQuery
+                created_date_str = account_data['account_creation_date']
+                if isinstance(created_date_str, str):
+                    from dateutil.parser import parse as parse_datetime
+                    account_obj.stellar_account_created_at = parse_datetime(created_date_str)
+                else:
+                    account_obj.stellar_account_created_at = created_date_str
             
             # Store child accounts (from BigQuery)
             account_obj.child_accounts_json = json.dumps({
