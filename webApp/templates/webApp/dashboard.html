@@ -9,15 +9,16 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
   
   <style>
+    /* Cyberpunk theme colors */
     .dashboard-container {
         padding: 20px;
-        background: #1a1a2e;
+        background: #261D45; /* Main cyberpunk purple background */
         min-height: 100vh;
-        color: #eee;
+        color: #96DDF2; /* Cyberpunk cyan text */
     }
     .stat-card {
-        background: #16213e;
-        border: 1px solid #0f3460;
+        background: #231B3D; /* Secondary cyberpunk purple */
+        border: 1px solid #3f2c70; /* Cyberpunk purple border */
         border-radius: 8px;
         padding: 20px;
         margin-bottom: 20px;
@@ -25,17 +26,18 @@
     }
     .stat-card:hover {
         transform: translateY(-2px);
-        border-color: #00d4ff;
+        border-color: #96DDF2; /* Cyberpunk cyan on hover */
+        box-shadow: 0 4px 15px rgba(150, 221, 242, 0.2);
     }
     .stat-value {
         font-size: 2rem;
         font-weight: bold;
-        color: #00d4ff;
+        color: #96DDF2; /* Cyberpunk cyan for values */
         word-wrap: break-word;
         overflow-wrap: break-word;
     }
     .stat-label {
-        color: #a8b2d1;
+        color: #c4b5fd; /* Light purple for labels */
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -44,17 +46,47 @@
         display: block;
         word-wrap: break-word;
         overflow-wrap: break-word;
+        color: #a78bfa; /* Muted purple for small text */
     }
     .admin-link-btn {
         margin-top: 10px;
         font-size: 0.75rem;
         padding: 4px 8px;
     }
+    /* Override Bootstrap button hover states with cyberpunk colors */
+    .btn-outline-info:hover,
+    .btn-outline-info:focus,
+    .btn-outline-info:active {
+        background-color: rgba(150, 221, 242, 0.1) !important;
+        border-color: #96DDF2 !important;
+        color: #96DDF2 !important;
+    }
+    .btn-outline-success:hover,
+    .btn-outline-success:focus,
+    .btn-outline-success:active {
+        background-color: rgba(11, 231, 132, 0.1) !important;
+        border-color: #0BE784 !important;
+        color: #0BE784 !important;
+    }
+    .btn-outline-warning:hover,
+    .btn-outline-warning:focus,
+    .btn-outline-warning:active {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+        border-color: #ffc107 !important;
+        color: #ffc107 !important;
+    }
+    .btn-outline-danger:hover,
+    .btn-outline-danger:focus,
+    .btn-outline-danger:active {
+        background-color: rgba(229, 82, 111, 0.1) !important;
+        border-color: #E5526F !important;
+        color: #E5526F !important;
+    }
     .section-title {
-        color: #00d4ff;
+        color: #0BE784; /* Cyberpunk green accent */
         margin-bottom: 20px;
         padding-bottom: 10px;
-        border-bottom: 2px solid #0f3460;
+        border-bottom: 2px solid #3f2c70; /* Cyberpunk purple border */
     }
     .health-indicator {
         display: inline-block;
@@ -63,13 +95,14 @@
         border-radius: 50%;
         margin-right: 8px;
     }
-    .health-good { background-color: #28a745; }
-    .health-warning { background-color: #ffc107; }
-    .health-danger { background-color: #dc3545; }
+    /* Keep original indicator colors */
+    .health-good { background-color: #0BE784; } /* Cyberpunk green */
+    .health-warning { background-color: #ffc107; } /* Yellow */
+    .health-danger { background-color: #E5526F; } /* Cyberpunk red */
     .alert-custom {
-        background: #0f3460;
-        border: 1px solid #00d4ff;
-        color: #eee;
+        background: #100D23; /* Dark cyberpunk background */
+        border: 1px solid #3f2c70; /* Cyberpunk purple border */
+        color: #96DDF2; /* Cyberpunk cyan text */
     }
   </style>
 </head>
@@ -142,7 +175,7 @@
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
                     <small>in cache</small>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -150,9 +183,9 @@
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Fresh Records</div>
-                    <div class="stat-value" style="color: #28a745;">{{ db_stats.fresh_accounts }}</div>
+                    <div class="stat-value" style="color: #0BE784;">{{ db_stats.fresh_accounts }}</div>
                     <small>up to date</small>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -162,7 +195,7 @@
                     <div class="stat-label">Stale Records</div>
                     <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
                     <small>needs refresh</small>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn" style="border-color: #ffc107; color: #ffc107;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -170,9 +203,9 @@
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Stuck Records</div>
-                    <div class="stat-value" style="color: #dc3545;">{{ db_stats.stuck_accounts }}</div>
+                    <div class="stat-value" style="color: #E5526F;">{{ db_stats.stuck_accounts }}</div>
                     <small>⚠️ requires attention</small>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-danger admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-danger admin-link-btn" style="border-color: #E5526F; color: #E5526F;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -185,7 +218,7 @@
                 <div class="stat-card">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ db_stats.pending_accounts }}</div>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -194,7 +227,7 @@
                 <div class="stat-card">
                     <div class="stat-label">In Progress</div>
                     <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -202,8 +235,8 @@
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Completed</div>
-                    <div class="stat-value">{{ db_stats.completed_accounts }}</div>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn">
+                    <div class="stat-value" style="color: #0BE784;">{{ db_stats.completed_accounts }}</div>
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -212,7 +245,7 @@
                 <div class="stat-card">
                     <div class="stat-label">Re-inquiry</div>
                     <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -232,7 +265,7 @@
                 <div class="stat-card">
                     <div class="stat-label">Total Lineage Records</div>
                     <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
-                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-info admin-link-btn">
+                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -240,8 +273,8 @@
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-label">Accounts with Lineage</div>
-                    <div class="stat-value">{{ db_stats.accounts_with_lineage }}</div>
-                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-success admin-link-btn">
+                    <div class="stat-value" style="color: #0BE784;">{{ db_stats.accounts_with_lineage }}</div>
+                    <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -253,7 +286,7 @@
                         {{ db_stats.orphan_accounts }}
                     </div>
                     <small>cached without lineage</small>
-                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn" style="border-color: #ffc107; color: #ffc107;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -346,11 +379,11 @@
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-label">Failed Stages</div>
-                    <div class="stat-value" style="{% if stage_health.failed_stages > 0 %}color: #dc3545;{% endif %}">
+                    <div class="stat-value" style="{% if stage_health.failed_stages > 0 %}color: #E5526F;{% endif %}">
                         {{ stage_health.failed_stages }}
                     </div>
                     <small>requires investigation</small>
-                    <a href="/admin/apiApp/stellaraccountstageexecution/" class="btn btn-sm btn-outline-danger admin-link-btn">
+                    <a href="/admin/apiApp/stellaraccountstageexecution/" class="btn btn-sm btn-outline-danger admin-link-btn" style="border-color: #E5526F; color: #E5526F;">
                         <i class="fa fa-cog"></i> View in Admin
                     </a>
                 </div>
@@ -413,22 +446,22 @@
                 </h3>
             </div>
             <div class="col-md-3">
-                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-outline-info btn-block">
+                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
                     <i class="fa fa-cog"></i> Configure Pipeline
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/search" class="btn btn-outline-info btn-block">
+                <a href="/search" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
                     <i class="fa fa-search"></i> Search Accounts
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/admin/" class="btn btn-outline-info btn-block">
+                <a href="/admin/" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
                     <i class="fa fa-shield-alt"></i> Admin Panel
                 </a>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-outline-info btn-block" onclick="location.reload()">
+                <button class="btn btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2;">
                     <i class="fa fa-sync-alt"></i> Refresh Stats
                 </button>
             </div>
