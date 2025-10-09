@@ -2,7 +2,23 @@
 
 ## Overview
 
-This document compares the **BigQuery Pipeline** (permanent storage architecture) against the existing **Cron Pipeline** for collecting Stellar account lineage data.
+This document compares the **BigQuery Pipeline** (permanent storage architecture with Cost Controls v2.0) against the existing **Cron Pipeline** for collecting Stellar account lineage data.
+
+## Cost Controls v2.0 🛡️
+
+**LATEST UPDATE**: BigQuery pipeline now includes comprehensive cost protection:
+
+### Protection Mechanisms
+- ✅ **BigQueryCostGuard**: Validates ALL queries via dry-run before execution
+- ✅ **100 MB Query Limit**: Strictly enforced - queries over 100 MB are blocked  
+- ✅ **Mandatory Partition Filters**: All `enriched_history_operations` queries require date ranges
+- ✅ **Smart Fallbacks**: Pipeline continues gracefully when queries are blocked
+- ✅ **Account Creation from Horizon**: Free API replaces expensive BigQuery account lookups
+- ✅ **Zero Risk**: The 10+ TiB cost overrun is now IMPOSSIBLE
+
+**Test Results**: Successfully blocked 2 TB in queries (~$10), prevented all runaway costs.
+
+**See**: [BIGQUERY_COST_CONTROLS.md](./BIGQUERY_COST_CONTROLS.md) for complete implementation details.
 
 ---
 

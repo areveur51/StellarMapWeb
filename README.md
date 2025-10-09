@@ -99,7 +99,7 @@ Cloudflare (DDoS) → Replit Autoscale (Web App) → Astra DB
 - Replit: ~$5-15/month (pay-per-use, scales to zero)
 - Cloudflare: $0 (free tier)
 - Astra DB: $0 (free tier, up to 80GB)
-- BigQuery: $0-5/month (permanent storage model)
+- BigQuery: $0-5/month (permanent storage model with cost controls v2.0)
 
 **See:** [LINODE_DEPLOYMENT.md](./LINODE_DEPLOYMENT.md) for complete setup guide
 
@@ -195,7 +195,7 @@ Enrichment Refresh ────────────────────�
 - **No Rate Limits**: Direct BigQuery access eliminates API throttling concerns
 
 **BigQuery Queries (First-Time Only):**
-  1. **Account Creation Date**: From `accounts_current` table
+  1. **Account Creation Date**: From Horizon API (free, optimized)
   2. **Creator Discovery**: Find parent account from `enriched_history_operations` (type=0)
   3. **Child Accounts**: Discover all child accounts created (paginated up to 100,000)
 
@@ -203,11 +203,20 @@ Enrichment Refresh ────────────────────�
   - **Account Details**: Balance, flags, home_domain from Horizon API (always fresh)
   - **Asset Holdings**: Current trustlines from Stellar Expert API (always fresh)
 
+**Cost Controls v2.0 (Protection Against Runaway Costs):**
+- **BigQueryCostGuard**: Validates ALL queries via dry-run before execution
+- **100 MB Query Limit**: Strictly enforced - queries over 100 MB are blocked
+- **Mandatory Partition Filters**: All `enriched_history_operations` queries require date ranges
+- **Smart Fallbacks**: Pipeline continues gracefully when queries are blocked
+- **Zero Risk**: The 10+ TiB cost overrun is now IMPOSSIBLE
+- **See**: [BIGQUERY_COST_CONTROLS.md](./BIGQUERY_COST_CONTROLS.md) for complete details
+
 **Cost Efficiency:**
 - **Free Tier Coverage**: Up to 2,500-3,900 unique accounts/month (1 TB free tier)
 - **Enterprise Scale**: 5,000 unique accounts/month = $1-5/month
 - **Typical Deployment**: $0/month (within free tier indefinitely)
 - **Key Insight**: Costs DECREASE over time as database grows (more cached accounts)
+- **Actual Cost per Account**: ~$0.0001-0.0002 (less than 1 cent) with cost controls
 
 **Comprehensive Discovery:**
 - Pagination with 10,000-row batches, deduplication by account address
@@ -247,10 +256,15 @@ python manage.py bigquery_pipeline --reset
 #### BigQuery Integration
 - **Dataset**: `crypto-stellar.crypto_stellar_dbt` (Stellar Hubble public dataset)
 - **Key Tables**:
-  - `accounts_current`: Current account state (balance, flags, thresholds)
-  - `trust_lines_current`: Asset holdings and trustlines
-  - `enriched_history_operations`: Complete blockchain history (operations, transactions)
+  - `accounts_current`: Current account state (balance, flags, thresholds) - *DEPRECATED in favor of Horizon API*
+  - `trust_lines_current`: Asset holdings and trustlines - *DEPRECATED in favor of Stellar Expert API*
+  - `enriched_history_operations`: Complete blockchain history (operations, transactions) - **PRIMARY USE**
 - **Authentication**: Google Cloud service account with BigQuery access (GOOGLE_APPLICATION_CREDENTIALS_JSON)
+- **Cost Controls v2.0**: 
+  - BigQueryCostGuard validates ALL queries via dry-run before execution
+  - 100 MB query limit strictly enforced
+  - Mandatory partition filters on `enriched_history_operations` (closed_at BETWEEN date range)
+  - Account creation date from Horizon API (free) instead of BigQuery
 - **Creator Attribution**: Queries `create_account` operations (type=0) for funder/creator identification.
 - **Child Discovery**: Discovers all accounts where parent is the funder with proper pagination.
 

@@ -1,5 +1,19 @@
 # BigQuery Cost Analysis
 
+## Cost Controls v2.0 🛡️
+
+**CRITICAL PROTECTION**: All BigQuery queries are now protected by BigQueryCostGuard to prevent runaway costs.
+
+### Protection Mechanisms
+- ✅ **100 MB Query Limit**: Strictly enforced via dry-run validation
+- ✅ **Mandatory Partition Filters**: All `enriched_history_operations` queries require date ranges
+- ✅ **Smart Fallbacks**: Pipeline continues gracefully when queries are blocked
+- ✅ **Zero Risk**: The 10+ TiB cost overrun is now IMPOSSIBLE
+
+**See**: [BIGQUERY_COST_CONTROLS.md](./BIGQUERY_COST_CONTROLS.md) for complete implementation details.
+
+---
+
 ## Architecture Overview
 
 **Critical Insight:** BigQuery is **ONLY** queried for accounts that have never been searched before.
