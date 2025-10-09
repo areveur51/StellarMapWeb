@@ -4,7 +4,7 @@ This guide walks you through deploying the **BigQuery cron job service** on Lino
 
 ## 🏗️ Hybrid Architecture Overview
 
-![Hybrid Architecture](./diagrams/06_hybrid_architecture.png)
+![Hybrid Architecture](diagrams/06_hybrid_architecture.png)
 
 **Why This Architecture?**
 - ✅ **Cost-Effective**: Replit Autoscale scales to zero when idle (~$5-15/month)
