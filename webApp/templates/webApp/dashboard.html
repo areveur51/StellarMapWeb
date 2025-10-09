@@ -11,7 +11,7 @@
   <style>
     /* Cyberpunk theme colors */
     .dashboard-container {
-        padding: 20px;
+        padding: 15px;
         background: #261D45; /* Main cyberpunk purple background */
         min-height: 100vh;
         color: #96DDF2; /* Cyberpunk cyan text */
@@ -19,9 +19,9 @@
     .stat-card {
         background: #231B3D; /* Secondary cyberpunk purple */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 12px;
         transition: transform 0.2s;
     }
     .stat-card:hover {
@@ -30,28 +30,32 @@
         box-shadow: 0 4px 15px rgba(150, 221, 242, 0.2);
     }
     .stat-value {
-        font-size: 2rem;
+        font-size: 1.5rem;
         font-weight: bold;
         color: #96DDF2; /* Cyberpunk cyan for values */
         word-wrap: break-word;
         overflow-wrap: break-word;
+        margin: 4px 0;
     }
     .stat-label {
         color: #c4b5fd; /* Light purple for labels */
-        font-size: 0.9rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
     }
     .stat-card small {
         display: block;
         word-wrap: break-word;
         overflow-wrap: break-word;
         color: #a78bfa; /* Muted purple for small text */
+        font-size: 0.7rem;
+        margin-top: 2px;
     }
     .admin-link-btn {
-        margin-top: 10px;
-        font-size: 0.75rem;
-        padding: 4px 8px;
+        margin-top: 6px;
+        font-size: 0.65rem;
+        padding: 3px 6px;
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
     .btn-outline-info:hover,
@@ -84,16 +88,18 @@
     }
     .section-title {
         color: #0BE784; /* Cyberpunk green accent */
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #3f2c70; /* Cyberpunk purple border */
+        margin-bottom: 10px;
+        margin-top: 15px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #3f2c70; /* Cyberpunk purple border */
+        font-size: 1.1rem;
     }
     .health-indicator {
         display: inline-block;
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        margin-right: 8px;
+        margin-right: 6px;
     }
     /* Keep original indicator colors */
     .health-good { background-color: #0BE784; } /* Cyberpunk green */
@@ -103,6 +109,9 @@
         background: #100D23; /* Dark cyberpunk background */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
         color: #96DDF2; /* Cyberpunk cyan text */
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
     }
   </style>
 </head>
@@ -112,15 +121,15 @@
     {% include 'webApp/search_container_include.html' %}
 
     <div class="dashboard-container">
-        <h1 class="text-center mb-4">
-            <i class="fa fa-tachometer-alt"></i> System Dashboard
+        <h1 class="text-center mb-3" style="font-size: 1.8rem;">
+            System Dashboard
         </h1>
         
         <!-- BigQuery Cost Tracking -->
         <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-dollar-sign"></i> BigQuery Cost Tracking
+                    BigQuery Cost Tracking
                 </h3>
             </div>
         </div>
@@ -162,10 +171,10 @@
         </div>
 
         <!-- Database Health -->
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-database"></i> Database Health
+                    Database Health
                 </h3>
             </div>
         </div>
@@ -176,7 +185,7 @@
                     <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
                     <small>in cache</small>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -186,7 +195,7 @@
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.fresh_accounts }}</div>
                     <small>up to date</small>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -196,7 +205,7 @@
                     <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
                     <small>needs refresh</small>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn" style="border-color: #ffc107; color: #ffc107;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -206,20 +215,20 @@
                     <div class="stat-value" style="color: #E5526F;">{{ db_stats.stuck_accounts }}</div>
                     <small>⚠️ requires attention</small>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-danger admin-link-btn" style="border-color: #E5526F; color: #E5526F;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
         </div>
 
         <!-- Processing Status -->
-        <div class="row mt-3">
+        <div class="row">
             <div class="col-md-3">
                 <div class="stat-card">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ db_stats.pending_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -228,7 +237,7 @@
                     <div class="stat-label">In Progress</div>
                     <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -237,7 +246,7 @@
                     <div class="stat-label">Completed</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.completed_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -246,17 +255,17 @@
                     <div class="stat-label">Re-inquiry</div>
                     <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
         </div>
 
         <!-- Lineage Data Integrity -->
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-project-diagram"></i> Lineage Data Integrity
+                    Lineage Data Integrity
                 </h3>
             </div>
         </div>
@@ -266,7 +275,7 @@
                     <div class="stat-label">Total Lineage Records</div>
                     <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
                     <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -275,7 +284,7 @@
                     <div class="stat-label">Accounts with Lineage</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.accounts_with_lineage }}</div>
                     <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
@@ -287,17 +296,17 @@
                     </div>
                     <small>cached without lineage</small>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-warning admin-link-btn" style="border-color: #ffc107; color: #ffc107;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
         </div>
 
         <!-- Performance Metrics -->
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-chart-line"></i> Performance Metrics
+                    Performance Metrics
                 </h3>
             </div>
         </div>
@@ -345,10 +354,10 @@
         </div>
 
         <!-- System Health -->
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-heartbeat"></i> System Health
+                    System Health
                 </h3>
             </div>
         </div>
@@ -384,17 +393,17 @@
                     </div>
                     <small>requires investigation</small>
                     <a href="/admin/apiApp/stellaraccountstageexecution/" class="btn btn-sm btn-outline-danger admin-link-btn" style="border-color: #E5526F; color: #E5526F;">
-                        <i class="fa fa-cog"></i> View in Admin
+                        View in Admin
                     </a>
                 </div>
             </div>
         </div>
 
         <!-- Alerts and Recommendations -->
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-exclamation-triangle"></i> Alerts & Recommendations
+                    Alerts & Recommendations
                 </h3>
             </div>
         </div>
@@ -402,28 +411,28 @@
             <div class="col-12">
                 {% if db_stats.stuck_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
-                    <strong><i class="fa fa-exclamation-triangle"></i> Stuck Records Alert:</strong>
+                    <strong>Stuck Records Alert:</strong>
                     {{ db_stats.stuck_accounts }} accounts are stuck in processing. Check cron jobs and pipeline health.
                 </div>
                 {% endif %}
                 
                 {% if db_stats.orphan_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
-                    <strong><i class="fa fa-folder-minus"></i> Data Integrity Warning:</strong>
+                    <strong>Data Integrity Warning:</strong>
                     {{ db_stats.orphan_accounts }} accounts in cache have no lineage data. Consider re-processing.
                 </div>
                 {% endif %}
                 
                 {% if stage_health.failed_stages > 0 %}
                 <div class="alert alert-custom alert-danger">
-                    <strong><i class="fa fa-times-circle"></i> Pipeline Failures:</strong>
+                    <strong>Pipeline Failures:</strong>
                     {{ stage_health.failed_stages }} stage executions have failed. Check logs for error details.
                 </div>
                 {% endif %}
                 
                 {% if bigquery_stats.estimated_monthly_cost > 50 %}
                 <div class="alert alert-custom alert-info">
-                    <strong><i class="fa fa-money-bill-wave"></i> Cost Alert:</strong>
+                    <strong>Cost Alert:</strong>
                     Estimated monthly BigQuery cost is ${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}. 
                     Consider adjusting cost limits or reducing processing frequency.
                 </div>
@@ -431,7 +440,7 @@
                 
                 {% if db_stats.stuck_accounts == 0 and db_stats.orphan_accounts == 0 and stage_health.failed_stages == 0 %}
                 <div class="alert alert-custom alert-success">
-                    <strong><i class="fa fa-check-circle"></i> All Systems Healthy:</strong>
+                    <strong>All Systems Healthy:</strong>
                     No critical issues detected. System is operating normally.
                 </div>
                 {% endif %}
@@ -439,30 +448,30 @@
         </div>
 
         <!-- Quick Actions -->
-        <div class="row mt-4 mb-5">
+        <div class="row mb-3">
             <div class="col-12">
                 <h3 class="section-title">
-                    <i class="fa fa-bolt"></i> Quick Actions
+                    Quick Actions
                 </h3>
             </div>
             <div class="col-md-3">
-                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
-                    <i class="fa fa-cog"></i> Configure Pipeline
+                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                    Configure Pipeline
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/search" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
-                    <i class="fa fa-search"></i> Search Accounts
+                <a href="/search" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                    Search Accounts
                 </a>
             </div>
             <div class="col-md-3">
-                <a href="/admin/" class="btn btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
-                    <i class="fa fa-shield-alt"></i> Admin Panel
+                <a href="/admin/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2;">
+                    Admin Panel
                 </a>
             </div>
             <div class="col-md-3">
-                <button class="btn btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2;">
-                    <i class="fa fa-sync-alt"></i> Refresh Stats
+                <button class="btn btn-sm btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2;">
+                    Refresh Stats
                 </button>
             </div>
         </div>
