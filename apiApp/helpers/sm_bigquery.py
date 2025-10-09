@@ -433,8 +433,43 @@ class StellarBigQueryHelper:
             
             # COST GUARD: Validate consolidated query size
             logger.info(f"🔍 Validating CONSOLIDATED lineage query for {target_account} (date range: {start_date} to {end_date})")
-            cost_info = self.cost_guard.validate_query_cost(query, job_config)
-            logger.info(f"✅ Consolidated query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            
+            try:
+                cost_info = self.cost_guard.validate_query_cost(query, job_config)
+                logger.info(f"✅ Consolidated query approved: {cost_info['size_mb']} MB, ${cost_info['estimated_cost']}")
+            except ValueError as e:
+                # Query exceeds 100MB limit - fall back to separate queries
+                logger.warning(f"⚠️ Consolidated query exceeds 100MB limit: {e}")
+                logger.info("📊 Falling back to SPLIT queries (creator + children separately)...")
+                
+                # Try creator-only query first
+                creator = self.get_account_creator(target_account, start_date, end_date)
+                
+                # Try children query (may also be blocked)
+                try:
+                    children_raw = self.get_child_accounts(
+                        target_account,
+                        limit=max_children,
+                        offset=offset,
+                        start_date=start_date,
+                        end_date=end_date
+                    )
+                    children = children_raw if children_raw else []
+                except:
+                    logger.warning("⚠️ Child query also blocked - skipping child discovery")
+                    children = []
+                
+                return {
+                    'creator': creator,
+                    'children': children,
+                    'issuers': [],  # Skip issuer discovery for oversized queries
+                    'pagination': {
+                        'total': len(children),
+                        'offset': offset,
+                        'limit': max_children,
+                        'has_more': False
+                    }
+                }
             
             # Execute consolidated query
             logger.info(f"🚀 Executing CONSOLIDATED lineage query for {target_account}")
