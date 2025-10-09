@@ -516,14 +516,13 @@ class StellarBigQueryHelper:
         Get instant MINIMAL lineage data for an account by querying BigQuery directly.
         This is used for immediate display when a user searches for an account.
         
-        BigQuery returns ONLY lineage structure (parent-child relationships and creation dates).
-        All other data (assets, balance, home_domain, flags, etc.) should be fetched from
-        Horizon API or Stellar Expert to minimize BigQuery usage and costs.
+        Uses Horizon API for account creation date (free), then BigQuery with proper
+        date filters for lineage. Falls back to API methods if Cost Guard blocks queries.
         
         Optimized to query only essential lineage data:
-        - Account ID and creation date
-        - Creator account and creation date
-        - Child account addresses (for lineage tree structure)
+        - Account ID and creation date (from Horizon API - free)
+        - Creator account and creation date (BigQuery with fallback to APIs)
+        - Child account addresses (BigQuery, skipped if blocked)
         
         Args:
             account: The Stellar account address to query
@@ -535,7 +534,7 @@ class StellarBigQueryHelper:
                 'creator': {
                     'creator_account': 'G...',
                     'created_at': '...',
-                    'account_creation_date': '...'  # From get_account_data
+                    'account_creation_date': '...'
                 },
                 'children_addresses': ['G...', 'G...', ...]
             }
@@ -549,22 +548,98 @@ class StellarBigQueryHelper:
             }
         
         try:
-            # Query minimal account data (ID and creation date only)
-            account_data = self.get_account_data(account)
+            from datetime import datetime, timedelta
+            from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
+            from apiApp.helpers.sm_stellarexpert import (
+                StellarMapStellarExpertAPIHelpers,
+                StellarMapStellarExpertAPIParserHelpers
+            )
             
-            # Query creator info (address and creation date)
-            creator_info = self.get_account_creator(account)
-            creator_data = None
-            if creator_info:
-                # Get creator's account creation date
-                creator_account_data = self.get_account_data(creator_info['creator_account'])
-                creator_data = {
-                    **creator_info,  # creator_account and created_at
-                    'account_creation_date': creator_account_data['account_creation_date'] if creator_account_data else None
+            # Step 1: Get account creation date from Horizon API (FREE, no BigQuery cost)
+            horizon_helper = StellarMapHorizonAPIHelpers(
+                horizon_url='https://horizon.stellar.org',
+                account_id=account
+            )
+            horizon_account = horizon_helper.get_base_accounts()
+            
+            if not horizon_account:
+                logger.warning(f"Account {account} not found in Horizon API")
+                return {
+                    'account': None,
+                    'creator': None,
+                    'children_addresses': []
                 }
             
-            # Query child addresses only (limited to 100 for instant display)
-            children = self.get_child_accounts(account, limit=100)
+            # Extract creation date from Horizon
+            creation_date_str = horizon_account.get('last_modified_time', '2015-01-01T00:00:00Z')
+            account_data = {
+                'account_id': account,
+                'account_creation_date': creation_date_str
+            }
+            
+            # Step 2: Calculate safe date window for partition filters
+            if 'T' in creation_date_str:
+                creation_date = creation_date_str.split('T')[0]
+            else:
+                creation_date = creation_date_str
+            
+            try:
+                start_dt = datetime.fromisoformat(creation_date.replace('Z', '')) - timedelta(days=7)
+                start_date = start_dt.strftime('%Y-%m-%d')
+            except:
+                start_date = '2015-01-01'
+            
+            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+            
+            # Step 3: Query creator info with date filters (BigQuery)
+            creator_info = self.get_account_creator(account, start_date=start_date, end_date=end_date)
+            creator_data = None
+            
+            if creator_info:
+                # BigQuery succeeded
+                creator_data = {
+                    **creator_info,
+                    'account_creation_date': None  # Optional: fetch creator's creation date if needed
+                }
+                logger.info(f"Creator found via BigQuery for {account}")
+            else:
+                # Cost Guard blocked or no result - use API fallback
+                logger.warning(f"BigQuery blocked for creator of {account} - using API fallback")
+                
+                # Try Horizon operations first
+                operations_response = horizon_helper.get_base_operations()
+                if operations_response:
+                    from apiApp.helpers.sm_horizon import StellarMapHorizonAPIParserHelpers
+                    parser = StellarMapHorizonAPIParserHelpers({'data': {'raw_data': operations_response}})
+                    api_creator = parser.parse_operations_creator_account(account)
+                    
+                    if api_creator and api_creator.get('funder'):
+                        creator_data = {
+                            'creator_account': api_creator['funder'],
+                            'created_at': api_creator.get('created_at').isoformat() if api_creator.get('created_at') else None,
+                            'account_creation_date': None
+                        }
+                        logger.info(f"Creator found via Horizon API for {account}")
+                
+                # Fallback to Stellar Expert if still no creator
+                if not creator_data:
+                    expert_helper = StellarMapStellarExpertAPIHelpers(
+                        stellar_account=account,
+                        network_name='public'
+                    )
+                    expert_data = expert_helper.get_account()
+                    
+                    if expert_data:
+                        expert_parser = StellarMapStellarExpertAPIParserHelpers({'data': {'raw_data': expert_data}})
+                        creator_data = {
+                            'creator_account': expert_parser.parse_account_creator(),
+                            'created_at': expert_parser.parse_account_created_at(),
+                            'account_creation_date': None
+                        }
+                        logger.info(f"Creator found via Stellar Expert for {account}")
+            
+            # Step 4: Query child addresses (limited to 100 for instant display)
+            children = self.get_child_accounts(account, limit=100, start_date=start_date, end_date=end_date)
             children_addresses = [child['account'] for child in children]
             
             logger.info(f"Instant minimal lineage query complete: account={bool(account_data)}, creator={bool(creator_data)}, children={len(children_addresses)}")
