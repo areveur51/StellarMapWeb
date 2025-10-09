@@ -172,9 +172,30 @@ class Command(BaseCommand):
                 f'    ✓ Created: {account_data["account_creation_date"]}'
             ))
             
-            # Step 2: Get creator account from BigQuery
+            # Calculate safe date window for partition filters (avoids full table scans)
+            creation_date_str = account_data.get('account_creation_date', '2015-01-01')
+            if 'T' in creation_date_str:
+                creation_date = creation_date_str.split('T')[0]  # Extract YYYY-MM-DD
+            else:
+                creation_date = creation_date_str
+            
+            # Use creation date minus 7 days as start (safety buffer) and today as end
+            from datetime import datetime, timedelta
+            try:
+                start_dt = datetime.fromisoformat(creation_date.replace('Z', '')) - timedelta(days=7)
+                start_date = start_dt.strftime('%Y-%m-%d')
+            except:
+                start_date = '2015-01-01'  # Fallback to Stellar genesis
+            
+            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+            
+            self.stdout.write(self.style.SUCCESS(
+                f'    📅 Date window: {start_date} to {end_date}'
+            ))
+            
+            # Step 2: Get creator account from BigQuery (with date filters)
             self.stdout.write('  → Fetching creator from BigQuery...')
-            creator_info = bq_helper.get_account_creator(account)
+            creator_info = bq_helper.get_account_creator(account, start_date=start_date, end_date=end_date)
             
             if creator_info:
                 self.stdout.write(self.style.SUCCESS(
@@ -185,9 +206,9 @@ class Command(BaseCommand):
                     '    ⚠ Creator not found (might be root account)'
                 ))
             
-            # Step 3: Get child accounts from BigQuery (paginated)
+            # Step 3: Get child accounts from BigQuery (paginated, with date filters)
             self.stdout.write('  → Fetching child accounts from BigQuery...')
-            children = self._get_all_child_accounts(bq_helper, account)
+            children = self._get_all_child_accounts(bq_helper, account, start_date=start_date, end_date=end_date)
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Found {len(children)} child accounts'
             ))
@@ -476,13 +497,19 @@ class Command(BaseCommand):
                 f'    ✓ Queued {queued} new child accounts for processing'
             ))
     
-    def _get_all_child_accounts(self, bq_helper, account):
+    def _get_all_child_accounts(self, bq_helper, account, start_date='2015-01-01', end_date=None):
         """
         Get ALL child accounts for a given parent, handling pagination for high-fanout accounts.
         
         Uses chunked retrieval to avoid BigQuery result limits and ensure complete data.
         Deduplicates results by account address to prevent duplicate entries while allowing
         multiple accounts from the same transaction (common in airdrops).
+        
+        Args:
+            bq_helper: BigQuery helper instance
+            account: Parent account address
+            start_date: Start date for partition filter (YYYY-MM-DD)
+            end_date: End date for partition filter (YYYY-MM-DD)
         """
         all_children = []
         seen_accounts = set()
@@ -490,11 +517,13 @@ class Command(BaseCommand):
         offset = 0
         
         while True:
-            # Get a page of child accounts with proper offset
+            # Get a page of child accounts with proper offset and date filters
             children_page = bq_helper.get_child_accounts(
                 account, 
                 limit=page_size,
-                offset=offset
+                offset=offset,
+                start_date=start_date,
+                end_date=end_date
             )
             
             if not children_page:
