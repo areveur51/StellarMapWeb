@@ -97,13 +97,21 @@
 }
 
 /* Sidebar button styles (hover/focus for accessibility) */
-.sidebar-button,
-.sidebar-button:hover,
-.sidebar-button:focus {
+.sidebar-button {
     background-color: transparent;
     border-color: transparent;
     padding: 0.5rem 1rem;
-    color: var(--search-container-text-color); /* Consistent color on states */
+    color: #96DDF2; /* Cyberpunk cyan */
+    font-size: 1.5rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar-button:hover,
+.sidebar-button:focus {
+    background-color: rgba(150, 221, 242, 0.1);
+    border-color: transparent;
+    color: #96DDF2;
+    box-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
 }
 
 /* Sidebar header/body/footer */
