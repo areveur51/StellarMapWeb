@@ -14,9 +14,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
   
   <style>
+    /* Cyberpunk theme colors - matching Dashboard */
     body {
-        background: var(--background-color);
-        color: var(--text-color);
+        background: #261D45; /* Main cyberpunk purple background */
+        color: #96DDF2; /* Cyberpunk cyan text */
         min-height: 100vh;
     }
     
@@ -30,22 +31,22 @@
         text-align: center;
         margin-bottom: 30px;
         padding: 25px;
-        background: var(--card-background);
-        border: 1px solid var(--border-color);
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
+        border: 1px solid #3f2c70; /* Cyberpunk purple border */
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
     
     .hva-title {
-        color: var(--accent-color);
-        text-shadow: 0 0 20px var(--glow-color);
+        color: #96DDF2; /* Cyberpunk cyan */
+        text-shadow: 0 0 20px rgba(150, 221, 242, 0.5);
         font-size: 2rem;
         margin-bottom: 10px;
         font-weight: 700;
     }
     
     .hva-subtitle {
-        color: var(--secondary-text);
+        color: #c4b5fd; /* Light purple for subtitle */
         font-size: 1rem;
         margin-bottom: 20px;
     }
@@ -64,12 +65,12 @@
     .hva-stat-value {
         font-size: 2rem;
         font-weight: bold;
-        color: var(--success-color);
-        text-shadow: 0 0 15px var(--success-glow);
+        color: #0BE784; /* Cyberpunk green for values */
+        text-shadow: 0 0 15px rgba(11, 231, 132, 0.5);
     }
     
     .hva-stat-label {
-        color: var(--secondary-text);
+        color: #c4b5fd; /* Light purple for labels */
         font-size: 0.85rem;
         text-transform: uppercase;
         letter-spacing: 1px;
@@ -77,8 +78,8 @@
     }
     
     .leaderboard-container {
-        background: var(--card-background);
-        border: 1px solid var(--border-color);
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
+        border: 1px solid #3f2c70; /* Cyberpunk purple border */
         border-radius: 8px;
         padding: 25px;
         overflow-x: auto;
@@ -87,28 +88,28 @@
     
     .leaderboard-table {
         width: 100%;
-        color: var(--text-color);
+        color: #96DDF2; /* Cyberpunk cyan text */
         border-collapse: collapse;
     }
     
     .leaderboard-table thead {
-        border-bottom: 2px solid var(--accent-color);
+        border-bottom: 2px solid #96DDF2; /* Cyberpunk cyan */
     }
     
     .leaderboard-table th {
         padding: 15px 12px;
         text-align: left;
-        color: var(--accent-color);
+        color: #96DDF2; /* Cyberpunk cyan */
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.9rem;
         letter-spacing: 1px;
-        text-shadow: 0 0 10px var(--glow-color);
+        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
     }
     
     .leaderboard-table td {
         padding: 15px 12px;
-        border-top: 1px solid var(--border-color);
+        border-top: 1px solid #3f2c70; /* Cyberpunk purple border */
         vertical-align: middle;
     }
     
@@ -117,7 +118,7 @@
     }
     
     .leaderboard-table tbody tr:hover {
-        background: var(--hover-background);
+        background: rgba(150, 221, 242, 0.1); /* Subtle cyan highlight */
         transform: translateX(3px);
         box-shadow: 0 2px 10px rgba(150, 221, 242, 0.2);
     }
@@ -125,8 +126,8 @@
     .rank-cell {
         font-weight: bold;
         font-size: 1.3rem;
-        color: var(--accent-color);
-        text-shadow: 0 0 10px var(--glow-color);
+        color: #96DDF2; /* Cyberpunk cyan */
+        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
         width: 80px;
     }
     
@@ -136,31 +137,31 @@
     
     .account-address {
         font-family: monospace;
-        color: var(--accent-color);
+        color: #96DDF2; /* Cyberpunk cyan */
         font-size: 0.9rem;
         word-break: break-all;
     }
     
     .balance-highlight {
         font-weight: bold;
-        color: var(--success-color);
+        color: #0BE784; /* Cyberpunk green */
         font-size: 1.2rem;
-        text-shadow: 0 0 10px var(--success-glow);
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
     }
     
     .timestamp-cell {
         font-size: 0.85rem;
-        color: var(--secondary-text);
+        color: #c4b5fd; /* Light purple */
     }
     
     .tag-badge {
-        background: var(--accent-background);
-        color: var(--accent-color);
+        background: rgba(150, 221, 242, 0.1); /* Subtle cyan background */
+        color: #96DDF2; /* Cyberpunk cyan */
         padding: 4px 10px;
         border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 600;
-        border: 1px solid var(--accent-color);
+        border: 1px solid #96DDF2; /* Cyberpunk cyan */
         margin-right: 5px;
         display: inline-block;
         margin-bottom: 3px;
@@ -169,18 +170,18 @@
     .empty-state {
         text-align: center;
         padding: 80px 20px;
-        color: var(--secondary-text);
+        color: #c4b5fd; /* Light purple */
     }
     
     .empty-state i {
         font-size: 5rem;
         margin-bottom: 25px;
         opacity: 0.4;
-        color: var(--accent-color);
+        color: #96DDF2; /* Cyberpunk cyan */
     }
     
     .empty-state h3 {
-        color: var(--text-color);
+        color: #96DDF2; /* Cyberpunk cyan */
         margin-bottom: 15px;
     }
     
