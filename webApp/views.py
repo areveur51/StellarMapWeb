@@ -746,3 +746,54 @@ def theme_test_view(request):
         HttpResponse: Rendered theme test page.
     """
     return render(request, 'webApp/theme_test.html')
+
+
+def high_value_accounts_view(request):
+    """
+    High Value Accounts (HVA) view - displays accounts with >1M XLM balance.
+    
+    Returns:
+        HttpResponse: Rendered HVA page with list of high value accounts.
+    """
+    from apiApp.models import StellarCreatorAccountLineage
+    import sentry_sdk
+    
+    hva_accounts = []
+    total_hva_balance = 0
+    
+    try:
+        # Query HVA accounts using is_hva boolean filter
+        # Note: Cassandra filtering on non-primary-key requires ALLOW FILTERING
+        # This is more efficient than string matching but still scans the table
+        # For production at scale, consider a dedicated HVA table or materialized view
+        hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
+        
+        for record in hva_records:
+            # Split tags into list for template rendering
+            tags_list = [tag.strip() for tag in record.tags.split(',')] if record.tags else []
+            
+            hva_accounts.append({
+                'stellar_account': record.stellar_account,
+                'network_name': record.network_name,
+                'xlm_balance': record.xlm_balance or 0,
+                'stellar_creator_account': record.stellar_creator_account,
+                'home_domain': record.home_domain,
+                'tags': tags_list,
+                'status': record.status,
+                'created_at': record.created_at,
+            })
+            total_hva_balance += (record.xlm_balance or 0)
+        
+        # Sort by balance descending
+        hva_accounts.sort(key=lambda x: x['xlm_balance'], reverse=True)
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+    
+    context = {
+        'hva_accounts': hva_accounts,
+        'total_hva_count': len(hva_accounts),
+        'total_hva_balance': total_hva_balance,
+    }
+    
+    return render(request, 'webApp/high_value_accounts.html', context)

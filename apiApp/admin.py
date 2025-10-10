@@ -86,7 +86,7 @@ class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
 
 @admin.register(StellarCreatorAccountLineage)
 class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'stellar_creator_account')
+    list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'tags', 'status')
     
     def get_table_name(self):
         return 'stellar_creator_account_lineage'

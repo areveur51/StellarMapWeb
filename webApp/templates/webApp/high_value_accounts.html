@@ -1,0 +1,212 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StellarMap Web - High Value Accounts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  
+  <!-- Global Theme Loader - Execute IMMEDIATELY before CSS parsing -->
+  <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
+  
+  <style>
+    .hva-container {
+        padding: 20px;
+        background: var(--background-color);
+        min-height: 100vh;
+        color: var(--text-color);
+    }
+    .hva-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+        background: var(--card-background);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+    }
+    .hva-header h1 {
+        color: var(--accent-color);
+        text-shadow: 0 0 15px var(--glow-color);
+        font-size: 2rem;
+        margin-bottom: 10px;
+    }
+    .hva-stats {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 15px;
+    }
+    .hva-stat {
+        text-align: center;
+    }
+    .hva-stat-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: var(--success-color);
+        text-shadow: 0 0 10px var(--success-glow);
+    }
+    .hva-stat-label {
+        color: var(--secondary-text);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .hva-table-container {
+        background: var(--card-background);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        overflow-x: auto;
+    }
+    .hva-table {
+        width: 100%;
+        color: var(--text-color);
+        margin-top: 20px;
+    }
+    .hva-table thead {
+        border-bottom: 2px solid var(--border-color);
+    }
+    .hva-table th {
+        padding: 12px;
+        text-align: left;
+        color: var(--accent-color);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+    .hva-table td {
+        padding: 12px;
+        border-top: 1px solid var(--border-color);
+        vertical-align: middle;
+    }
+    .hva-table tr {
+        transition: all 0.3s ease;
+    }
+    .hva-table tbody tr:hover {
+        background: var(--hover-background);
+        transform: translateX(5px);
+    }
+    .account-address {
+        font-family: monospace;
+        color: var(--accent-color);
+        font-size: 0.9rem;
+        word-break: break-all;
+    }
+    .balance-highlight {
+        font-weight: bold;
+        color: var(--success-color);
+        font-size: 1.1rem;
+        text-shadow: 0 0 8px var(--success-glow);
+    }
+    .tag-badge {
+        background: var(--accent-background);
+        color: var(--accent-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid var(--accent-color);
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--secondary-text);
+    }
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    .back-btn {
+        display: inline-block;
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background: transparent;
+        color: var(--accent-color);
+        border: 1px solid var(--accent-color);
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    .back-btn:hover {
+        background: var(--accent-background);
+        box-shadow: 0 0 15px var(--glow-color);
+        transform: translateX(-3px);
+    }
+  </style>
+</head>
+<body>
+  <div class="hva-container">
+    <a href="{% url 'home' %}" class="back-btn">
+      ← Back to Home
+    </a>
+
+    <div class="hva-header">
+      <h1>💎 High Value Accounts (HVA)</h1>
+      <p>Accounts with balance exceeding 1,000,000 XLM</p>
+      
+      <div class="hva-stats">
+        <div class="hva-stat">
+          <div class="hva-stat-value">{{ total_hva_count }}</div>
+          <div class="hva-stat-label">Total HVA Accounts</div>
+        </div>
+        <div class="hva-stat">
+          <div class="hva-stat-value">{{ total_hva_balance|floatformat:0 }}</div>
+          <div class="hva-stat-label">Total XLM Balance</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hva-table-container">
+      {% if hva_accounts %}
+        <table class="hva-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Account Address</th>
+              <th>XLM Balance</th>
+              <th>Network</th>
+              <th>Creator</th>
+              <th>Tags</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for account in hva_accounts %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td class="account-address">{{ account.stellar_account }}</td>
+              <td class="balance-highlight">{{ account.xlm_balance|floatformat:2 }} XLM</td>
+              <td>{{ account.network_name }}</td>
+              <td class="account-address">{{ account.stellar_creator_account|default:"N/A" }}</td>
+              <td>
+                {% if account.tags %}
+                  {% for tag in account.tags %}
+                    <span class="tag-badge">{{ tag }}</span>
+                  {% endfor %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ account.status|default:"N/A" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <h3>No High Value Accounts Found</h3>
+          <p>Search for accounts to discover high value holders with >1M XLM balance.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Real-time Theme Sync - Check localStorage every second -->
+  <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
+</body>
+</html>

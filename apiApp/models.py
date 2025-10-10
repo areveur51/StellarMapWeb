@@ -188,6 +188,12 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     stellar_account_assets_json = cassandra_columns.Text()
     child_accounts_json = cassandra_columns.Text()
     
+    # Tags for categorizing accounts (e.g., HVA for High Value Account)
+    tags = cassandra_columns.Text(max_length=255)
+    
+    # High Value Account flag for efficient querying (>1M XLM balance)
+    is_hva = cassandra_columns.Boolean(default=False)
+    
     status = cassandra_columns.Text(max_length=127)
     retry_count = cassandra_columns.Integer(default=0)
     last_error = cassandra_columns.Text()
@@ -195,10 +201,32 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     updated_at = cassandra_columns.DateTime()
     
     def save(self, *args, **kwargs):
-        """Auto-set timestamps on save."""
+        """Auto-set timestamps, HVA tag, and HVA flag on save."""
         if not self.created_at:
             self.created_at = datetime.datetime.utcnow()
         self.updated_at = datetime.datetime.utcnow()
+        
+        # Auto-tag High Value Accounts (HVA) with >1M XLM balance
+        if self.xlm_balance and self.xlm_balance > 1_000_000:
+            # Set HVA flag for efficient querying
+            self.is_hva = True
+            
+            # Add HVA tag if not present (using exact match to avoid false positives)
+            if self.tags:
+                tags_list = [tag.strip() for tag in self.tags.split(',')]
+                if 'HVA' not in tags_list:
+                    tags_list.append('HVA')
+                    self.tags = ','.join(tags_list)
+            else:
+                self.tags = 'HVA'
+        else:
+            # Clear HVA flag and remove HVA tag if balance drops below 1M
+            self.is_hva = False
+            
+            if self.tags:
+                tags_list = [tag.strip() for tag in self.tags.split(',') if tag.strip() != 'HVA']
+                self.tags = ','.join(tags_list) if tags_list else ''
+        
         return super().save(*args, **kwargs)
     
     class Meta:
