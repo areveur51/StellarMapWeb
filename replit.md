@@ -19,12 +19,14 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Modern UX Enhancements**: Gradient backgrounds on stat cards and alerts, shimmer hover effects, pulsing health indicators for warnings/errors, color-coded alert borders, smooth transitions, and glowing text effects - all maintaining cyberpunk theme cohesion.
 - **Icon-Free Navigation**: Clean, cyberpunk-styled Quick Navigation buttons without icons, using consistent cyan (#96DDF2) outline styling throughout the sidebar and dashboard.
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments applied across all interactive elements: search bar (border/input/icons with gradient backgrounds and dual-color glows), navbar sidebar (header/body/footer with shimmer animations and cyan highlights on hover), and radial tidy tree visualization (SVG nodes, links, and text with drop-shadow filters, scale transforms, and color transitions). All effects use consistent color palette (cyan #96DDF2, green #0BE784, purple gradients) with smooth 0.3s transitions.
-- **Multi-Theme Admin System**: Dynamic theme switcher for Django admin with three sci-fi themed options:
+- **Multi-Theme System (Admin & Main App)**: Dynamic theme switcher with three sci-fi themed options that apply across the entire application:
   - **Cyberpunk (Default)**: Dark purple backgrounds (#261D45), cyan/green accent colors, gradient buttons, glowing interactive elements
   - **Borg Green**: Star Trek Borg-inspired matrix green theme (#00ff41) with assimilation aesthetics, monospace fonts, and green glow effects
   - **Predator Red**: Predator thermal HUD red theme (#ff0000) with hunting mode visuals, scanline effects, and thermal vision overlay
   - Theme preferences stored in localStorage and persist across sessions
-  - Theme selector appears in admin header on all pages
+  - Theme selector in admin header syncs with main application pages
+  - Global theme loader applies selected theme to homepage, search pages, and admin portal
+  - Seamless theme consistency across all pages using shared localStorage key
 - **Dashboard Layout**: Alerts & Recommendations moved to top of System Dashboard for immediate visibility of critical issues. Quick Actions section removed to streamline interface and eliminate redundancy with sidebar navigation.
 - **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
