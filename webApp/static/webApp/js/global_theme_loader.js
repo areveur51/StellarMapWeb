@@ -73,31 +73,19 @@
         link.href = theme.cssFile;
         link.id = `theme-${themeId}`;
         
-        // Insert after frontend.css or at the end of head
-        const frontendCSS = document.querySelector('link[href*="frontend.css"]');
-        if (frontendCSS && frontendCSS.parentNode) {
-            frontendCSS.parentNode.insertBefore(link, frontendCSS);
+        // Insert at the beginning of head (before any other CSS)
+        if (document.head.firstChild) {
+            document.head.insertBefore(link, document.head.firstChild);
         } else {
             document.head.appendChild(link);
         }
     }
 
     /**
-     * Apply theme on page load
+     * Apply theme immediately - runs synchronously when script loads
      */
-    function applyTheme() {
-        const currentTheme = getCurrentTheme();
-        loadThemeCSS(currentTheme);
-    }
-
-    /**
-     * Initialize theme on DOM ready
-     */
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyTheme);
-    } else {
-        applyTheme();
-    }
+    const currentTheme = getCurrentTheme();
+    loadThemeCSS(currentTheme);
 
     // Expose API for manual theme changes (if needed)
     window.GlobalThemeLoader = {

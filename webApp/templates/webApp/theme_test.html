@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Theme Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: var(--main-bg-color, #000);
+            color: var(--search-container-text-color, #fff);
+        }
+        .test-box {
+            padding: 20px;
+            margin: 10px 0;
+            border: 2px solid var(--search-container-border, #ccc);
+            border-radius: 8px;
+        }
+    </style>
+    <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+</head>
+<body>
+    <h1>Theme Test Page</h1>
+    
+    <div class="test-box">
+        <h2>Current Theme Information</h2>
+        <p><strong>localStorage Key:</strong> django_admin_theme</p>
+        <p><strong>Current Value:</strong> <span id="theme-value">Loading...</span></p>
+        <p><strong>Theme CSS Link:</strong> <span id="theme-link">Loading...</span></p>
+    </div>
+
+    <div class="test-box">
+        <h2>CSS Variables Test</h2>
+        <p><strong>--main-bg-color:</strong> <span id="bg-color"></span></p>
+        <p><strong>--search-container-text-color:</strong> <span id="text-color"></span></p>
+        <p><strong>--search-container-border:</strong> <span id="border-color"></span></p>
+    </div>
+
+    <div class="test-box">
+        <h2>Manual Theme Switcher</h2>
+        <button onclick="setTheme('cyberpunk')">Cyberpunk</button>
+        <button onclick="setTheme('borg')">Borg Green</button>
+        <button onclick="setTheme('predator')">Predator Red</button>
+    </div>
+
+    <script>
+        function updateDisplay() {
+            // Show localStorage value
+            const themeValue = localStorage.getItem('django_admin_theme') || 'not set';
+            document.getElementById('theme-value').textContent = themeValue;
+
+            // Show theme CSS link
+            const themeLinks = Array.from(document.querySelectorAll('link[id^="theme-"]'));
+            if (themeLinks.length > 0) {
+                document.getElementById('theme-link').textContent = themeLinks[0].href;
+            } else {
+                document.getElementById('theme-link').textContent = 'No theme link found';
+            }
+
+            // Show CSS variable values
+            const styles = getComputedStyle(document.body);
+            document.getElementById('bg-color').textContent = styles.getPropertyValue('--main-bg-color');
+            document.getElementById('text-color').textContent = styles.getPropertyValue('--search-container-text-color');
+            document.getElementById('border-color').textContent = styles.getPropertyValue('--search-container-border');
+        }
+
+        function setTheme(theme) {
+            localStorage.setItem('django_admin_theme', theme);
+            if (window.GlobalThemeLoader) {
+                window.GlobalThemeLoader.applyTheme(theme);
+            }
+            setTimeout(updateDisplay, 100);
+        }
+
+        // Update display when page loads
+        setTimeout(updateDisplay, 500);
+    </script>
+</body>
+</html>

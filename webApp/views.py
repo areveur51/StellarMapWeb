@@ -736,3 +736,13 @@ def dashboard_view(request):
     }
     
     return render(request, 'webApp/dashboard.html', context)
+
+
+def theme_test_view(request):
+    """
+    Theme testing page to debug theme switching functionality.
+    
+    Returns:
+        HttpResponse: Rendered theme test page.
+    """
+    return render(request, 'webApp/theme_test.html')

@@ -1,13 +1,14 @@
 /*
  * frontend.css
- * Imports theme and defines styles for UI components.
+ * Defines styles for UI components.
+ * Theme CSS variables are loaded dynamically by global_theme_loader.js
  * Efficiency: Combined selectors where possible; removed redundancies (e.g., repeated !important minimized).
  * Readability: Organized by component/section with comments; logical flow.
  * Security: Static CSS; no vulnerabilities like inline styles that could allow injection.
  * Documentation: Sections commented; media queries explained.
  */
 
-@import url('cyberpunk_theme.css');
+/* Theme CSS is loaded dynamically - see global_theme_loader.js */
 
 /* Main background styling */
 .bg-color-261D45 {
