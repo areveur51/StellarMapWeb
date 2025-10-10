@@ -57,6 +57,39 @@
             display: block;
         }
         
+        /* SVG node glow effects */
+        #tree circle {
+            filter: drop-shadow(0 0 3px rgba(150, 221, 242, 0.4));
+            transition: all 0.3s ease;
+        }
+        
+        #tree circle:hover {
+            filter: drop-shadow(0 0 8px rgba(150, 221, 242, 0.8)) drop-shadow(0 0 15px rgba(11, 231, 132, 0.4));
+            transform: scale(1.2);
+        }
+        
+        /* SVG link glow effects */
+        #tree path {
+            transition: all 0.3s ease;
+        }
+        
+        #tree path:hover {
+            stroke: #96DDF2 !important;
+            stroke-width: 2.5 !important;
+            filter: drop-shadow(0 0 5px rgba(150, 221, 242, 0.6));
+        }
+        
+        /* SVG text glow effects */
+        #tree text {
+            filter: drop-shadow(0 0 2px rgba(150, 221, 242, 0.3));
+            transition: all 0.3s ease;
+        }
+        
+        #tree text:hover {
+            filter: drop-shadow(0 0 6px rgba(150, 221, 242, 0.6));
+            fill: #96DDF2 !important;
+        }
+        
         #details {
             display: none;
         }
