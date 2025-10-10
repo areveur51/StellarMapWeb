@@ -18,6 +18,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Ultra-Compact Dashboard Design**: Highly optimized System Dashboard with minimal spacing (10px container padding, 8px card padding, 8px row gutters), smaller font sizes (1.3rem stat values, 0.7rem labels), and no icon usage for maximum space utilization and cleaner visual appearance.
 - **Modern UX Enhancements**: Gradient backgrounds on stat cards and alerts, shimmer hover effects, pulsing health indicators for warnings/errors, color-coded alert borders, smooth transitions, and glowing text effects - all maintaining cyberpunk theme cohesion.
 - **Icon-Free Navigation**: Clean, cyberpunk-styled Quick Navigation buttons without icons, using consistent cyan (#96DDF2) outline styling throughout the sidebar and dashboard.
+- **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments applied across all interactive elements: search bar (border/input/icons with gradient backgrounds and dual-color glows), navbar sidebar (header/body/footer with shimmer animations and cyan highlights on hover), and radial tidy tree visualization (SVG nodes, links, and text with drop-shadow filters, scale transforms, and color transitions). All effects use consistent color palette (cyan #96DDF2, green #0BE784, purple gradients) with smooth 0.3s transitions.
 - **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
 ## Technical Implementation
