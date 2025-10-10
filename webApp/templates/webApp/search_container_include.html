@@ -15,7 +15,7 @@
                 @change="toggleNetwork"
                 :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
               >{{network_selected}}</b-form-checkbox>
-              <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Search Stellar Address">
+              <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
             </div>
           </div>
           <div class="col-auto">
@@ -30,9 +30,11 @@
 <!-- Shared sidebar component -->
 <b-sidebar id="sidebar-menu" title="StellarMap.Network" shadow>
   <div class="px-3 py-2">
-    This web application allows users to generate the lineage of Stellar addresses 
-    and visualize them in a radial, tidy tree format. The tree maps address types 
-    and activity, providing a clear and organized view of the relationships between addresses.
+    <p style="color: #96DDF2; line-height: 1.5;">
+      This web application allows users to generate the lineage of Stellar addresses 
+      and visualize them in a radial, tidy tree format. The tree maps address types 
+      and activity, providing a clear and organized view of the relationships between addresses.
+    </p>
     
     <hr style="border-color: #0f3460; margin: 20px 0;">
     
@@ -57,10 +59,10 @@
   </div>
 
   <template #footer="{ hide }">
-    <div class="d-flex text-light align-items-center px-3 py-2">
-      <b-button class="close-button" @click="hide">
-        <i class="fas fa-sign-out icon-pad"></i> Close
-      </b-button>
+    <div class="d-flex text-light align-items-center px-3 py-2" style="width: 100%;">
+      <button @click="hide" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2; width: 100%;">
+        Close
+      </button>
     </div>
   </template>
 </b-sidebar>
