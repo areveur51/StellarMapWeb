@@ -17,17 +17,32 @@
         color: #96DDF2; /* Cyberpunk cyan text */
     }
     .stat-card {
-        background: #231B3D; /* Secondary cyberpunk purple */
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
         border-radius: 4px;
         padding: 8px;
         margin-bottom: 8px;
-        transition: transform 0.2s;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(150, 221, 242, 0.1), transparent);
+        transition: left 0.5s ease;
+    }
+    .stat-card:hover::before {
+        left: 100%;
     }
     .stat-card:hover {
         transform: translateY(-2px);
         border-color: #96DDF2; /* Cyberpunk cyan on hover */
-        box-shadow: 0 4px 15px rgba(150, 221, 242, 0.2);
+        box-shadow: 0 4px 20px rgba(150, 221, 242, 0.3), 0 0 15px rgba(150, 221, 242, 0.1);
     }
     .stat-value {
         font-size: 1.3rem;
@@ -36,6 +51,9 @@
         word-wrap: break-word;
         overflow-wrap: break-word;
         margin: 2px 0;
+        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
+        position: relative;
+        z-index: 1;
     }
     .stat-label {
         color: #c4b5fd; /* Light purple for labels */
@@ -56,6 +74,12 @@
         margin-top: 4px;
         font-size: 0.6rem;
         padding: 2px 5px;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 1;
+    }
+    .admin-link-btn:hover {
+        transform: translateX(3px);
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
     .btn-outline-info:hover,
@@ -93,6 +117,19 @@
         padding-bottom: 3px;
         border-bottom: 1px solid #3f2c70; /* Cyberpunk purple border */
         font-size: 0.95rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        position: relative;
+    }
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, #0BE784, transparent);
     }
     .health-indicator {
         display: inline-block;
@@ -100,18 +137,52 @@
         height: 8px;
         border-radius: 50%;
         margin-right: 4px;
+        position: relative;
     }
     /* Keep original indicator colors */
-    .health-good { background-color: #0BE784; } /* Cyberpunk green */
-    .health-warning { background-color: #ffc107; } /* Yellow */
-    .health-danger { background-color: #E5526F; } /* Cyberpunk red */
+    .health-good { 
+        background-color: #0BE784; /* Cyberpunk green */
+        box-shadow: 0 0 6px rgba(11, 231, 132, 0.6);
+    }
+    .health-warning { 
+        background-color: #ffc107; /* Yellow */
+        box-shadow: 0 0 6px rgba(255, 193, 7, 0.6);
+        animation: pulse-warning 2s infinite;
+    }
+    .health-danger { 
+        background-color: #E5526F; /* Cyberpunk red */
+        box-shadow: 0 0 6px rgba(229, 82, 111, 0.6);
+        animation: pulse-danger 1.5s infinite;
+    }
+    @keyframes pulse-warning {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    @keyframes pulse-danger {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(1.1); }
+    }
     .alert-custom {
-        background: #100D23; /* Dark cyberpunk background */
-        border: 1px solid #3f2c70; /* Cyberpunk purple border */
+        background: linear-gradient(135deg, #100D23 0%, #1a1530 100%); /* Dark cyberpunk gradient */
+        border-left: 3px solid #3f2c70; /* Accent border */
+        border-top: 1px solid #3f2c70;
+        border-right: 1px solid #3f2c70;
+        border-bottom: 1px solid #3f2c70;
         color: #96DDF2; /* Cyberpunk cyan text */
         padding: 6px 10px;
         margin-bottom: 6px;
         font-size: 0.8rem;
+        border-radius: 3px;
+        position: relative;
+    }
+    .alert-custom.alert-warning {
+        border-left-color: #ffc107;
+    }
+    .alert-custom.alert-danger {
+        border-left-color: #E5526F;
+    }
+    .alert-custom.alert-success {
+        border-left-color: #0BE784;
     }
     /* Reduce Bootstrap row gutters for tighter layout */
     .row {
@@ -130,7 +201,7 @@
     {% include 'webApp/search_container_include.html' %}
 
     <div class="dashboard-container">
-        <h1 class="text-center mb-2" style="font-size: 1.4rem; margin-top: 0;">
+        <h1 class="text-center mb-2" style="font-size: 1.4rem; margin-top: 0; text-shadow: 0 0 15px rgba(150, 221, 242, 0.4); font-weight: 600; letter-spacing: 1px;">
             System Dashboard
         </h1>
         
@@ -374,7 +445,7 @@
             <div class="col-md-4">
                 <div class="stat-card">
                     <div class="stat-label">Cron Status</div>
-                    <div class="stat-value" style="font-size: 1.5rem;">
+                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F;{% else %}color: #ffc107;{% endif %}">
                         {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
                             <span class="health-indicator health-good"></span>
                         {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
