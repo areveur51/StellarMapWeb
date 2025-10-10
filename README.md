@@ -280,6 +280,7 @@ python manage.py bigquery_pipeline --reset
 - **Templating**: Django templates enhanced with Vue.js components for interactivity.
 - **Visualization**: D3.js for interactive radial tree diagrams.
 - **Responsive Design**: Bootstrap-based interface.
+- **Multi-Theme System**: Dynamic theme switcher with 3 sci-fi themes (Cyberpunk default, Borg Green, Predator Red) that sync across admin portal and frontend pages in real-time via localStorage.
 
 #### User Experience Features
 - **Error Handling**: Graceful error handling for invalid Stellar addresses.
