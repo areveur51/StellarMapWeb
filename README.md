@@ -286,6 +286,7 @@ python manage.py bigquery_pipeline --reset
 - **Error Handling**: Graceful error handling for invalid Stellar addresses.
 - **Default Display**: Default display of pending accounts.
 - **Cache Prevention**: Browser caching prevented using `Cache-Control` headers.
+- **High Value Account (HVA) Tracking**: Automatic identification and tagging of accounts with >1M XLM balance. Dedicated HVA page at `/web/high-value-accounts/` displays all high-value accounts with total balance statistics, sorted by balance descending. Uses efficient boolean-based filtering with `is_hva` column for scalable queries.
 
 #### Pending Accounts UI
 - **Real-time Display**: Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
