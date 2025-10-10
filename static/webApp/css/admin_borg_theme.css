@@ -1,0 +1,516 @@
+/* Star Trek Borg Green Theme for Django Admin */
+
+/* Override Django Admin CSS Variables */
+:root {
+    /* Borg Green Color Palette */
+    --borg-bg: #001a00;
+    --borg-green: #00ff41;
+    --borg-green-dark: #00cc33;
+    --borg-green-light: #33ff66;
+    --borg-dark: #000d00;
+    --borg-dark-lighter: #002600;
+    --borg-matrix: #00ff00;
+    --borg-warning: #ffff00;
+    --borg-danger: #ff3300;
+    
+    /* Override Django Variables */
+    --primary: var(--borg-green);
+    --secondary: var(--borg-green-dark);
+    --accent: var(--borg-green-light);
+    --primary-fg: #000;
+
+    --body-fg: #00ff41;
+    --body-bg: var(--borg-bg);
+    --body-quiet-color: #00cc33;
+    --body-loud-color: var(--borg-matrix);
+
+    --header-color: var(--borg-green);
+    --header-branding-color: var(--borg-green);
+    --header-bg: var(--borg-dark);
+    --header-link-color: var(--borg-green);
+
+    --breadcrumbs-fg: var(--borg-green);
+    --breadcrumbs-link-fg: #ffffff;
+    --breadcrumbs-bg: var(--borg-dark-lighter);
+
+    --link-fg: var(--borg-green);
+    --link-hover-color: var(--borg-green-light);
+    --link-selected-fg: var(--borg-matrix);
+
+    --hairline-color: var(--borg-green-dark);
+    --border-color: var(--borg-green-dark);
+
+    --error-fg: var(--borg-danger);
+
+    --message-success-bg: rgba(0, 255, 65, 0.2);
+    --message-warning-bg: rgba(255, 255, 0, 0.2);
+    --message-error-bg: rgba(255, 51, 0, 0.2);
+
+    --darkened-bg: var(--borg-dark);
+    --selected-bg: var(--borg-dark-lighter);
+    --selected-row: rgba(0, 255, 65, 0.1);
+
+    --button-fg: #000;
+    --button-bg: var(--borg-green-dark);
+    --button-hover-bg: var(--borg-green);
+    --default-button-bg: var(--borg-green);
+    --default-button-hover-bg: var(--borg-green-light);
+    --close-button-bg: #333;
+    --close-button-hover-bg: #555;
+    --delete-button-bg: var(--borg-danger);
+    --delete-button-hover-bg: #ff5522;
+
+    --object-tools-fg: #000;
+    --object-tools-bg: var(--borg-green-dark);
+    --object-tools-hover-bg: var(--borg-green);
+}
+
+/* Body and Base Styles */
+body {
+    background: var(--borg-bg);
+    color: var(--borg-green);
+    font-family: 'Courier New', monospace;
+}
+
+/* Header Customization */
+#header {
+    background: linear-gradient(135deg, var(--borg-dark) 0%, var(--borg-dark-lighter) 100%);
+    border-bottom: 2px solid var(--borg-green);
+    box-shadow: 0 4px 15px rgba(0, 255, 65, 0.3);
+}
+
+#branding h1 {
+    color: var(--borg-green);
+    text-shadow: 0 0 20px rgba(0, 255, 65, 0.8), 0 0 40px rgba(0, 255, 65, 0.4);
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+#branding h1 a:link,
+#branding h1 a:visited {
+    color: var(--borg-green);
+}
+
+#user-tools {
+    color: var(--borg-green);
+}
+
+#user-tools a {
+    color: var(--borg-green);
+    border-bottom-color: var(--borg-green);
+}
+
+#user-tools a:hover {
+    color: var(--borg-green-light);
+    text-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+    background: var(--borg-dark-lighter);
+    border-bottom: 1px solid var(--borg-green);
+}
+
+div.breadcrumbs a {
+    color: var(--borg-green);
+}
+
+div.breadcrumbs a:hover {
+    color: var(--borg-green-light);
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+}
+
+/* Content Area */
+#content {
+    background: var(--borg-bg);
+}
+
+/* Module Styling */
+.module {
+    background: var(--borg-dark);
+    border: 1px solid var(--borg-green-dark);
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 255, 65, 0.1);
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: linear-gradient(135deg, var(--borg-dark-lighter) 0%, var(--borg-green-dark) 100%);
+    color: var(--borg-green);
+    border-bottom: 2px solid var(--borg-green);
+    text-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+}
+
+/* Tables */
+thead th {
+    background: var(--borg-dark-lighter);
+    color: var(--borg-green);
+    border-bottom: 2px solid var(--borg-green);
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+}
+
+tbody tr {
+    background: var(--borg-dark);
+    transition: all 0.3s ease;
+}
+
+tbody tr:hover {
+    background: var(--borg-dark-lighter) !important;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+}
+
+tbody tr.selected {
+    background: rgba(0, 255, 65, 0.15) !important;
+}
+
+tbody th,
+tbody td {
+    border-bottom: 1px solid var(--borg-green-dark);
+}
+
+/* Links */
+a:link,
+a:visited {
+    color: var(--borg-green);
+    transition: all 0.3s ease;
+}
+
+a:hover,
+a:active {
+    color: var(--borg-green-light);
+    text-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+}
+
+/* Buttons */
+.button,
+input[type=submit],
+input[type=button],
+.submit-row input,
+a.button {
+    background: linear-gradient(135deg, var(--borg-green-dark) 0%, var(--borg-green) 100%);
+    color: #000;
+    border: 1px solid var(--borg-green);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    text-shadow: none;
+    font-weight: 600;
+}
+
+.button:hover,
+input[type=submit]:hover,
+input[type=button]:hover,
+.submit-row input:hover,
+a.button:hover {
+    background: linear-gradient(135deg, var(--borg-green) 0%, var(--borg-green-light) 100%);
+    box-shadow: 0 0 25px rgba(0, 255, 65, 0.6);
+    transform: translateY(-2px);
+}
+
+.button.default,
+input[type=submit].default,
+.submit-row input.default {
+    background: linear-gradient(135deg, var(--borg-green) 0%, var(--borg-green-light) 100%);
+    border-color: var(--borg-matrix);
+}
+
+.button.default:hover,
+input[type=submit].default:hover {
+    background: var(--borg-matrix);
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.7);
+}
+
+/* Delete Button */
+.deletelink,
+.deletelink-box a.deletelink {
+    background: var(--borg-danger);
+    border-color: var(--borg-danger);
+}
+
+.deletelink:hover,
+.deletelink-box a.deletelink:hover {
+    background: #ff5522;
+    box-shadow: 0 0 25px rgba(255, 51, 0, 0.6);
+}
+
+/* Form Fields */
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=url],
+input[type=number],
+input[type=tel],
+textarea,
+select {
+    background: var(--borg-dark);
+    color: var(--borg-green);
+    border: 1px solid var(--borg-green-dark);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+
+input[type=text]:focus,
+input[type=password]:focus,
+input[type=email]:focus,
+input[type=url]:focus,
+input[type=number]:focus,
+input[type=tel]:focus,
+textarea:focus,
+select:focus {
+    background: var(--borg-bg);
+    border-color: var(--borg-green);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+    outline: none;
+}
+
+/* Messages */
+.messagelist li {
+    background: var(--borg-dark);
+    border: 1px solid;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.messagelist .success {
+    background: rgba(0, 255, 65, 0.2);
+    border-color: var(--borg-green);
+    color: var(--borg-green);
+}
+
+.messagelist .warning {
+    background: rgba(255, 255, 0, 0.2);
+    border-color: var(--borg-warning);
+    color: var(--borg-warning);
+}
+
+.messagelist .error {
+    background: rgba(255, 51, 0, 0.2);
+    border-color: var(--borg-danger);
+    color: var(--borg-danger);
+}
+
+/* Object Tools */
+.object-tools li {
+    background: var(--borg-green-dark);
+    border-radius: 6px;
+}
+
+.object-tools li:hover {
+    background: var(--borg-green);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+}
+
+.object-tools a {
+    color: #000;
+    border: 1px solid var(--borg-green);
+    border-radius: 6px;
+}
+
+.object-tools a:hover {
+    background: var(--borg-green);
+    color: #000;
+}
+
+/* Search Bar */
+#toolbar {
+    background: var(--borg-dark);
+    border-color: var(--borg-green-dark);
+}
+
+#searchbar {
+    background: var(--borg-bg);
+    border: 1px solid var(--borg-green-dark);
+    color: var(--borg-green);
+    border-radius: 6px;
+}
+
+#searchbar:focus {
+    border-color: var(--borg-green);
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+}
+
+/* Pagination */
+.paginator {
+    color: var(--borg-green);
+    background: var(--borg-dark);
+    border-color: var(--borg-green-dark);
+}
+
+.paginator a:link,
+.paginator a:visited {
+    background: var(--borg-dark-lighter);
+    border-color: var(--borg-green);
+    color: var(--borg-green);
+    border-radius: 4px;
+}
+
+.paginator a:hover {
+    background: var(--borg-green);
+    color: #000;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.5);
+}
+
+/* Fieldsets */
+.aligned label {
+    color: var(--borg-green);
+}
+
+fieldset.module {
+    background: var(--borg-dark);
+    border: 1px solid var(--borg-green-dark);
+}
+
+/* Help Text */
+.help {
+    color: var(--borg-green-dark);
+}
+
+/* Errors */
+.errornote {
+    background: rgba(255, 51, 0, 0.2);
+    border: 1px solid var(--borg-danger);
+    color: var(--borg-danger);
+    border-radius: 6px;
+}
+
+.errors,
+.errorlist {
+    color: var(--borg-danger);
+}
+
+/* Calendar Widget */
+.calendarbox,
+.clockbox {
+    background: var(--borg-dark);
+    border: 1px solid var(--borg-green-dark);
+    border-radius: 8px;
+}
+
+.calendar caption {
+    background: var(--borg-dark-lighter);
+    color: var(--borg-green);
+}
+
+.calendar th {
+    background: var(--borg-dark-lighter);
+    color: var(--borg-green);
+}
+
+.calendar td {
+    background: var(--borg-dark);
+    border-color: var(--borg-green-dark);
+}
+
+.calendar td a {
+    color: var(--borg-green);
+}
+
+.calendar td a:hover {
+    background: var(--borg-green);
+    color: #000;
+}
+
+.calendar td.selected a {
+    background: var(--borg-matrix);
+    color: #000;
+}
+
+/* Filters Sidebar */
+#changelist-filter {
+    background: var(--borg-dark);
+    border-left: 1px solid var(--borg-green-dark);
+}
+
+#changelist-filter h2 {
+    background: var(--borg-dark-lighter);
+    color: var(--borg-green);
+    border-bottom: 2px solid var(--borg-green);
+}
+
+#changelist-filter h3 {
+    color: var(--borg-green);
+}
+
+#changelist-filter a {
+    color: var(--borg-green-dark);
+}
+
+#changelist-filter a:hover {
+    color: var(--borg-green);
+}
+
+#changelist-filter li.selected a {
+    color: var(--borg-matrix);
+    font-weight: bold;
+}
+
+/* Login Page */
+.login #container {
+    background: var(--borg-dark);
+    border: 2px solid var(--borg-green-dark);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 255, 65, 0.3);
+}
+
+.login #header {
+    background: linear-gradient(135deg, var(--borg-dark) 0%, var(--borg-dark-lighter) 100%);
+    border-bottom: 2px solid var(--borg-green);
+}
+
+.login #header h1 {
+    color: var(--borg-green);
+    text-shadow: 0 0 25px rgba(0, 255, 65, 0.9);
+}
+
+/* Checkbox and Radio Inputs */
+input[type=checkbox],
+input[type=radio] {
+    accent-color: var(--borg-green);
+}
+
+/* Action Checkboxes */
+.action-checkbox {
+    accent-color: var(--borg-green);
+}
+
+/* Glow Effects */
+.button:active,
+input[type=submit]:active {
+    box-shadow: 0 0 35px rgba(0, 255, 65, 0.8);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--borg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--borg-green-dark);
+    border-radius: 6px;
+    border: 2px solid var(--borg-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--borg-green);
+}
+
+/* Matrix Rain Effect (subtle) */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(transparent 50%, rgba(0, 255, 65, 0.02) 50%),
+        linear-gradient(90deg, transparent 50%, rgba(0, 255, 65, 0.02) 50%);
+    background-size: 4px 4px, 4px 4px;
+    pointer-events: none;
+    z-index: -1;
+}

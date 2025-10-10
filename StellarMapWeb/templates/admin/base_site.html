@@ -9,5 +9,10 @@
 
 {% block extrastyle %}
 {{ block.super }}
-<link rel="stylesheet" type="text/css" href="{% static 'webApp/css/admin_cyberpunk.css' %}">
+{# Theme CSS will be loaded dynamically by theme switcher #}
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="{% static 'webApp/js/admin_theme_switcher.js' %}"></script>
 {% endblock %}

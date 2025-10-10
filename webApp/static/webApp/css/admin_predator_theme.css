@@ -1,0 +1,560 @@
+/* Predator HUD Red Theme for Django Admin */
+
+/* Override Django Admin CSS Variables */
+:root {
+    /* Predator Red Color Palette */
+    --predator-bg: #1a0000;
+    --predator-red: #ff0000;
+    --predator-red-dark: #cc0000;
+    --predator-red-light: #ff3333;
+    --predator-orange: #ff6600;
+    --predator-yellow: #ffaa00;
+    --predator-dark: #0d0000;
+    --predator-dark-lighter: #330000;
+    --predator-danger: #ff0000;
+    
+    /* Override Django Variables */
+    --primary: var(--predator-red);
+    --secondary: var(--predator-red-dark);
+    --accent: var(--predator-orange);
+    --primary-fg: #000;
+
+    --body-fg: #ff3333;
+    --body-bg: var(--predator-bg);
+    --body-quiet-color: #cc0000;
+    --body-loud-color: var(--predator-red);
+
+    --header-color: var(--predator-red);
+    --header-branding-color: var(--predator-red);
+    --header-bg: var(--predator-dark);
+    --header-link-color: var(--predator-red);
+
+    --breadcrumbs-fg: var(--predator-red);
+    --breadcrumbs-link-fg: #ffffff;
+    --breadcrumbs-bg: var(--predator-dark-lighter);
+
+    --link-fg: var(--predator-red);
+    --link-hover-color: var(--predator-orange);
+    --link-selected-fg: var(--predator-yellow);
+
+    --hairline-color: var(--predator-red-dark);
+    --border-color: var(--predator-red-dark);
+
+    --error-fg: var(--predator-red);
+
+    --message-success-bg: rgba(255, 102, 0, 0.2);
+    --message-warning-bg: rgba(255, 170, 0, 0.2);
+    --message-error-bg: rgba(255, 0, 0, 0.2);
+
+    --darkened-bg: var(--predator-dark);
+    --selected-bg: var(--predator-dark-lighter);
+    --selected-row: rgba(255, 0, 0, 0.1);
+
+    --button-fg: #000;
+    --button-bg: var(--predator-red-dark);
+    --button-hover-bg: var(--predator-red);
+    --default-button-bg: var(--predator-red);
+    --default-button-hover-bg: var(--predator-orange);
+    --close-button-bg: #333;
+    --close-button-hover-bg: #555;
+    --delete-button-bg: var(--predator-red);
+    --delete-button-hover-bg: var(--predator-red-light);
+
+    --object-tools-fg: #000;
+    --object-tools-bg: var(--predator-red-dark);
+    --object-tools-hover-bg: var(--predator-red);
+}
+
+/* Body and Base Styles */
+body {
+    background: var(--predator-bg);
+    color: var(--predator-red);
+    font-family: 'Orbitron', 'Arial Black', sans-serif;
+}
+
+/* Thermal Vision Overlay Effect */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 50% 50%, transparent 0%, rgba(255, 0, 0, 0.05) 100%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Scanline Effect */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(transparent 50%, rgba(255, 0, 0, 0.03) 50%);
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 0;
+    animation: scanline 8s linear infinite;
+}
+
+@keyframes scanline {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(4px); }
+}
+
+/* Header Customization */
+#header {
+    background: linear-gradient(135deg, var(--predator-dark) 0%, var(--predator-dark-lighter) 100%);
+    border-bottom: 2px solid var(--predator-red);
+    box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
+    position: relative;
+    z-index: 1;
+}
+
+#branding h1 {
+    color: var(--predator-red);
+    text-shadow: 
+        0 0 20px rgba(255, 0, 0, 0.9),
+        0 0 40px rgba(255, 0, 0, 0.5),
+        0 0 60px rgba(255, 102, 0, 0.3);
+    font-weight: 900;
+    letter-spacing: 3px;
+}
+
+#branding h1 a:link,
+#branding h1 a:visited {
+    color: var(--predator-red);
+}
+
+#user-tools {
+    color: var(--predator-red);
+}
+
+#user-tools a {
+    color: var(--predator-red);
+    border-bottom-color: var(--predator-red);
+}
+
+#user-tools a:hover {
+    color: var(--predator-orange);
+    text-shadow: 0 0 15px rgba(255, 102, 0, 0.7);
+}
+
+/* Breadcrumbs */
+div.breadcrumbs {
+    background: var(--predator-dark-lighter);
+    border-bottom: 1px solid var(--predator-red);
+    position: relative;
+    z-index: 1;
+}
+
+div.breadcrumbs a {
+    color: var(--predator-red);
+}
+
+div.breadcrumbs a:hover {
+    color: var(--predator-orange);
+    text-shadow: 0 0 10px rgba(255, 102, 0, 0.6);
+}
+
+/* Content Area */
+#content {
+    background: var(--predator-bg);
+    position: relative;
+    z-index: 1;
+}
+
+/* Module Styling */
+.module {
+    background: var(--predator-dark);
+    border: 1px solid var(--predator-red-dark);
+    border-radius: 8px;
+    box-shadow: 
+        0 4px 10px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(255, 0, 0, 0.15),
+        inset 0 0 40px rgba(255, 0, 0, 0.05);
+}
+
+.module h2,
+.module caption,
+.inline-group h2 {
+    background: linear-gradient(135deg, var(--predator-dark-lighter) 0%, var(--predator-red-dark) 100%);
+    color: var(--predator-red);
+    border-bottom: 2px solid var(--predator-red);
+    text-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+}
+
+/* Tables */
+thead th {
+    background: var(--predator-dark-lighter);
+    color: var(--predator-red);
+    border-bottom: 2px solid var(--predator-red);
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+tbody tr {
+    background: var(--predator-dark);
+    transition: all 0.3s ease;
+}
+
+tbody tr:hover {
+    background: var(--predator-dark-lighter) !important;
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.2);
+}
+
+tbody tr.selected {
+    background: rgba(255, 0, 0, 0.15) !important;
+}
+
+tbody th,
+tbody td {
+    border-bottom: 1px solid var(--predator-red-dark);
+}
+
+/* Links */
+a:link,
+a:visited {
+    color: var(--predator-red);
+    transition: all 0.3s ease;
+}
+
+a:hover,
+a:active {
+    color: var(--predator-orange);
+    text-shadow: 0 0 15px rgba(255, 102, 0, 0.7);
+}
+
+/* Buttons with Thermal Signature */
+.button,
+input[type=submit],
+input[type=button],
+.submit-row input,
+a.button {
+    background: linear-gradient(135deg, var(--predator-red-dark) 0%, var(--predator-red) 100%);
+    color: #000;
+    border: 1px solid var(--predator-red);
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    text-shadow: none;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.3);
+}
+
+.button:hover,
+input[type=submit]:hover,
+input[type=button]:hover,
+.submit-row input:hover,
+a.button:hover {
+    background: linear-gradient(135deg, var(--predator-red) 0%, var(--predator-orange) 100%);
+    box-shadow: 
+        0 0 30px rgba(255, 0, 0, 0.7),
+        0 0 50px rgba(255, 102, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.button.default,
+input[type=submit].default,
+.submit-row input.default {
+    background: linear-gradient(135deg, var(--predator-red) 0%, var(--predator-orange) 100%);
+    border-color: var(--predator-yellow);
+}
+
+.button.default:hover,
+input[type=submit].default:hover {
+    background: linear-gradient(135deg, var(--predator-orange) 0%, var(--predator-yellow) 100%);
+    box-shadow: 
+        0 0 35px rgba(255, 170, 0, 0.8);
+}
+
+/* Delete Button */
+.deletelink,
+.deletelink-box a.deletelink {
+    background: var(--predator-red);
+    border-color: var(--predator-red);
+}
+
+.deletelink:hover,
+.deletelink-box a.deletelink:hover {
+    background: var(--predator-red-light);
+    box-shadow: 0 0 30px rgba(255, 0, 0, 0.7);
+}
+
+/* Form Fields with HUD Style */
+input[type=text],
+input[type=password],
+input[type=email],
+input[type=url],
+input[type=number],
+input[type=tel],
+textarea,
+select {
+    background: var(--predator-dark);
+    color: var(--predator-red);
+    border: 1px solid var(--predator-red-dark);
+    border-radius: 4px;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 0 10px rgba(255, 0, 0, 0.1);
+}
+
+input[type=text]:focus,
+input[type=password]:focus,
+input[type=email]:focus,
+input[type=url]:focus,
+input[type=number]:focus,
+input[type=tel]:focus,
+textarea:focus,
+select:focus {
+    background: var(--predator-bg);
+    border-color: var(--predator-red);
+    box-shadow: 
+        0 0 25px rgba(255, 0, 0, 0.5),
+        inset 0 0 15px rgba(255, 0, 0, 0.2);
+    outline: none;
+}
+
+/* Messages */
+.messagelist li {
+    background: var(--predator-dark);
+    border: 1px solid;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.messagelist .success {
+    background: rgba(255, 102, 0, 0.2);
+    border-color: var(--predator-orange);
+    color: var(--predator-orange);
+}
+
+.messagelist .warning {
+    background: rgba(255, 170, 0, 0.2);
+    border-color: var(--predator-yellow);
+    color: var(--predator-yellow);
+}
+
+.messagelist .error {
+    background: rgba(255, 0, 0, 0.2);
+    border-color: var(--predator-red);
+    color: var(--predator-red);
+}
+
+/* Object Tools */
+.object-tools li {
+    background: var(--predator-red-dark);
+    border-radius: 6px;
+}
+
+.object-tools li:hover {
+    background: var(--predator-red);
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.5);
+}
+
+.object-tools a {
+    color: #000;
+    border: 1px solid var(--predator-red);
+    border-radius: 6px;
+}
+
+.object-tools a:hover {
+    background: var(--predator-red);
+    color: #000;
+}
+
+/* Search Bar */
+#toolbar {
+    background: var(--predator-dark);
+    border-color: var(--predator-red-dark);
+}
+
+#searchbar {
+    background: var(--predator-bg);
+    border: 1px solid var(--predator-red-dark);
+    color: var(--predator-red);
+    border-radius: 6px;
+}
+
+#searchbar:focus {
+    border-color: var(--predator-red);
+    box-shadow: 0 0 25px rgba(255, 0, 0, 0.5);
+}
+
+/* Pagination */
+.paginator {
+    color: var(--predator-red);
+    background: var(--predator-dark);
+    border-color: var(--predator-red-dark);
+}
+
+.paginator a:link,
+.paginator a:visited {
+    background: var(--predator-dark-lighter);
+    border-color: var(--predator-red);
+    color: var(--predator-red);
+    border-radius: 4px;
+}
+
+.paginator a:hover {
+    background: var(--predator-red);
+    color: #000;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+}
+
+/* Fieldsets */
+.aligned label {
+    color: var(--predator-red);
+}
+
+fieldset.module {
+    background: var(--predator-dark);
+    border: 1px solid var(--predator-red-dark);
+}
+
+/* Help Text */
+.help {
+    color: var(--predator-red-dark);
+}
+
+/* Errors */
+.errornote {
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid var(--predator-red);
+    color: var(--predator-red);
+    border-radius: 6px;
+}
+
+.errors,
+.errorlist {
+    color: var(--predator-red);
+}
+
+/* Calendar Widget */
+.calendarbox,
+.clockbox {
+    background: var(--predator-dark);
+    border: 1px solid var(--predator-red-dark);
+    border-radius: 8px;
+}
+
+.calendar caption {
+    background: var(--predator-dark-lighter);
+    color: var(--predator-red);
+}
+
+.calendar th {
+    background: var(--predator-dark-lighter);
+    color: var(--predator-red);
+}
+
+.calendar td {
+    background: var(--predator-dark);
+    border-color: var(--predator-red-dark);
+}
+
+.calendar td a {
+    color: var(--predator-red);
+}
+
+.calendar td a:hover {
+    background: var(--predator-red);
+    color: #000;
+}
+
+.calendar td.selected a {
+    background: var(--predator-orange);
+    color: #000;
+}
+
+/* Filters Sidebar */
+#changelist-filter {
+    background: var(--predator-dark);
+    border-left: 1px solid var(--predator-red-dark);
+}
+
+#changelist-filter h2 {
+    background: var(--predator-dark-lighter);
+    color: var(--predator-red);
+    border-bottom: 2px solid var(--predator-red);
+}
+
+#changelist-filter h3 {
+    color: var(--predator-red);
+}
+
+#changelist-filter a {
+    color: var(--predator-red-dark);
+}
+
+#changelist-filter a:hover {
+    color: var(--predator-red);
+}
+
+#changelist-filter li.selected a {
+    color: var(--predator-orange);
+    font-weight: bold;
+}
+
+/* Login Page */
+.login #container {
+    background: var(--predator-dark);
+    border: 2px solid var(--predator-red-dark);
+    border-radius: 12px;
+    box-shadow: 
+        0 8px 30px rgba(255, 0, 0, 0.4),
+        0 0 60px rgba(255, 0, 0, 0.2);
+}
+
+.login #header {
+    background: linear-gradient(135deg, var(--predator-dark) 0%, var(--predator-dark-lighter) 100%);
+    border-bottom: 2px solid var(--predator-red);
+}
+
+.login #header h1 {
+    color: var(--predator-red);
+    text-shadow: 
+        0 0 30px rgba(255, 0, 0, 1),
+        0 0 60px rgba(255, 102, 0, 0.6);
+}
+
+/* Checkbox and Radio Inputs */
+input[type=checkbox],
+input[type=radio] {
+    accent-color: var(--predator-red);
+}
+
+/* Action Checkboxes */
+.action-checkbox {
+    accent-color: var(--predator-red);
+}
+
+/* Glow Effects */
+.button:active,
+input[type=submit]:active {
+    box-shadow: 
+        0 0 40px rgba(255, 0, 0, 0.9),
+        0 0 70px rgba(255, 102, 0, 0.5);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--predator-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--predator-red-dark);
+    border-radius: 6px;
+    border: 2px solid var(--predator-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--predator-red);
+}
