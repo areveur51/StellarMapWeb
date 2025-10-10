@@ -299,6 +299,9 @@
     const parsedAccountLineage = JSON.parse(accountLineageEl.textContent || '[]');
     const parsedPendingAccounts = JSON.parse(pendingAccountsEl.textContent || '[]');
     
+    // Register BootstrapVue with Vue
+    Vue.use(BootstrapVue);
+    
     var vm = new Vue({
         el: '#app',
         mixins: [lineage_table_mixin],
