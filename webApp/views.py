@@ -781,6 +781,7 @@ def high_value_accounts_view(request):
                 'tags': tags_list,
                 'status': record.status,
                 'created_at': record.created_at,
+                'updated_at': record.updated_at,
             })
             total_hva_balance += (record.xlm_balance or 0)
         
