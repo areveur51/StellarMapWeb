@@ -1,0 +1,34 @@
+/*
+ * borg_theme.css
+ * Star Trek Borg-inspired matrix green theme variables
+ * Defines root variables for the Borg assimilation aesthetic
+ */
+
+:root {
+    /* Primary background - Dark green void */
+    --main-bg-color: #0a1f0a;
+
+    /* Secondary background - Deeper green panels */
+    --secondary-bg-color: #081808;
+
+    /* Tertiary background - Darkest green for depth */
+    --tertiary-bg-color: #051205;
+
+    /* Border color - Bright matrix green */
+    --search-container-border: #00ff41;
+
+    /* Background for search inputs - Dark matrix */
+    --search-container-bg-color: #0d1f0d;
+
+    /* Text color - Borg green */
+    --search-container-text-color: #33ff33;
+
+    /* Red accent for errors/warnings */
+    --text-red: #ff4444;
+
+    /* Green accent for success - Matrix green */
+    --text-green: #00ff41;
+
+    /* Border top color for sidebars/footers - Tech green */
+    --b-sidebar-footer-border-top: #66ff66;
+}

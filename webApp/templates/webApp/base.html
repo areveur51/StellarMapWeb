@@ -8,6 +8,8 @@
 
     <!-- Securely load external styles via HTTPS; use static for local files -->
     {% load static %}
+    <!-- Theme CSS will be loaded dynamically by global theme loader -->
+    <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
     <link rel="stylesheet" href="{% static 'webApp/css/frontend.css' %}">
 
     <!-- Block for extending templates to add extra head content (e.g., meta tags) -->
