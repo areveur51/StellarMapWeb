@@ -205,6 +205,54 @@
             System Dashboard
         </h1>
         
+        <!-- Alerts and Recommendations -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title">
+                    Alerts & Recommendations
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                {% if db_stats.stuck_accounts > 0 %}
+                <div class="alert alert-custom alert-warning">
+                    <strong>Stuck Records Alert:</strong>
+                    {{ db_stats.stuck_accounts }} accounts are stuck in processing. Check cron jobs and pipeline health.
+                </div>
+                {% endif %}
+                
+                {% if db_stats.orphan_accounts > 0 %}
+                <div class="alert alert-custom alert-warning">
+                    <strong>Data Integrity Warning:</strong>
+                    {{ db_stats.orphan_accounts }} accounts in cache have no lineage data. Consider re-processing.
+                </div>
+                {% endif %}
+                
+                {% if stage_health.failed_stages > 0 %}
+                <div class="alert alert-custom alert-danger">
+                    <strong>Pipeline Failures:</strong>
+                    {{ stage_health.failed_stages }} stage executions have failed. Check logs for error details.
+                </div>
+                {% endif %}
+                
+                {% if bigquery_stats.estimated_monthly_cost > 50 %}
+                <div class="alert alert-custom alert-info">
+                    <strong>Cost Alert:</strong>
+                    Estimated monthly BigQuery cost is ${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}. 
+                    Consider adjusting cost limits or reducing processing frequency.
+                </div>
+                {% endif %}
+                
+                {% if db_stats.stuck_accounts == 0 and db_stats.orphan_accounts == 0 and stage_health.failed_stages == 0 %}
+                <div class="alert alert-custom alert-success">
+                    <strong>All Systems Healthy:</strong>
+                    No critical issues detected. System is operating normally.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
         <!-- BigQuery Cost Tracking -->
         <div class="row">
             <div class="col-12">
@@ -479,82 +527,6 @@
             </div>
         </div>
 
-        <!-- Alerts and Recommendations -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
-                    Alerts & Recommendations
-                </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-12">
-                {% if db_stats.stuck_accounts > 0 %}
-                <div class="alert alert-custom alert-warning">
-                    <strong>Stuck Records Alert:</strong>
-                    {{ db_stats.stuck_accounts }} accounts are stuck in processing. Check cron jobs and pipeline health.
-                </div>
-                {% endif %}
-                
-                {% if db_stats.orphan_accounts > 0 %}
-                <div class="alert alert-custom alert-warning">
-                    <strong>Data Integrity Warning:</strong>
-                    {{ db_stats.orphan_accounts }} accounts in cache have no lineage data. Consider re-processing.
-                </div>
-                {% endif %}
-                
-                {% if stage_health.failed_stages > 0 %}
-                <div class="alert alert-custom alert-danger">
-                    <strong>Pipeline Failures:</strong>
-                    {{ stage_health.failed_stages }} stage executions have failed. Check logs for error details.
-                </div>
-                {% endif %}
-                
-                {% if bigquery_stats.estimated_monthly_cost > 50 %}
-                <div class="alert alert-custom alert-info">
-                    <strong>Cost Alert:</strong>
-                    Estimated monthly BigQuery cost is ${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}. 
-                    Consider adjusting cost limits or reducing processing frequency.
-                </div>
-                {% endif %}
-                
-                {% if db_stats.stuck_accounts == 0 and db_stats.orphan_accounts == 0 and stage_health.failed_stages == 0 %}
-                <div class="alert alert-custom alert-success">
-                    <strong>All Systems Healthy:</strong>
-                    No critical issues detected. System is operating normally.
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="row mb-2">
-            <div class="col-12">
-                <h3 class="section-title">
-                    Quick Actions
-                </h3>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/apiApp/bigquerypipelineconfig/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
-                    Configure Pipeline
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/search" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
-                    Search Accounts
-                </a>
-            </div>
-            <div class="col-md-3">
-                <a href="/admin/" class="btn btn-sm btn-outline-info btn-block" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
-                    Admin Panel
-                </a>
-            </div>
-            <div class="col-md-3">
-                <button class="btn btn-sm btn-outline-info btn-block" onclick="location.reload()" style="border-color: #96DDF2; color: #96DDF2; font-size: 0.75rem; padding: 4px 8px;">
-                    Refresh Stats
-                </button>
-            </div>
-        </div>
     </div>
   </div>
 
