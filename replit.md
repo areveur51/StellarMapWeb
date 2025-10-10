@@ -25,8 +25,10 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
   - **Predator Red**: Predator thermal HUD red theme (#ff0000) with hunting mode visuals, scanline effects, and thermal vision overlay
   - Theme preferences stored in localStorage and persist across sessions
   - Theme selector in admin header syncs with main application pages
-  - Global theme loader applies selected theme to homepage, search pages, and admin portal
-  - Seamless theme consistency across all pages using shared localStorage key
+  - Global theme loader (`global_theme_loader.js`) applies selected theme to homepage, search pages, and admin portal
+  - Real-time theme sync (`theme_sync.js`) with 1-second polling detects theme changes and applies them automatically
+  - Seamless theme consistency across all pages using shared localStorage key (`django_admin_theme`)
+  - Change theme in admin portal → frontend automatically updates within 1 second
 - **Dashboard Layout**: Alerts & Recommendations moved to top of System Dashboard for immediate visibility of critical issues. Quick Actions section removed to streamline interface and eliminate redundancy with sidebar navigation.
 - **Architecture Diagrams**: 5 PlantUML diagrams in `diagrams/` directory exported as PNG for README display.
 
