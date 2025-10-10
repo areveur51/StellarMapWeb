@@ -179,7 +179,7 @@ def search_view(request):
             
             # Set default display values from test data
             account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
-            network = 'testnet'  # Test data uses testnet
+            network = 'public'  # Default to public network
             
             # Fetch pending accounts for default view - use helper function
             pending_accounts_data = fetch_pending_accounts()
@@ -215,7 +215,7 @@ def search_view(request):
                 'children': []
             }
             account = tree_data['stellar_account']
-            network = 'testnet'
+            network = 'public'
             
             context = {
                 'search_variable': 'Fallback Tree Data',
