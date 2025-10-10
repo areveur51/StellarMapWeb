@@ -315,30 +315,13 @@ function renderRadialTree(jsonData) {
 
         tree(root);
 
-        // Calculate spiral positions for same-depth nodes
-        const nodesByDepth = {};
-        root.descendants().forEach(d => {
-            if (!nodesByDepth[d.depth]) nodesByDepth[d.depth] = [];
-            nodesByDepth[d.depth].push(d);
-        });
-
-        // Add spiral offset to avoid overlap
-        Object.keys(nodesByDepth).forEach(depth => {
-            const nodes = nodesByDepth[depth];
-            nodes.forEach((node, index) => {
-                // Create spiral effect by adding incremental radius offset
-                const spiralOffset = (index / nodes.length) * 20; // Spread nodes in spiral pattern
-                node.spiralRadius = node.y + spiralOffset;
-            });
-        });
-
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
             .attr('class', 'link')
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
-                .radius(d => d.spiralRadius || d.y))
+                .radius(d => d.y))
             .style('stroke', '#3f2c70')
             .style('stroke-width', '1.5px')
             .style('fill', 'none')
@@ -350,8 +333,7 @@ function renderRadialTree(jsonData) {
             .attr('class', 'node')
             .attr('transform', d => {
                 const angle = (d.x * 180 / Math.PI) - 90;
-                const nodeRadius = d.spiralRadius || d.y;
-                return `rotate(${angle})translate(${nodeRadius},0)`;
+                return `rotate(${angle})translate(${d.y},0)`;
             });
 
         node.append('circle')
@@ -369,9 +351,9 @@ function renderRadialTree(jsonData) {
             .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
             .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
             .text(d => {
-                // For ISSUER nodes (stellar_account), show last 6 characters
+                // For ISSUER nodes (stellar_account), show last 7 characters
                 if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
-                    return d.data.stellar_account.slice(-6);
+                    return d.data.stellar_account.slice(-7);
                 }
                 // For ASSET nodes, show the asset code
                 return d.data.asset_code || d.data.name || 'Unnamed';
@@ -437,7 +419,13 @@ function renderRadialTree(jsonData) {
             let xOffset = 0;
             pathToRoot.forEach((node, i) => {
                 const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-                const breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
+                // Truncate ISSUER stellar_account to last 7 characters for breadcrumb
+                let breadcrumbText;
+                if (node.data.stellar_account && node.data.node_type === 'ISSUER') {
+                    breadcrumbText = node.data.stellar_account.slice(-7);
+                } else {
+                    breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
+                }
                 const textWidth = breadcrumbText.length * 7;
                 
                 breadcrumbContainer.append('rect')

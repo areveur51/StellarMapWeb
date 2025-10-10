@@ -20,7 +20,7 @@
     position: fixed;
     top: 0;
     width: 100%;
-    z-index: 1;
+    z-index: 1000;
     box-shadow: 0 9px 63px rgba(0, 0, 0, 0.3); /* Subtle shadow for depth */
 }
 
@@ -31,7 +31,15 @@
     border: 6px solid var(--search-container-border);
     border-radius: 10px;
     margin: 0 auto;
-    background-color: var(--search-container-bg-color);
+    background: linear-gradient(135deg, #100D23 0%, #1a1530 100%);
+    box-shadow: 0 4px 20px rgba(63, 44, 112, 0.3), 0 0 40px rgba(150, 221, 242, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.search-container:hover {
+    box-shadow: 0 4px 25px rgba(63, 44, 112, 0.4), 0 0 50px rgba(150, 221, 242, 0.2);
+    border-color: #96DDF2;
 }
 
 .search-container input[type="text"] {
@@ -39,9 +47,15 @@
     font-size: 23px;
     padding: 17px;
     border: none;
-    background-color: var(--search-container-bg-color);
+    background-color: transparent;
     color: var(--search-container-text-color);
     width: 100%; /* Full width for responsiveness */
+    text-shadow: 0 0 10px rgba(150, 221, 242, 0.2);
+}
+
+.search-container input[type="text"]:focus {
+    outline: none;
+    text-shadow: 0 0 15px rgba(150, 221, 242, 0.4);
 }
 
 .search-container button {
@@ -49,11 +63,23 @@
     border: none;
     cursor: pointer;
     padding-right: 26px;
+    transition: all 0.3s ease;
+}
+
+.search-container button:hover {
+    transform: scale(1.1);
 }
 
 .search-container i {
     font-size: 23px;
     color: var(--search-container-border);
+    text-shadow: 0 0 8px rgba(63, 44, 112, 0.5);
+    transition: all 0.3s ease;
+}
+
+.search-container button:hover i {
+    color: #96DDF2;
+    text-shadow: 0 0 15px rgba(150, 221, 242, 0.6);
 }
 
 /* Results and response containers */
@@ -66,8 +92,8 @@
 .response-container {
     text-align: left;
     color: #FFF;
-    padding-left: 17px;
-    padding-right: 17px;
+    padding-left: 0;
+    padding-right: 0;
     width: 100%;
 }
 
@@ -97,31 +123,72 @@
 }
 
 /* Sidebar button styles (hover/focus for accessibility) */
-.sidebar-button,
+/* Using !important to override Bootstrap Vue defaults */
+.sidebar-button {
+    background-color: #100D23 !important; /* Match search bar background */
+    border: 1px solid transparent !important;
+    padding: 0.5rem 1rem !important;
+    color: #3f2c70 !important; /* Match search bar border color */
+    font-size: 1.5rem !important;
+    transition: all 0.3s ease !important;
+    position: relative !important;
+}
+
 .sidebar-button:hover,
-.sidebar-button:focus {
-    background-color: transparent;
-    border-color: transparent;
-    padding: 0.5rem 1rem;
-    color: var(--search-container-text-color); /* Consistent color on states */
+.sidebar-button:focus,
+.sidebar-button:active {
+    background-color: #100D23 !important;
+    border: 1px solid #3f2c70 !important;
+    color: #96DDF2 !important;
+    box-shadow: 0 0 15px rgba(150, 221, 242, 0.4) !important;
+    text-shadow: 0 0 10px rgba(150, 221, 242, 0.3) !important;
 }
 
 /* Sidebar header/body/footer */
 .b-sidebar-header {
-    background-color: var(--search-container-bg-color);
+    background: linear-gradient(135deg, #100D23 0%, #1a1530 100%);
     color: var(--b-sidebar-footer-border-top);
+    box-shadow: 0 2px 15px rgba(150, 221, 242, 0.1);
+    text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
 }
 
 .b-sidebar-body {
-    background-color: var(--secondary-bg-color);
+    background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
     color: var(--search-container-text-color);
 }
 
+.b-sidebar-body .btn {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.b-sidebar-body .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(150, 221, 242, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.b-sidebar-body .btn:hover::before {
+    left: 100%;
+}
+
+.b-sidebar-body .btn:hover {
+    box-shadow: 0 0 15px rgba(150, 221, 242, 0.3);
+    transform: translateX(5px);
+}
+
 .b-sidebar-footer {
-    background-color: var(--tertiary-bg-color);
+    background: linear-gradient(135deg, #100D23 0%, #0d0a1a 100%);
     border-top: 1.7px solid var(--b-sidebar-footer-border-top);
     display: flex;
     justify-content: flex-start; /* Align text left */
+    box-shadow: 0 -2px 15px rgba(150, 221, 242, 0.1);
 }
 
 /* Close button styles */
@@ -160,13 +227,48 @@
 
 /* Radial tree visual container */
 .radial-tree-visual {
-    width: 71%;
+    width: 100%;
+    min-height: 80vh;
     margin-top: 50px;
-    background-color: var(--secondary-bg-color);
+    background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
     margin-bottom: 17px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: 1px solid #3f2c70;
+    border-radius: 8px;
+    box-shadow: 0 4px 30px rgba(150, 221, 242, 0.15), inset 0 0 100px rgba(150, 221, 242, 0.03);
+    position: relative;
+    overflow: hidden;
+}
+
+.radial-tree-visual::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(150, 221, 242, 0.05) 0%, transparent 70%);
+    animation: rotate-glow 20s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes rotate-glow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Radial tree inner container - fill parent */
+#radial-tree-container {
+    width: 100%;
+    height: 100%;
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
 }
 
 /* Vue.js table overrides for dark theme */
