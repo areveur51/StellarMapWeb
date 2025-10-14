@@ -34,62 +34,142 @@ This project follows a standard Code of Conduct. By participating, you are expec
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- DataStax Astra DB account (for Cassandra database)
+- Python 3.9 or higher (3.10+ recommended for full compatibility)
 - Git
+- DataStax Astra DB account (optional - for production Cassandra database)
 
 ### Installation Steps
 
+#### Option 1: Windows Local Development (Recommended for Windows)
+For Windows development without Docker/Cassandra dependencies:
+
 1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/StellarMapWeb.git
-   cd StellarMapWeb
-   ```
+    ```bash
+    git clone https://github.com/yourusername/StellarMapWeb.git
+    cd StellarMapWeb
+    ```
 
 2. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+    ```bash
+    python -m venv venv
+    venv\Scripts\activate
+    ```
 
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. **Install compatible dependencies:**
+    ```bash
+    pip install Django==4.2.7 python-decouple==3.8 stellar-sdk==9.3.0 requests==2.31.0
+    pip install click==8.1.8 numpy==1.24.3 pandas==2.3.2 tenacity==9.1.2
+    pip install aiohttp==3.12.15 django-ratelimit==4.1.0 sentry-sdk==2.38.0
+    pip install django-cassandra-engine==1.8.0
+    ```
 
 4. **Set up environment variables:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+    ```bash
+    copy .env.example .env
+    # Edit .env and set:
+    # - DJANGO_SECRET_KEY (generate a secure key)
+    # - APP_PATH=. (required for Windows paths)
+    # - Comment out ASTRA_DB_TOKEN lines (optional for local dev)
+    ```
 
 5. **Generate a Django secret key:**
-   ```python
-   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-   ```
-   Add the generated key to your `.env` file as `DJANGO_SECRET_KEY`.
+    ```python
+    python -c "import secrets; print(secrets.token_urlsafe(50))"
+    ```
+    Add the generated key to your `.env` file as `DJANGO_SECRET_KEY`.
+
+6. **Run migrations:**
+    ```bash
+    python manage.py migrate --settings=StellarMapWeb.settings.settings_local
+    ```
+
+    **Migration Details:**
+    - Creates all necessary SQLite tables for local development
+    - Includes proper indexes for performance optimization
+    - Sets up BigQueryPipelineConfig with default settings
+    - Creates tables for StellarAccountSearchCache, StellarCreatorAccountLineage, ManagementCronHealth, and StellarAccountStageExecution
+
+7. **Create a superuser (optional, for admin access):**
+    ```bash
+    python manage.py createsuperuser --settings=StellarMapWeb.settings.settings_local
+    ```
+    Follow the prompts to create a username, email, and password.
+
+8. **Run the development server:**
+    ```bash
+    python manage.py runserver 0.0.0.0:5000 --settings=StellarMapWeb.settings.settings_local
+    ```
+
+**Windows Setup Notes:**
+- Uses SQLite database (no Cassandra/Astra DB required)
+- Compatible with Python 3.9+
+- BigQuery features disabled (API fallbacks available)
+- All core functionality works (search, visualization, lineage display)
+- Full admin portal with complete CRUD operations on all data models
+- Access at `http://localhost:5000/`
+- Admin interface available at `http://localhost:5000/admin/` (requires superuser)
+
+**Admin Portal Features (Development Mode):**
+- **BigQuery Pipeline Configuration**: Manage cost controls, pipeline modes, and API settings
+- **Stellar Account Search Cache**: View and edit cached search results with filtering and search
+- **Stellar Creator Account Lineage**: Browse account lineage data with advanced filtering
+- **Management Cron Health**: Monitor cron job health and status tracking
+- **Stellar Account Stage Execution**: Track pipeline execution progress with real-time updates
+- Full create, read, update, delete operations on all models
+- Advanced filtering, search, and data management capabilities
+
+#### Option 2: Full Production Setup (Linux/Mac/Windows with Docker)
+
+1. **Clone the repository:**
+    ```bash
+    git clone https://github.com/areveur51/StellarMapWeb.git
+    cd StellarMapWeb
+    ```
+
+2. **Create and activate a virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+
+3. **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. **Set up environment variables:**
+    ```bash
+    cp .env.example .env
+    # Edit .env with your configuration
+    ```
+
+5. **Generate a Django secret key:**
+    ```python
+    python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+    ```
+    Add the generated key to your `.env` file as `DJANGO_SECRET_KEY`.
 
 6. **Set up Astra DB:**
-   - Create a free Astra DB account at https://astra.datastax.com
-   - Create a database and keyspace
-   - Download the secure connect bundle
-   - Place it in the project root directory
-   - Update `.env` with your Astra DB credentials
+    - Create a free Astra DB account at https://astra.datastax.com
+    - Create a database and keyspace
+    - Download the secure connect bundle
+    - Place it in the project root directory
+    - Update `.env` with your Astra DB credentials
 
 7. **Run migrations:**
-   ```bash
-   python manage.py migrate
-   ```
+    ```bash
+    python manage.py migrate
+    ```
 
 8. **Create a superuser:**
-   ```bash
-   python manage.py createsuperuser
-   ```
+    ```bash
+    python manage.py createsuperuser
+    ```
 
 9. **Run the development server:**
-   ```bash
-   python manage.py runserver
-   ```
+    ```bash
+    python manage.py runserver
+    ```
 
 ## How to Contribute
 

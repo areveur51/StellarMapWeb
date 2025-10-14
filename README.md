@@ -54,6 +54,99 @@ python manage.py migrate
 python manage.py runserver 0.0.0.0:5000
 ```
 
+### Windows Local Development (SQLite Only)
+For Windows development without Docker/Cassandra dependencies:
+
+```bash
+# 1. Copy environment template
+copy .env.example .env
+
+# 2. Edit .env file and set:
+# - DJANGO_SECRET_KEY (generate a secure key)
+# - APP_PATH=. (required for Windows paths)
+# - Comment out ASTRA_DB_TOKEN lines (optional for local dev)
+
+# 3. Install compatible Python packages
+pip install Django==4.2.7 python-decouple==3.8 stellar-sdk==9.3.0 requests==2.31.0
+pip install click==8.1.8 numpy==1.24.3 pandas==2.3.2 tenacity==9.1.2
+pip install aiohttp==3.12.15 django-ratelimit==4.1.0 sentry-sdk==2.38.0
+pip install django-cassandra-engine==1.8.0
+
+# 4. Run migrations
+python manage.py migrate --settings=StellarMapWeb.settings.settings_local
+
+# 5. Start development server
+python manage.py runserver 0.0.0.0:5000 --settings=StellarMapWeb.settings.settings_local
+```
+
+**Windows Setup Notes:**
+- Uses SQLite database (no Cassandra/Astra DB required)
+- Compatible with Python 3.9+
+- BigQuery features disabled (API fallbacks available)
+- All core functionality works (search, visualization, lineage display)
+- Full admin portal with CRUD operations on all data models
+- Access at `http://localhost:5000/`
+- Admin interface at `http://localhost:5000/admin/`
+
+**Admin Portal Access:**
+To access the Django admin interface at `/admin/`:
+```bash
+python manage.py createsuperuser --settings=StellarMapWeb.settings.settings_local
+```
+Follow the prompts to create a username, email, and password. Then access the admin at `http://localhost:5000/admin/`.
+
+**Admin Portal Features (Development Mode):**
+The admin interface provides full CRUD access to all data models when running in local SQLite mode:
+
+- **BigQuery Pipeline Configuration**: Manage cost controls, pipeline modes, and API settings
+- **Stellar Account Search Cache**: View and manage cached search results with 12-hour freshness
+- **Stellar Creator Account Lineage**: Browse account lineage data with creator relationships
+- **Management Cron Health**: Monitor cron job health and status
+- **Stellar Account Stage Execution**: Track pipeline execution progress with real-time status updates
+
+**Key Admin Features:**
+- Full create, read, update, delete operations on all models
+- Advanced filtering and search capabilities
+- Real-time data editing with immediate database updates
+- Comprehensive field validation and error handling
+- Responsive interface with mobile support
+
+**Troubleshooting - Missing Tables:**
+If you get "no such table" errors when accessing admin:
+```bash
+# The apiApp_bigquerypipelineconfig table should be auto-created
+# If missing, run this script to create it manually:
+python -c "
+import sqlite3
+conn = sqlite3.connect('db.sqlite3')
+cursor = conn.cursor()
+cursor.execute('''CREATE TABLE IF NOT EXISTS apiApp_bigquerypipelineconfig (
+    config_id VARCHAR(50) PRIMARY KEY,
+    bigquery_enabled BOOLEAN DEFAULT 1,
+    cost_limit_usd REAL DEFAULT 0.71,
+    size_limit_mb REAL DEFAULT 148900.0,
+    pipeline_mode VARCHAR(50) DEFAULT \"BIGQUERY_WITH_API_FALLBACK\",
+    instant_query_max_age_days INTEGER DEFAULT 365,
+    api_fallback_enabled BOOLEAN DEFAULT 1,
+    horizon_max_operations INTEGER DEFAULT 200,
+    horizon_child_max_pages INTEGER DEFAULT 5,
+    bigquery_max_children INTEGER DEFAULT 100000,
+    bigquery_child_page_size INTEGER DEFAULT 10000,
+    batch_processing_enabled BOOLEAN DEFAULT 1,
+    batch_size INTEGER DEFAULT 100,
+    cache_ttl_hours INTEGER DEFAULT 12,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(255) DEFAULT \"\",
+    notes TEXT DEFAULT \"\"
+)''')
+cursor.execute('''INSERT OR IGNORE INTO apiApp_bigquerypipelineconfig (config_id, updated_by, notes) VALUES (\"default\", \"system\", \"Auto-created for local development\")''')
+conn.commit()
+conn.close()
+print('Table created successfully')
+"
+```
+
 ### Run Tests
 ```bash
 python manage.py test
@@ -167,6 +260,7 @@ Includes web server and BigQuery cron job in one stack.
 
 ### Database Architecture
 - **Primary Storage**: Astra DB (DataStax Cassandra) for production using `django-cassandra-engine`. SQLite for local development.
+- **Local Development**: Windows-compatible SQLite setup with `settings_local.py` that disables Cassandra dependencies
 - **Database Routing**: Custom `DatabaseAppsRouter` for directing apps to appropriate databases.
 - **ORM**: Combines Django ORM with direct Cassandra integration, explicitly using `__table_name__` for Cassandra models.
 - **Schema Design**: Cassandra models use composite primary keys and clustering keys for efficient querying and include `created_at` and `updated_at` timestamps.

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.shortcuts import render
 from django.utils.html import format_html
-from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
+from django.conf import settings
 from .models import (
     StellarAccountSearchCache,
     StellarCreatorAccountLineage,
@@ -9,6 +9,17 @@ from .models import (
     StellarAccountStageExecution,
     BigQueryPipelineConfig,
 )
+
+# Check if Cassandra is available (production mode)
+CASSANDRA_AVAILABLE = False
+try:
+    from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
+    CASSANDRA_AVAILABLE = True
+except ImportError:
+    pass
+
+# Use Cassandra admin only if Cassandra is available and configured
+USE_CASSANDRA_ADMIN = CASSANDRA_AVAILABLE and settings.ASTRA_DB_TOKEN
 
 
 class CassandraAdminMixin:
@@ -76,36 +87,65 @@ class CassandraAdminMixin:
         return False
 
 
-@admin.register(StellarAccountSearchCache)
-class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'status')
-    
-    def get_table_name(self):
-        return 'stellar_account_search_cache'
+if USE_CASSANDRA_ADMIN:
+    # Production mode: Use Cassandra admin with read-only functionality
+    @admin.register(StellarAccountSearchCache)
+    class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'status')
 
+        def get_table_name(self):
+            return 'stellar_account_search_cache'
 
-@admin.register(StellarCreatorAccountLineage)
-class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'tags', 'status')
-    
-    def get_table_name(self):
-        return 'stellar_creator_account_lineage'
+    @admin.register(StellarCreatorAccountLineage)
+    class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'tags', 'status')
 
+        def get_table_name(self):
+            return 'stellar_creator_account_lineage'
 
-@admin.register(ManagementCronHealth)
-class ManagementCronHealthAdmin(CassandraAdminMixin, admin.ModelAdmin):
-    list_display = ('cron_name', 'status', 'created_at')
-    
-    def get_table_name(self):
-        return 'management_cron_health'
+    @admin.register(ManagementCronHealth)
+    class ManagementCronHealthAdmin(CassandraAdminMixin, admin.ModelAdmin):
+        list_display = ('cron_name', 'status', 'created_at')
 
+        def get_table_name(self):
+            return 'management_cron_health'
 
-@admin.register(StellarAccountStageExecution)
-class StellarAccountStageExecutionAdmin(CassandraAdminMixin, admin.ModelAdmin):
-    list_display = ('stellar_account', 'network_name', 'stage_number', 'status')
-    
-    def get_table_name(self):
-        return 'stellar_account_stage_execution'
+    @admin.register(StellarAccountStageExecution)
+    class StellarAccountStageExecutionAdmin(CassandraAdminMixin, admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'stage_number', 'status')
+
+        def get_table_name(self):
+            return 'stellar_account_stage_execution'
+
+else:
+    # Local development mode: Use standard Django admin with full CRUD
+    @admin.register(StellarAccountSearchCache)
+    class StellarAccountSearchCacheAdmin(admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'status', 'last_fetched_at', 'retry_count')
+        list_filter = ('network_name', 'status')
+        search_fields = ('stellar_account',)
+        readonly_fields = ('created_at', 'updated_at')
+
+    @admin.register(StellarCreatorAccountLineage)
+    class StellarCreatorAccountLineageAdmin(admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'status')
+        list_filter = ('network_name', 'status', 'is_hva')
+        search_fields = ('stellar_account', 'stellar_creator_account')
+        readonly_fields = ('created_at', 'updated_at')
+
+    @admin.register(ManagementCronHealth)
+    class ManagementCronHealthAdmin(admin.ModelAdmin):
+        list_display = ('cron_name', 'status', 'created_at')
+        list_filter = ('status',)
+        search_fields = ('cron_name',)
+        readonly_fields = ('created_at', 'updated_at')
+
+    @admin.register(StellarAccountStageExecution)
+    class StellarAccountStageExecutionAdmin(admin.ModelAdmin):
+        list_display = ('stellar_account', 'network_name', 'stage_number', 'status', 'created_at')
+        list_filter = ('network_name', 'status', 'stage_number')
+        search_fields = ('stellar_account', 'cron_name')
+        readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(BigQueryPipelineConfig)
@@ -120,7 +160,11 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
     # Allow editing for this model (unlike other Cassandra models)
     def has_add_permission(self, request):
         # Only allow adding if no configuration exists
-        return not BigQueryPipelineConfig.objects.all().count()
+        try:
+            return not BigQueryPipelineConfig.objects.all().count()
+        except Exception:
+            # If table doesn't exist or query fails, allow adding
+            return True
     
     def has_delete_permission(self, request, obj=None):
         return False  # Never allow deleting the configuration
@@ -260,9 +304,6 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
     
     list_display = ('config_summary', 'cost_limit_display', 'pipeline_mode', 'updated_at', 'updated_by')
     readonly_fields = ('created_at', 'updated_at')
-    
-    ordering = ()  # Cassandra doesn't support ordering
-    show_full_result_count = False  # Cassandra optimization
     
     def config_summary(self, obj):
         """Display configuration status summary."""

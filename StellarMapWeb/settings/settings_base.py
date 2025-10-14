@@ -34,8 +34,15 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 
+# Cassandra Configuration
+CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE', default='stellarmapweb')
+ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
+# CASSANDRA_FALLBACK_ORDER_BY_PYTHON = True  # Disabled - causes TypeError with None value comparisons
+
+# Path to secure connect bundle
+SECURE_CONNECT_BUNDLE_PATH = BASE_DIR.parent / 'secure-connect-stellarmapwebastradb.zip'
+
 INSTALLED_APPS = [
-    'django_cassandra_engine',  # Must be first for Cassandra support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,20 +54,20 @@ INSTALLED_APPS = [
     'webApp',
 ]
 
-# Cassandra Configuration
-CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE', default='stellarmapweb')
-ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
-# CASSANDRA_FALLBACK_ORDER_BY_PYTHON = True  # Disabled - causes TypeError with None value comparisons
-
-# Path to secure connect bundle
-SECURE_CONNECT_BUNDLE_PATH = BASE_DIR.parent / 'secure-connect-stellarmapwebastradb.zip'
+# Conditionally add Cassandra support if ASTRA_DB_TOKEN is provided
+if ASTRA_DB_TOKEN:
+    INSTALLED_APPS.insert(0, 'django_cassandra_engine')  # Must be first for Cassandra support
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    'cassandra': {
+    }
+}
+
+# Conditionally add Cassandra database if ASTRA_DB_TOKEN is provided
+if ASTRA_DB_TOKEN:
+    DATABASES['cassandra'] = {
         'ENGINE': 'django_cassandra_engine',
         'NAME': CASSANDRA_KEYSPACE,
         'USER': 'token',  # Literal string 'token' for Astra DB
@@ -75,7 +82,6 @@ DATABASES = {
             }
         }
     }
-}
 
 CACHES = {
     'default': {
