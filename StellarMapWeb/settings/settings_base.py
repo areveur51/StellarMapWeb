@@ -86,6 +86,24 @@ if ASTRA_DB_TOKEN:
         }
     }
 
+# Database routing based on ENV variable
+# - ENV='development' → apiApp uses SQLite (default database)
+# - ENV='production' → apiApp uses Cassandra database
+# - ENV='replit' → apiApp uses Cassandra database
+if ENV in ['production', 'replit']:
+    # Production and Replit environments use Cassandra
+    DATABASE_APPS_MAPPING = {
+        'apiApp': 'cassandra',
+    }
+else:
+    # Development environment uses SQLite (default)
+    DATABASE_APPS_MAPPING = {
+        'apiApp': 'default',
+    }
+
+# Enable the database router
+DATABASE_ROUTERS = ['StellarMapWeb.router.DatabaseAppsRouter']
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
