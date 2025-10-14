@@ -56,6 +56,10 @@ def pending_accounts_api(request):
         
         # Fetch PENDING and PROCESSING records only
         try:
+            # Try Django ORM syntax (SQLite)
+            records = list(StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING]))
+        except AttributeError:
+            # Fall back to Cassandra syntax
             records = StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING]).all()
             for record in records:
                 age_mins = calculate_age_minutes(record.updated_at)
@@ -131,10 +135,18 @@ def stage_executions_api(request):
         
         # Fetch stage executions for the specific address and network
         # Order by created_at DESC and stage_number to show latest executions first
-        records = StellarAccountStageExecution.objects.filter(
-            stellar_account=account,
-            network_name=network
-        ).limit(100)
+        try:
+            # Try Django ORM syntax first (SQLite)
+            records = StellarAccountStageExecution.objects.filter(
+                stellar_account=account,
+                network_name=network
+            ).order_by('-created_at')[:100]
+        except AttributeError:
+            # Fall back to Cassandra syntax
+            records = StellarAccountStageExecution.objects.filter(
+                stellar_account=account,
+                network_name=network
+            ).limit(100)
         
         # Convert to list and sort by stage_number and created_at (latest first)
         records_list = list(records)
@@ -230,93 +242,121 @@ def account_lineage_api(request):
         logger = logging.getLogger(__name__)
         
         # INSTANT SEARCH: Query BigQuery directly first (only for accounts <1 year old)
-        bigquery_helper = StellarBigQueryHelper()
-        if bigquery_helper.is_available():
-            try:
-                # Check account age first - only use BigQuery for accounts <1 year old
-                from stellar_sdk import Server
-                from datetime import timedelta
-                
-                horizon_server = Server(horizon_url="https://horizon.stellar.org")
+        # In development mode, BigQuery is typically not available, so skip to database
+        from django.conf import settings
+        if getattr(settings, 'ENV', 'development') == 'production':
+            bigquery_helper = StellarBigQueryHelper()
+            if bigquery_helper.is_available():
                 try:
-                    # Get account creation date from first transaction
-                    transactions = horizon_server.transactions().for_account(account).order(desc=False).limit(1).call()
-                    
-                    account_created_at_str = None
-                    if transactions and '_embedded' in transactions and 'records' in transactions['_embedded']:
-                        records = transactions['_embedded']['records']
-                        if records:
-                            account_created_at_str = records[0].get('created_at')
-                    
-                    if account_created_at_str:
-                        account_created_at = datetime.fromisoformat(account_created_at_str.replace('Z', '+00:00'))
-                        account_age = datetime.now(account_created_at.tzinfo) - account_created_at
-                        
-                        if account_age > timedelta(days=365):
-                            logger.info(f"Account {account} is {account_age.days} days old (>1 year) - checking for existing data")
-                            # Check if lineage data already exists in database
-                            existing = StellarCreatorAccountLineage.objects.filter(
-                                stellar_account=account,
-                                network_name=network
-                            ).first()
-                            
-                            if existing and existing.status == 'BIGQUERY_COMPLETE':
-                                # Data exists - skip BigQuery and use database directly
-                                logger.info(f"Found existing complete lineage data for {account} - skipping BigQuery, using database")
-                                raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
-                            elif not existing:
-                                # No data exists - queue for batch pipeline
-                                StellarCreatorAccountLineage.objects.create(
-                                    stellar_account=account,
-                                    network_name=network,
-                                    status='PENDING',
-                                    created_at=datetime.utcnow(),
-                                    updated_at=datetime.utcnow()
-                                )
-                                logger.info(f"Queued {account} for batch pipeline processing")
-                                # Return message to user
-                                return JsonResponse({
-                                    'account': account,
-                                    'network': network,
-                                    'lineage': [],
-                                    'total_records': 0,
-                                    'source': 'queued_for_batch',
-                                    'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
-                                }, safe=False)
+                    # Check account age first - only use BigQuery for accounts <1 year old
+                    from stellar_sdk import Server
+                    from datetime import timedelta
+
+                    horizon_server = Server(horizon_url="https://horizon.stellar.org")
+                    try:
+                        # Get account creation date from first transaction
+                        transactions = horizon_server.transactions().for_account(account).order(desc=False).limit(1).call()
+
+                        account_created_at_str = None
+                        if transactions and '_embedded' in transactions and 'records' in transactions['_embedded']:
+                            records = transactions['_embedded']['records']
+                            if records:
+                                account_created_at_str = records[0].get('created_at')
+
+                        if account_created_at_str:
+                            account_created_at = datetime.fromisoformat(account_created_at_str.replace('Z', '+00:00'))
+                            account_age = datetime.now(account_created_at.tzinfo) - account_created_at
+
+                            if account_age > timedelta(days=365):
+                                logger.info(f"Account {account} is {account_age.days} days old (>1 year) - checking for existing data")
+                                # Check if lineage data already exists in database
+                                try:
+                                    # Try Django ORM syntax (SQLite)
+                                    existing = StellarCreatorAccountLineage.objects.filter(
+                                        stellar_account=account,
+                                        network_name=network
+                                    ).first()
+                                except AttributeError:
+                                    # Fall back to Cassandra syntax
+                                    existing = list(StellarCreatorAccountLineage.objects.filter(
+                                        stellar_account=account,
+                                        network_name=network
+                                    ).limit(1))
+                                    existing = existing[0] if existing else None
+
+                                if existing and existing.status == 'BIGQUERY_COMPLETE':
+                                    # Data exists - skip BigQuery and use database directly
+                                    logger.info(f"Found existing complete lineage data for {account} - skipping BigQuery, using database")
+                                    raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
+                                elif not existing:
+                                    # No data exists - queue for batch pipeline
+                                    StellarCreatorAccountLineage.objects.create(
+                                        stellar_account=account,
+                                        network_name=network,
+                                        status='PENDING'
+                                    )
+                                    logger.info(f"Queued {account} for batch pipeline processing")
+                                    # Return message to user
+                                    return JsonResponse({
+                                        'account': account,
+                                        'network': network,
+                                        'lineage': [],
+                                        'total_records': 0,
+                                        'source': 'queued_for_batch',
+                                        'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
+                                    }, safe=False)
+                                else:
+                                    # Data exists but not complete - skip BigQuery and use database to show current status
+                                    logger.info(f"Found incomplete lineage data for {account} (status: {existing.status}) - skipping BigQuery, using database")
+                                    raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
                             else:
-                                # Data exists but not complete - skip BigQuery and use database to show current status
-                                logger.info(f"Found incomplete lineage data for {account} (status: {existing.status}) - skipping BigQuery, using database")
-                                raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
+                                logger.info(f"Account {account} is {account_age.days} days old (<1 year) - proceeding with BigQuery instant query")
                         else:
-                            logger.info(f"Account {account} is {account_age.days} days old (<1 year) - proceeding with BigQuery instant query")
-                    else:
-                        logger.warning(f"Could not determine account age for {account} - continuing with BigQuery")
-                except Exception as horizon_error:
-                    if str(horizon_error) == "Skip_BigQuery_Use_Database":
-                        # This is intentional - skip to database fallback
-                        raise
-                    logger.warning(f"Failed to get account age from Horizon: {horizon_error}")
-                    # Continue with BigQuery if we can't determine age
-                
-                logger.info(f"Querying BigQuery directly for instant lineage of {account}")
-                instant_lineage = bigquery_helper.get_instant_lineage(account)
-                
-                if instant_lineage['account']:
-                    # Format minimal BigQuery lineage data for display
-                    # NOTE: BigQuery now only provides lineage structure (parent-child relationships and dates)
-                    # Assets, balance, home_domain, flags will be fetched from Horizon/Stellar Expert APIs
-                    hierarchical_lineage = []
-                    
-                    # Add creator if exists
-                    if instant_lineage['creator']:
-                        # Prefer account_creation_date (creator's actual creation), fallback to created_at
-                        creator_created_at = instant_lineage['creator'].get('account_creation_date') or instant_lineage['creator'].get('created_at')
-                        
-                        creator_record = {
-                            'stellar_account': instant_lineage['creator']['creator_account'],
-                            'stellar_creator_account': None,
+                            logger.warning(f"Could not determine account age for {account} - continuing with BigQuery")
+                    except Exception as horizon_error:
+                        if str(horizon_error) == "Skip_BigQuery_Use_Database":
+                            # This is intentional - skip to database fallback
+                            raise
+                        logger.warning(f"Failed to get account age from Horizon: {horizon_error}")
+                        # Continue with BigQuery if we can't determine age
+
+                    logger.info(f"Querying BigQuery directly for instant lineage of {account}")
+                    instant_lineage = bigquery_helper.get_instant_lineage(account)
+
+                    if instant_lineage['account']:
+                        # Format minimal BigQuery lineage data for display
+                        # NOTE: BigQuery now only provides lineage structure (parent-child relationships and dates)
+                        # Assets, balance, home_domain, flags will be fetched from Horizon/Stellar Expert APIs
+                        hierarchical_lineage = []
+
+                        # Add creator if exists
+                        if instant_lineage['creator']:
+                            # Prefer account_creation_date (creator's actual creation), fallback to created_at
+                            creator_created_at = instant_lineage['creator'].get('account_creation_date') or instant_lineage['creator'].get('created_at')
+
+                            creator_record = {
+                                'stellar_account': instant_lineage['creator']['creator_account'],
+                                'stellar_creator_account': None,
+                                'network_name': network,
+                                'stellar_account_created_at': creator_created_at,
+                                'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
+                                'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
+                                'assets': [],  # TODO: Fetch from Stellar Expert
+                                'status': 'BIGQUERY_LIVE',
+                                'created_at': None,
+                                'updated_at': None,
+                                'children': [],
+                                'hierarchy_level': 0
+                            }
+                            hierarchical_lineage.append(creator_record)
+
+                        # Add searched account
+                        creator_address = instant_lineage['creator']['creator_account'] if instant_lineage['creator'] else None
+                        account_record = {
+                            'stellar_account': account,
+                            'stellar_creator_account': creator_address,
                             'network_name': network,
-                            'stellar_account_created_at': creator_created_at,
+                            'stellar_account_created_at': instant_lineage['account'].get('account_creation_date'),
                             'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
                             'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
                             'assets': [],  # TODO: Fetch from Stellar Expert
@@ -324,57 +364,48 @@ def account_lineage_api(request):
                             'created_at': None,
                             'updated_at': None,
                             'children': [],
-                            'hierarchy_level': 0
+                            'hierarchy_level': 1 if instant_lineage['creator'] else 0
                         }
-                        hierarchical_lineage.append(creator_record)
-                    
-                    # Add searched account
-                    creator_address = instant_lineage['creator']['creator_account'] if instant_lineage['creator'] else None
-                    account_record = {
-                        'stellar_account': account,
-                        'stellar_creator_account': creator_address,
-                        'network_name': network,
-                        'stellar_account_created_at': instant_lineage['account'].get('account_creation_date'),
-                        'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
-                        'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
-                        'assets': [],  # TODO: Fetch from Stellar Expert
-                        'status': 'BIGQUERY_LIVE',
-                        'created_at': None,
-                        'updated_at': None,
-                        'children': [],
-                        'hierarchy_level': 1 if instant_lineage['creator'] else 0
-                    }
-                    hierarchical_lineage.append(account_record)
-                    
-                    # Queue account for background processing
-                    try:
-                        existing = StellarCreatorAccountLineage.objects.filter(
-                            stellar_account=account,
-                            network_name=network
-                        ).first()
-                        
-                        if not existing:
-                            StellarCreatorAccountLineage.objects.create(
-                                stellar_account=account,
-                                network_name=network,
-                                status='PENDING',
-                                created_at=datetime.utcnow(),
-                                updated_at=datetime.utcnow()
-                            )
-                            logger.info(f"Queued {account} for background processing")
-                    except Exception as queue_error:
-                        logger.warning(f"Failed to queue account for background processing: {queue_error}")
-                    
-                    return JsonResponse({
-                        'account': account,
-                        'network': network,
-                        'lineage': hierarchical_lineage,
-                        'total_records': len(hierarchical_lineage),
-                        'source': 'bigquery_instant'
-                    }, safe=False)
-                
-            except Exception as bq_error:
-                logger.warning(f"BigQuery instant query failed, falling back to database: {bq_error}")
+                        hierarchical_lineage.append(account_record)
+
+                        # Queue account for background processing
+                        try:
+                            try:
+                                # Try Django ORM syntax (SQLite)
+                                existing = StellarCreatorAccountLineage.objects.filter(
+                                    stellar_account=account,
+                                    network_name=network
+                                ).first()
+                            except AttributeError:
+                                # Fall back to Cassandra syntax
+                                existing_list = list(StellarCreatorAccountLineage.objects.filter(
+                                    stellar_account=account,
+                                    network_name=network
+                                ).limit(1))
+                                existing = existing_list[0] if existing_list else None
+
+                            if not existing:
+                                StellarCreatorAccountLineage.objects.create(
+                                    stellar_account=account,
+                                    network_name=network,
+                                    status='PENDING'
+                                )
+                                logger.info(f"Queued {account} for background processing")
+                        except Exception as queue_error:
+                            logger.warning(f"Failed to queue account for background processing: {queue_error}")
+
+                        return JsonResponse({
+                            'account': account,
+                            'network': network,
+                            'lineage': hierarchical_lineage,
+                            'total_records': len(hierarchical_lineage),
+                            'source': 'bigquery_instant'
+                        }, safe=False)
+
+                except Exception as bq_error:
+                    logger.warning(f"BigQuery instant query failed, falling back to database: {bq_error}")
+        else:
+            logger.info("Development mode: Skipping BigQuery, using database directly")
         
         # FALLBACK: Query database if BigQuery fails or unavailable
         
@@ -399,10 +430,18 @@ def account_lineage_api(request):
             visited_accounts.add(current_account)
             
             # Fetch lineage record for current account
-            lineage_records = StellarCreatorAccountLineage.objects.filter(
-                stellar_account=current_account,
-                network_name=network
-            ).all()
+            try:
+                # Try Django ORM syntax (SQLite)
+                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=current_account,
+                    network_name=network
+                ))
+            except AttributeError:
+                # Fall back to Cassandra syntax
+                lineage_records = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=current_account,
+                    network_name=network
+                ).all()
             
             for record in lineage_records:
                 assets = []
@@ -450,16 +489,29 @@ def account_lineage_api(request):
                         accounts_to_process.append(record.stellar_creator_account)
         
         # Now fetch all child accounts for each record to build hierarchy
+        # Use a separate structure to avoid circular references
+        hierarchy_links = {}
+        for account_addr in all_records:
+            hierarchy_links[account_addr] = []
+
         for account_addr in all_records:
             try:
-                child_records = StellarCreatorAccountLineage.objects.filter(
-                    stellar_creator_account=account_addr,
-                    network_name=network
-                ).all()
-                
+                try:
+                    # Try Django ORM syntax (SQLite)
+                    child_records = list(StellarCreatorAccountLineage.objects.filter(
+                        stellar_creator_account=account_addr,
+                        network_name=network
+                    ))
+                except AttributeError:
+                    # Fall back to Cassandra syntax
+                    child_records = StellarCreatorAccountLineage.objects.filter(
+                        stellar_creator_account=account_addr,
+                        network_name=network
+                    ).all()
+
                 for child in child_records:
                     if child.stellar_account in all_records:
-                        all_records[account_addr]['children'].append(all_records[child.stellar_account])
+                        hierarchy_links[account_addr].append(child.stellar_account)
             except Exception:
                 pass
         
@@ -497,10 +549,17 @@ def account_lineage_api(request):
         def flatten_with_hierarchy(records, level=0):
             result = []
             for record in records:
-                record['hierarchy_level'] = level
-                result.append(record)
-                if record['children']:
-                    result.extend(flatten_with_hierarchy(record['children'], level + 1))
+                # Create a copy of the record without the children array to avoid circular references
+                record_copy = {k: v for k, v in record.items() if k != 'children'}
+                record_copy['hierarchy_level'] = level
+                result.append(record_copy)
+
+                # Add children recursively
+                if record['stellar_account'] in hierarchy_links:
+                    child_accounts = hierarchy_links[record['stellar_account']]
+                    child_records = [all_records[child_addr] for child_addr in child_accounts if child_addr in all_records]
+                    if child_records:
+                        result.extend(flatten_with_hierarchy(child_records, level + 1))
             return result
         
         hierarchical_lineage = flatten_with_hierarchy(root_accounts)
@@ -682,16 +741,27 @@ def retry_failed_account_api(request):
         }, status=400)
     
     try:
-        from apiApp.models import StellarCreatorAccountLineage, FAILED, RE_INQUIRY
+        from apiApp.models import StellarCreatorAccountLineage, FAILED
+        RE_INQUIRY = 'RE_INQUIRY'  # Define locally since it might not be in models
         from datetime import datetime
         
         # Find the FAILED record
         try:
-            record = StellarCreatorAccountLineage.objects.filter(
-                stellar_account=account,
-                network_name=network,
-                status=FAILED
-            ).first()
+            try:
+                # Try Django ORM syntax (SQLite)
+                record = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network,
+                    status=FAILED
+                ).first()
+            except AttributeError:
+                # Fall back to Cassandra syntax
+                record_list = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network,
+                    status=FAILED
+                ).limit(1))
+                record = record_list[0] if record_list else None
             
             if not record:
                 return JsonResponse({
@@ -702,8 +772,12 @@ def retry_failed_account_api(request):
             
             # Update status to RE_INQUIRY to trigger retry
             record.status = RE_INQUIRY
-            record.updated_at = datetime.utcnow()
-            record.save()
+            try:
+                # Django ORM syntax
+                record.save()
+            except TypeError:
+                # Cassandra syntax
+                record.save()
             
             return JsonResponse({
                 'success': True,

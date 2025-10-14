@@ -17,6 +17,7 @@ from typing import List, Dict, Optional
 from google.cloud import bigquery
 from google.oauth2 import service_account
 import sentry_sdk
+from .env import EnvHelpers
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ class StellarBigQueryHelper:
         """
         Initialize BigQuery client with service account credentials.
         Credentials should be stored in GOOGLE_APPLICATION_CREDENTIALS_JSON secret.
-        
+
         Args:
             cost_limit_usd: Maximum cost per query in USD (default: 0.71)
             size_limit_mb: Maximum query size in MB (default: 148900 = ~145GB)
@@ -124,6 +125,8 @@ class StellarBigQueryHelper:
         self.cost_guard = None
         self.cost_limit_usd = cost_limit_usd
         self.size_limit_mb = size_limit_mb
+        self.env_helpers = EnvHelpers()
+        self.env_helpers.set_public_network()  # Default to public network
         self._initialize_client()
     
     def _initialize_client(self):
@@ -866,7 +869,7 @@ class StellarBigQueryHelper:
             
             # Step 1: Get account creation date from Horizon API (FREE, no BigQuery cost)
             horizon_helper = StellarMapHorizonAPIHelpers(
-                horizon_url='https://horizon.stellar.org',
+                horizon_url=self.env_helpers.get_base_horizon(),
                 account_id=account
             )
             horizon_account = horizon_helper.get_base_accounts()

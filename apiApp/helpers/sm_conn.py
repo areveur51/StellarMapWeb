@@ -8,10 +8,13 @@ from cassandra.cluster import Cluster
 from decouple import config
 from tenacity import retry, stop_after_attempt, wait_exponential
 import sentry_sdk
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 APP_PATH = config('APP_PATH')
 CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE')
+# Environment-based database selection
+ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
 # CASSANDRA_HOST no longer needed with cloud connection
 # Removed CLIENT_ID and CLIENT_SECRET - now using ASTRA_DB_TOKEN for authentication
 
@@ -62,27 +65,45 @@ class AsyncStellarMapHTTPHelpers:  # Made primary; sync deprecated
 class CassandraConnectionsHelpers:
 
     def __init__(self):
-        self.cloud_config = {
-            'secure_connect_bundle':
-            f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip"
-        }
-        self.auth_provider = PlainTextAuthProvider("token", config('ASTRA_DB_TOKEN'))
-        self.cluster = Cluster(cloud=self.cloud_config,
-                               auth_provider=self.auth_provider,
-                               )
-        self.session = self.cluster.connect(CASSANDRA_KEYSPACE)
+        self.session = None
+        self.cluster = None
         self.cql_query = None
+
+        # Only initialize Cassandra connection in production
+        if ENV == 'production':
+            self.cloud_config = {
+                'secure_connect_bundle':
+                f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip"
+            }
+            self.auth_provider = PlainTextAuthProvider("token", config('ASTRA_DB_TOKEN'))
+            self.cluster = Cluster(cloud=self.cloud_config,
+                                   auth_provider=self.auth_provider,
+                                   )
+            self.session = self.cluster.connect(CASSANDRA_KEYSPACE)
+        else:
+            # In development, we use SQLite - no Cassandra connection needed
+            logger.info("Development mode: Skipping Cassandra connection (using SQLite)")
 
     def set_cql_query(self, cql_query: str):
         self.cql_query = cql_query
 
     def execute_cql(self):
         try:
+            if ENV != 'production':
+                # In development, we don't execute CQL queries (using SQLite instead)
+                logger.warning(f"Development mode: Skipping CQL execution: {self.cql_query}")
+                return []  # Return empty result set for compatibility
+
+            if not self.session:
+                raise Exception("Cassandra session not initialized")
+
             return self.session.execute(self.cql_query)
         except Exception as e:
             sentry_sdk.capture_exception(e)
             raise e
 
     def close_connection(self):
-        self.session.shutdown()
-        self.cluster.shutdown()
+        if ENV == 'production' and self.session and self.cluster:
+            self.session.shutdown()
+            self.cluster.shutdown()
+        # In development, no connection to close

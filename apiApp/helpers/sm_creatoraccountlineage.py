@@ -10,6 +10,7 @@ from apiApp.services import AstraDocument
 from django.http import HttpRequest
 from .sm_horizon import StellarMapHorizonAPIParserHelpers, StellarMapHorizonAPIHelpers
 from .sm_stellarexpert import StellarMapStellarExpertAPIHelpers, StellarMapStellarExpertAPIParserHelpers
+from .env import EnvHelpers
 from apiApp.models import (
     PENDING,
     PROCESSING,
@@ -137,7 +138,12 @@ class StellarMapCreatorAccountLineageHelpers:
         network_name = lin_queryset.network_name
         
         # Determine Horizon URL based on network
-        horizon_url = 'https://horizon.stellar.org' if network_name == 'public' else 'https://horizon-testnet.stellar.org'
+        env_helpers = EnvHelpers()
+        if network_name == 'public':
+            env_helpers.set_public_network()
+        else:
+            env_helpers.set_testnet_network()
+        horizon_url = env_helpers.get_base_horizon()
         
         try:
             child_accounts = []
@@ -233,7 +239,12 @@ class StellarMapCreatorAccountLineageHelpers:
         Returns:
             pd.DataFrame: Genealogy data in same format as database query
         """
-        horizon_url = 'https://horizon.stellar.org' if network_name == 'public' else 'https://horizon-testnet.stellar.org'
+        env_helpers = EnvHelpers()
+        if network_name == 'public':
+            env_helpers.set_public_network()
+        else:
+            env_helpers.set_testnet_network()
+        horizon_url = env_helpers.get_base_horizon()
         
         records = []
         current_account = stellar_account

@@ -3,20 +3,17 @@ import datetime
 import uuid
 from django.conf import settings
 
-# Check if Cassandra is available (production mode)
-CASSANDRA_AVAILABLE = False
-try:
-    from cassandra.cqlengine import columns as cassandra_columns
-    from django_cassandra_engine.models import DjangoCassandraModel
-    CASSANDRA_AVAILABLE = True
-except ImportError:
-    # Cassandra not available, will use local SQLite models
-    pass
+# Environment-based model selection
+ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
 
-# Conditionally import models based on Cassandra availability
-if CASSANDRA_AVAILABLE and settings.ASTRA_DB_TOKEN:
+if ENV == 'production':
     # Production mode: Use Cassandra models
-    from .models_cassandra import *
+    try:
+        from cassandra.cqlengine import columns as cassandra_columns
+        from django_cassandra_engine.models import DjangoCassandraModel
+        from .models_cassandra import *
+    except ImportError as e:
+        raise ImportError(f"Production mode requires Cassandra dependencies: {e}")
 else:
     # Local development mode: Use SQLite models
     from .models_local import *

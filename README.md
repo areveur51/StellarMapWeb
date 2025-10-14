@@ -63,8 +63,8 @@ copy .env.example .env
 
 # 2. Edit .env file and set:
 # - DJANGO_SECRET_KEY (generate a secure key)
+# - ENV=development (uses SQLite database)
 # - APP_PATH=. (required for Windows paths)
-# - Comment out ASTRA_DB_TOKEN lines (optional for local dev)
 
 # 3. Install compatible Python packages
 pip install Django==4.2.7 python-decouple==3.8 stellar-sdk==9.3.0 requests==2.31.0
@@ -79,8 +79,14 @@ python manage.py migrate --settings=StellarMapWeb.settings.settings_local
 python manage.py runserver 0.0.0.0:5000 --settings=StellarMapWeb.settings.settings_local
 ```
 
+**Environment Configuration:**
+The application automatically detects the environment using the `ENV` variable in `.env`:
+
+- **`ENV=development`** → Uses SQLite database (local development)
+- **`ENV=production`** → Uses Cassandra database (production deployment)
+
 **Windows Setup Notes:**
-- Uses SQLite database (no Cassandra/Astra DB required)
+- Uses SQLite database when `ENV=development` (no Cassandra/Astra DB required)
 - Compatible with Python 3.9+
 - BigQuery features disabled (API fallbacks available)
 - All core functionality works (search, visualization, lineage display)

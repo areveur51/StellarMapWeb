@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
 from apiApp.models import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
+from apiApp.helpers.env import EnvHelpers
 import sentry_sdk
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = 'BigQuery Pipeline - Process accounts using BigQuery/Hubble dataset'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.env_helpers = EnvHelpers()
+        self.env_helpers.set_public_network()
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -383,7 +389,7 @@ class Command(BaseCommand):
             from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers, StellarMapHorizonAPIParserHelpers
             
             horizon_helper = StellarMapHorizonAPIHelpers(
-                horizon_url='https://horizon.stellar.org',
+                horizon_url=self.env_helpers.get_base_horizon(),
                 account_id=account
             )
             
@@ -429,7 +435,7 @@ class Command(BaseCommand):
             
             # Try Horizon operations first (same as cron pipeline)
             horizon_helper = StellarMapHorizonAPIHelpers(
-                horizon_url='https://horizon.stellar.org',
+                horizon_url=self.env_helpers.get_base_horizon(),
                 account_id=account
             )
             
@@ -486,7 +492,7 @@ class Command(BaseCommand):
             from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
             
             horizon_helper = StellarMapHorizonAPIHelpers(
-                horizon_url='https://horizon.stellar.org',
+                horizon_url=self.env_helpers.get_base_horizon(),
                 account_id=account
             )
             

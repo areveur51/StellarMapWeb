@@ -6,6 +6,10 @@ from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
 from apiApp.helpers.sm_datetime import StellarMapDateTimeHelpers
 from apiApp.models import StellarAccountSearchCache, StellarCreatorAccountLineage, ManagementCronHealth
 from django.http import HttpRequest  # For mock requests
+from django.conf import settings
+
+# Environment-based database selection
+ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
 
 
 class StellarAccountSearchCacheManager:
@@ -64,24 +68,47 @@ class ManagementCronHealthManager:
             raise
 
     def get_latest_cron_health(self, cron_name: str) -> pd.DataFrame:
-        """Get latest health for cron; efficient CQL limit."""
+        """Get latest health for cron; uses appropriate database based on environment."""
         try:
-            date_helpers = StellarMapDateTimeHelpers()
-            date_helpers.set_datetime_obj()
-            date_str = date_helpers.get_date_str()
-            conn = CassandraConnectionsHelpers(
-            )  # Context manager if refactored
-            cql = (
-                f"SELECT * FROM management_cron_health WHERE cron_name='{cron_name}' "
-                f"AND created_at >= '{date_str} 00:00:00' AND created_at <= '{date_str} 23:59:59' "
-                f"LIMIT 17 ALLOW FILTERING;")
-            conn.set_cql_query(cql)
-            rows = conn.execute_cql()
-            df = pd.DataFrame(rows)
-            conn.close_connection()  # Ensure close
+            if ENV == 'production':
+                # Production: Use Cassandra CQL
+                date_helpers = StellarMapDateTimeHelpers()
+                date_helpers.set_datetime_obj()
+                date_str = date_helpers.get_date_str()
+                conn = CassandraConnectionsHelpers()
+                cql = (
+                    f"SELECT * FROM management_cron_health WHERE cron_name='{cron_name}' "
+                    f"AND created_at >= '{date_str} 00:00:00' AND created_at <= '{date_str} 23:59:59' "
+                    f"LIMIT 17 ALLOW FILTERING;")
+                conn.set_cql_query(cql)
+                rows = conn.execute_cql()
+                df = pd.DataFrame(rows)
+                conn.close_connection()  # Ensure close
+            else:
+                # Development: Use Django ORM with SQLite
+                from datetime import datetime, time
+                today = datetime.now().date()
+                start_datetime = datetime.combine(today, time.min)
+                end_datetime = datetime.combine(today, time.max)
+
+                queryset = ManagementCronHealth.objects.filter(
+                    cron_name=cron_name,
+                    created_at__range=(start_datetime, end_datetime)
+                ).order_by('-created_at')[:1]  # Get latest only
+
+                if queryset.exists():
+                    data = [{
+                        'cron_name': obj.cron_name,
+                        'status': obj.status,
+                        'reason': obj.reason,
+                        'created_at': obj.created_at
+                    } for obj in queryset]
+                    df = pd.DataFrame(data)
+                else:
+                    df = pd.DataFrame()
+
             if not df.empty:
-                return df.sort_values('created_at',
-                                      ascending=False).iloc[[0]]  # Latest only
+                return df.sort_values('created_at', ascending=False).iloc[[0]]  # Latest only
             return pd.DataFrame()
         except Exception as e:
             sentry_sdk.capture_exception(e)

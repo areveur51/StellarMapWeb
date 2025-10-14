@@ -10,16 +10,9 @@ from .models import (
     BigQueryPipelineConfig,
 )
 
-# Check if Cassandra is available (production mode)
-CASSANDRA_AVAILABLE = False
-try:
-    from apiApp.helpers.sm_conn import CassandraConnectionsHelpers
-    CASSANDRA_AVAILABLE = True
-except ImportError:
-    pass
-
-# Use Cassandra admin only if Cassandra is available and configured
-USE_CASSANDRA_ADMIN = CASSANDRA_AVAILABLE and settings.ASTRA_DB_TOKEN
+# Environment-based admin selection
+ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
+USE_CASSANDRA_ADMIN = (ENV == 'production')
 
 
 class CassandraAdminMixin:

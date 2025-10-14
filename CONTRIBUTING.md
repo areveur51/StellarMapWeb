@@ -68,8 +68,8 @@ For Windows development without Docker/Cassandra dependencies:
     copy .env.example .env
     # Edit .env and set:
     # - DJANGO_SECRET_KEY (generate a secure key)
+    # - ENV=development (uses SQLite database)
     # - APP_PATH=. (required for Windows paths)
-    # - Comment out ASTRA_DB_TOKEN lines (optional for local dev)
     ```
 
 5. **Generate a Django secret key:**
