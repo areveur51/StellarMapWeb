@@ -615,13 +615,13 @@ function renderTidyTree(jsonData) {
         const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
         console.log('Tidy tree rendering with spacing multiplier:', spacingMultiplier);
         
-        // Use standard tree().size() for proper horizontal spread with better spacing
+        // Use nodeSize instead of size to let tree expand naturally based on separation
+        const nodeHeight = 25 * spacingMultiplier;  // Base height per node, scaled by multiplier
         const tree = d3.tree()
-            .size([innerHeight, treeWidth])
+            .nodeSize([nodeHeight, 100])  // [height, width] per node - height controls vertical spacing
             .separation((a, b) => {
-                // Base separation with multiplier - siblings 1.5x, non-siblings 2x
-                const baseSeparation = a.parent === b.parent ? 1.5 : 2;
-                return baseSeparation * spacingMultiplier;
+                // Additional separation multiplier for siblings vs non-siblings
+                return a.parent === b.parent ? 1 : 1.2;
             });
 
         tree(root);
@@ -646,12 +646,14 @@ function renderTidyTree(jsonData) {
             }
         });
 
-        // Center the tree vertically by finding min/max y coordinates
+        // Center the tree vertically by finding min/max coordinates
         const descendants = root.descendants();
-        const minY = d3.min(descendants, d => d.x);
-        const maxY = d3.max(descendants, d => d.x);
-        const treeHeight = maxY - minY;
-        const yOffset = (innerHeight - treeHeight) / 2 - minY;
+        const minX = d3.min(descendants, d => d.x);
+        const maxX = d3.max(descendants, d => d.x);
+        const treeHeight = maxX - minX;
+        
+        // Center vertically, or align to top if tree is larger than viewport
+        const yOffset = treeHeight < innerHeight ? (innerHeight - treeHeight) / 2 - minX : -minX + 20;
 
         const link = g.selectAll('.link')
             .data(root.links())
