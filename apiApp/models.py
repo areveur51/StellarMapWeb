@@ -6,14 +6,14 @@ from django.conf import settings
 # Environment-based model selection
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
 
-if ENV == 'production':
-    # Production mode: Use Cassandra models
+if ENV in ['production', 'replit']:
+    # Production/Replit mode: Use Cassandra models
     try:
         from cassandra.cqlengine import columns as cassandra_columns
         from django_cassandra_engine.models import DjangoCassandraModel
         from .models_cassandra import *
     except ImportError as e:
-        raise ImportError(f"Production mode requires Cassandra dependencies: {e}")
+        raise ImportError(f"Production/Replit mode requires Cassandra dependencies: {e}")
 else:
     # Local development mode: Use SQLite models
     from .models_local import *

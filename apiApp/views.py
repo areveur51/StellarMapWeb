@@ -453,7 +453,7 @@ def account_lineage_api(request):
                 lineage_records = list(StellarCreatorAccountLineage.objects.filter(
                     stellar_account=current_account,
                     network_name=network
-                ).all()
+                ))
             
             for record in lineage_records:
                 assets = []

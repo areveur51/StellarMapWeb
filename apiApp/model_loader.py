@@ -37,8 +37,8 @@ if USE_CASSANDRA:
         NETWORK_CHOICES,
     )
 else:
-    # Development: Use SQL models
-    from apiApp.models import (
+    # Development: Use SQL models from models_local.py
+    from apiApp.models_local import (
         StellarAccountSearchCache,
         StellarCreatorAccountLineage,
         ManagementCronHealth,
