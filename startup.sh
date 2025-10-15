@@ -26,7 +26,7 @@ NC='\033[0m' # No Color
 echo -e "${CYAN}"
 echo "╔════════════════════════════════════════════════════════╗"
 echo "║                                                        ║"
-echo "║          StellarMapWeb Startup & Test Suite           ║"
+echo "║          StellarMapWeb Startup & Test Suite            ║"
 echo "║                                                        ║"
 echo "╚════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
@@ -100,33 +100,50 @@ else
 fi
 
 ################################################################################
-# Step 3: Restart Application Workflows
+# Step 3: Environment Secrets & Workflow Restart Guidance
 ################################################################################
 
-print_header "3. Restarting Application"
+print_header "3. Environment Secrets & Workflow Status"
 
-print_status "Restarting Django Server to pick up environment changes..."
+# Check current ENV value
+CURRENT_ENV=$(printenv ENV || echo "not_set")
+print_status "Current ENV setting: ${CURRENT_ENV}"
 
-# Kill existing Django server process (Replit will auto-restart it)
-pkill -f "manage.py runserver" || print_status "No existing Django process found"
+# Provide workflow restart guidance
+echo ""
+print_warning "IMPORTANT: If you changed the ENV secret, you MUST manually restart workflows!"
+echo ""
+echo -e "${YELLOW}Why?${NC} Workflows do not automatically pick up environment secret changes."
+echo -e "${YELLOW}How to restart:${NC}"
+echo "  1. Click the 'Django Server' workflow tab at the top of your workspace"
+echo "  2. Click the square STOP button (⏹) to stop the workflow"
+echo "  3. Click the Run button (▶) to restart the workflow"
+echo ""
+echo "After restarting the workflow, the new ENV value will take effect:"
+echo "  • ENV=development  → Uses SQLite database"
+echo "  • ENV=replit      → Uses Cassandra (Astra DB)"
+echo "  • ENV=production  → Uses Cassandra (Astra DB)"
+echo ""
 
-# Wait for workflow to auto-restart
-print_status "Waiting for Django server to restart..."
-sleep 5
-
-# Verify server is starting up
+# Detect workflow status
+print_status "Checking workflow status..."
 if pgrep -f "manage.py runserver" > /dev/null; then
-    print_success "Django Server restarted successfully"
+    print_success "Django Server workflow is running"
+    
+    # Try to detect which database is actually being used by the running server
+    WORKFLOW_PID=$(pgrep -f "manage.py runserver" | head -1)
+    print_status "Django Server PID: ${WORKFLOW_PID}"
 else
-    print_warning "Django Server may still be starting..."
+    print_warning "Django Server workflow is NOT running - please start it manually"
 fi
 
 print_status "Current workflows:"
-echo "  - Django Server (port 5000) - Restarted"
+echo "  - Django Server (port 5000)"
 echo "  - BigQuery Pipeline"
+echo ""
 
-sleep 2
-print_success "Application restart completed"
+sleep 1
+print_success "Environment check completed"
 
 ################################################################################
 # Step 4: Run Test Suite
