@@ -1,7 +1,18 @@
 <!-- radialTidyTreeApp/templates/radialTidyTreeApp/radial_tidy_tree_partial.html -->
 {% load static %}
 
+<style>
+    #radial-tree-container {
+        position: relative;
+        width: 100%;
+        height: 800px;
+    }
+</style>
+
 <div id="radial-tree-container">
+    <!-- Include shared visualization toggle component -->
+    {% include "radialTidyTreeApp/visualization_toggle_include.html" %}
+    
     <svg id="tree" width="800" height="800"></svg>
     
     <script>
@@ -10,10 +21,10 @@
         const renderTreeWhenReady = () => {
             const treeDataEl = document.getElementById('tree-data-json');
             if (treeDataEl && typeof renderRadialTree === 'function') {
-                const treeData = JSON.parse(treeDataEl.textContent);
-                console.log('Processing tree data:', treeData);
-                console.log('Tree has', treeData.children ? treeData.children.length : 0, 'children');
-                renderRadialTree(treeData);
+                currentTreeData = JSON.parse(treeDataEl.textContent);
+                console.log('Processing tree data:', currentTreeData);
+                console.log('Tree has', currentTreeData.children ? currentTreeData.children.length : 0, 'children');
+                renderRadialTree(currentTreeData);
                 console.log('Radial tree rendered successfully');
             } else {
                 // Retry after a short delay if not ready yet

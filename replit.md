@@ -12,7 +12,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 ## System Design and UI/UX
 - **Interactive Radial Tree Diagrams**: Utilizes D3.js for visualizing Stellar account lineage with circular ISSUER node distribution (23° minimum angular separation at each depth level).
-- **Dual Visualization Modes**: Toggle between Radial Tidy Tree (circular layout, default) and standard Tidy Tree (left-to-right hierarchical layout). Cyberpunk-styled toggle switch with gradient slider and real-time mode indicator in top-right corner of visualization page. Both modes feature identical tooltip/breadcrumb functionality, path highlighting, and glow effects.
+- **Dual Visualization Modes**: Toggle between Radial Tidy Tree (circular layout, default) and standard Tidy Tree (left-to-right hierarchical layout). Cyberpunk-styled toggle switch with gradient slider and real-time mode indicator in top-right corner of visualization pages. Available on both `/tree/` endpoint and `/search/` endpoint (via shared visualization_toggle_include.html component). Both modes feature identical tooltip/breadcrumb functionality, path highlighting, and glow effects.
 - **Responsive Design**: Bootstrap-based frontend for adaptive layouts.
 - **Real-time Feedback**: Displays pending accounts and pipeline stage progress using Vue.js for immediate user feedback.
 - **Consistent Theming**: Replit cyberpunk theme applied across the application and architecture diagrams.
