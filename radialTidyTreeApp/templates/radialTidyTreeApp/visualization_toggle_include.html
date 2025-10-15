@@ -11,9 +11,19 @@
         <span class="mode-indicator" id="mode-indicator">Radial</span>
     </div>
     <div class="spacing-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Spacing:</span>
-        <input type="range" id="spacing-slider" class="spacing-slider" min="0.5" max="2" step="0.1" value="1">
+        <span class="toggle-label" style="font-size: 0.8em;">Vertical Spacing:</span>
+        <input type="range" id="spacing-slider" class="spacing-slider" min="0.5" max="3" step="0.1" value="1">
         <span class="spacing-value" id="spacing-value">1.0x</span>
+    </div>
+    <div class="spacing-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Min Child Distance:</span>
+        <input type="range" id="min-child-slider" class="spacing-slider" min="0.3" max="1.5" step="0.1" value="0.6">
+        <span class="spacing-value" id="min-child-value">0.6x</span>
+    </div>
+    <div class="spacing-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Max Child Distance:</span>
+        <input type="range" id="max-child-slider" class="spacing-slider" min="1" max="3" step="0.1" value="1.5">
+        <span class="spacing-value" id="max-child-value">1.5x</span>
     </div>
 </div>
 
@@ -27,7 +37,16 @@
     // Global spacing multiplier (persisted in localStorage) with validation
     const savedSpacing = localStorage.getItem('nodeSpacingMultiplier');
     const parsedSpacing = parseFloat(savedSpacing);
-    window.nodeSpacingMultiplier = (!isNaN(parsedSpacing) && parsedSpacing >= 0.5 && parsedSpacing <= 2.0) ? parsedSpacing : 1.0;
+    window.nodeSpacingMultiplier = (!isNaN(parsedSpacing) && parsedSpacing >= 0.5 && parsedSpacing <= 3.0) ? parsedSpacing : 1.0;
+    
+    // Global min/max child spacing (persisted in localStorage)
+    const savedMinChild = localStorage.getItem('minChildSpacing');
+    const parsedMinChild = parseFloat(savedMinChild);
+    window.minChildSpacing = (!isNaN(parsedMinChild) && parsedMinChild >= 0.3 && parsedMinChild <= 1.5) ? parsedMinChild : 0.6;
+    
+    const savedMaxChild = localStorage.getItem('maxChildSpacing');
+    const parsedMaxChild = parseFloat(savedMaxChild);
+    window.maxChildSpacing = (!isNaN(parsedMaxChild) && parsedMaxChild >= 1.0 && parsedMaxChild <= 3.0) ? parsedMaxChild : 1.5;
     
     // Use window.currentTreeData for true global scope
     if (typeof window.currentTreeData === 'undefined') {
@@ -67,7 +86,7 @@
                 console.log('renderTidyTree exists:', typeof renderTidyTree);
                 
                 // Validate the new value
-                if (!isNaN(newValue) && newValue >= 0.5 && newValue <= 2.0) {
+                if (!isNaN(newValue) && newValue >= 0.5 && newValue <= 3.0) {
                     window.nodeSpacingMultiplier = newValue;
                     spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
                     localStorage.setItem('nodeSpacingMultiplier', window.nodeSpacingMultiplier);
@@ -97,6 +116,58 @@
             console.log('Spacing slider event listener attached successfully');
         } else {
             console.error('Spacing slider or value element not found!');
+        }
+        
+        // Initialize min child spacing slider
+        const minChildSlider = document.getElementById('min-child-slider');
+        const minChildValue = document.getElementById('min-child-value');
+        if (minChildSlider && minChildValue) {
+            minChildSlider.value = window.minChildSpacing;
+            minChildValue.textContent = window.minChildSpacing.toFixed(1) + 'x';
+            
+            minChildSlider.addEventListener('input', function() {
+                const newValue = parseFloat(this.value);
+                if (!isNaN(newValue) && newValue >= 0.3 && newValue <= 1.5) {
+                    window.minChildSpacing = newValue;
+                    minChildValue.textContent = window.minChildSpacing.toFixed(1) + 'x';
+                    localStorage.setItem('minChildSpacing', window.minChildSpacing);
+                    
+                    // Re-render tree
+                    if (window.currentTreeData) {
+                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            renderRadialTree(window.currentTreeData);
+                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            renderTidyTree(window.currentTreeData);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize max child spacing slider
+        const maxChildSlider = document.getElementById('max-child-slider');
+        const maxChildValue = document.getElementById('max-child-value');
+        if (maxChildSlider && maxChildValue) {
+            maxChildSlider.value = window.maxChildSpacing;
+            maxChildValue.textContent = window.maxChildSpacing.toFixed(1) + 'x';
+            
+            maxChildSlider.addEventListener('input', function() {
+                const newValue = parseFloat(this.value);
+                if (!isNaN(newValue) && newValue >= 1.0 && newValue <= 3.0) {
+                    window.maxChildSpacing = newValue;
+                    maxChildValue.textContent = window.maxChildSpacing.toFixed(1) + 'x';
+                    localStorage.setItem('maxChildSpacing', window.maxChildSpacing);
+                    
+                    // Re-render tree
+                    if (window.currentTreeData) {
+                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            renderRadialTree(window.currentTreeData);
+                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            renderTidyTree(window.currentTreeData);
+                        }
+                    }
+                }
+            });
         }
     };
     

@@ -626,6 +626,10 @@ function renderTidyTree(jsonData) {
 
         tree(root);
         
+        // Get child spacing factors from global variables (configurable via UI)
+        const minChildSpacing = window.minChildSpacing || 0.6;
+        const maxChildSpacing = window.maxChildSpacing || 1.5;
+        
         // Calculate dynamic horizontal positions based on child count
         // More children = longer lines (spread further right), fewer children = shorter lines
         const maxDepth = root.height || 1;
@@ -634,10 +638,9 @@ function renderTidyTree(jsonData) {
         root.descendants().forEach(d => {
             if (d.parent) {
                 const childCount = d.parent.children ? d.parent.children.length : 1;
-                // Scale factor: more children = longer lines (up to 1.5x), fewer = shorter (down to 0.6x)
-                const scaleFactor = Math.min(1.5, Math.max(0.6, 0.5 + (childCount / 20)));
-                // Apply spacing multiplier to horizontal spacing as well
-                d.y = d.parent.y + (baseSpacing * scaleFactor * spacingMultiplier);
+                // Scale factor based on child count with configurable min/max
+                const scaleFactor = Math.min(maxChildSpacing, Math.max(minChildSpacing, 0.5 + (childCount / 20)));
+                d.y = d.parent.y + (baseSpacing * scaleFactor);
             } else {
                 d.y = 0;  // Root at origin
             }
