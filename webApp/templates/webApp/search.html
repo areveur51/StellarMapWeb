@@ -625,6 +625,16 @@
             
             // Trigger tree rendering if renderRadialTree function exists
             this.$nextTick(() => {
+              // Ensure spacing multiplier is loaded from localStorage before rendering
+              const savedSpacing = localStorage.getItem('nodeSpacingMultiplier');
+              const parsedSpacing = parseFloat(savedSpacing);
+              if (!isNaN(parsedSpacing) && parsedSpacing >= 0.5 && parsedSpacing <= 2.0) {
+                window.nodeSpacingMultiplier = parsedSpacing;
+              }
+              
+              // Update currentTreeData for slider re-renders
+              window.currentTreeData = this.tree_data;
+              
               if (typeof renderRadialTree === 'function') {
                 renderRadialTree(this.tree_data);
               }
