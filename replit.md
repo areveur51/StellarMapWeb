@@ -13,6 +13,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Tidy Tree Visualization**: Dynamic horizontal spacing where line lengths adapt to child count (fewer children = shorter lines, more children = longer lines). Optimized typography with normal font weight (400) and increased letter spacing for readability. Text overflow prevented with increased right margin (250px) and constrained tree width (70%).
 - **Visualization Mode Persistence**: Toggle state persists across page refreshes on both /search and /tree endpoints using localStorage with automatic re-rendering.
 - **Dynamic Spacing Control**: Interactive slider (0.5x - 2.0x) allows real-time adjustment of node spacing distance for both radial and tidy tree visualizations. Spacing preference persists across sessions via localStorage with validation to prevent invalid values.
+- **DRY Visualization Controls**: Shared visualization controls (toggle switch + spacing slider) implemented with DRY architecture: `visualization_controls.css` for styling, `visualization_toggle_include.html` for HTML/JS, loaded by both /search and /tree pages for consistency.
 - **Responsive Design**: Bootstrap-based frontend for adaptive layouts.
 - **Real-time Feedback**: Vue.js displays pending accounts and pipeline progress.
 - **Consistent Theming**: Cyberpunk theme, with additional Borg Green and Predator Red themes, applied across the application with dynamic switching and persistence.
