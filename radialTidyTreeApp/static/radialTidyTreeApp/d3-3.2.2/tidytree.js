@@ -249,6 +249,9 @@ function makeTree(data) {
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
     try {
+        // Store data globally so slider can re-render
+        window.currentTreeData = jsonData;
+        
         const existingSvg = document.querySelector('#tree');
         if (existingSvg) {
             existingSvg.innerHTML = '';
@@ -546,6 +549,9 @@ function renderRadialTree(jsonData) {
 // Global function to render left-to-right tidy tree with data
 function renderTidyTree(jsonData) {
     try {
+        // Store data globally so slider can re-render
+        window.currentTreeData = jsonData;
+        
         const existingSvg = document.querySelector('#tree');
         if (existingSvg) {
             existingSvg.innerHTML = '';
