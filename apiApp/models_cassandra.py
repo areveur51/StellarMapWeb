@@ -186,6 +186,7 @@ class ManagementCronHealth(DjangoCassandraModel):
     NOTE: Does NOT inherit from BaseModel to match existing table schema.
     """
     __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'management_cron_health'
 
     id = cassandra_columns.UUID(primary_key=True, default=uuid.uuid4)
     created_at = cassandra_columns.DateTime(primary_key=True, clustering_order="DESC")
@@ -203,7 +204,6 @@ class ManagementCronHealth(DjangoCassandraModel):
 
     class Meta:
         get_pk_field = 'id'
-        db_table = 'management_cron_health'
 
     def __str__(self):
         """Admin display string."""
