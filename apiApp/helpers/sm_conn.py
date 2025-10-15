@@ -69,8 +69,8 @@ class CassandraConnectionsHelpers:
         self.cluster = None
         self.cql_query = None
 
-        # Only initialize Cassandra connection in production
-        if ENV == 'production':
+        # Only initialize Cassandra connection in production/replit
+        if ENV in ['production', 'replit']:
             self.cloud_config = {
                 'secure_connect_bundle':
                 f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip"
@@ -89,7 +89,7 @@ class CassandraConnectionsHelpers:
 
     def execute_cql(self):
         try:
-            if ENV != 'production':
+            if ENV not in ['production', 'replit']:
                 # In development, we don't execute CQL queries (using SQLite instead)
                 logger.warning(f"Development mode: Skipping CQL execution: {self.cql_query}")
                 return []  # Return empty result set for compatibility
@@ -103,7 +103,7 @@ class CassandraConnectionsHelpers:
             raise e
 
     def close_connection(self):
-        if ENV == 'production' and self.session and self.cluster:
+        if ENV in ['production', 'replit'] and self.session and self.cluster:
             self.session.shutdown()
             self.cluster.shutdown()
         # In development, no connection to close
