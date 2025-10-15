@@ -600,12 +600,12 @@ function renderTidyTree(jsonData) {
         console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
         console.log('Tree depth:', root.height);
 
-        // Use standard tree().size() for proper horizontal spread
+        // Use standard tree().size() for proper horizontal spread with better spacing
         const tree = d3.tree()
             .size([innerHeight, treeWidth])
             .separation((a, b) => {
-                // Reduce separation to keep vertical spacing tight
-                return a.parent === b.parent ? 0.8 : 1;
+                // Increased separation to prevent overlap - siblings 1.5x, non-siblings 2x
+                return a.parent === b.parent ? 1.5 : 2;
             });
 
         tree(root);
@@ -636,17 +636,17 @@ function renderTidyTree(jsonData) {
             .attr('transform', d => `translate(${d.y},${d.x + yOffset})`);
 
         node.append('circle')
-            .attr('r', 5)
+            .attr('r', 6)  // Increased from 5 to 6 for better visibility
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', '#3f2c70')
             .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
-            .style('stroke-width', '2px')
+            .style('stroke-width', '2.5px')  // Increased from 2px for better visibility
             .on('mouseover', function(event, d) { showTidyTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTidyTooltip(); });
 
         node.append('text')
             .attr('dy', '0.31em')
-            .attr('x', d => d.children ? -12 : 12)
+            .attr('x', d => d.children ? -14 : 14)  // Increased offset to prevent overlap with larger circles
             .attr('text-anchor', d => d.children ? 'end' : 'start')
             .text(d => {
                 if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
@@ -655,9 +655,10 @@ function renderTidyTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', '13px')
-            .style('font-weight', '500')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
+            .style('font-size', '14px')  // Increased from 13px for better readability
+            .style('font-weight', '600')  // Increased from 500 for better readability
+            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.9)')  // Enhanced shadow for better contrast
+            .style('letter-spacing', '0.3px');  // Added letter spacing for clarity
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {

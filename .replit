@@ -40,10 +40,6 @@ externalPort = 3001
 localPort = 43333
 externalPort = 3002
 
-[[ports]]
-localPort = 44353
-externalPort = 4200
-
 [agent]
 expertMode = true
 

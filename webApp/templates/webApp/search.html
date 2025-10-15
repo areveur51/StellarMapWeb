@@ -366,7 +366,7 @@
         window.currentTreeData = null;
     }
     
-    // Initialize toggle state from localStorage on page load
+    // Initialize toggle state and rendering from localStorage on page load
     window.addEventListener('DOMContentLoaded', function() {
         const toggleSwitch = document.getElementById('layout-toggle');
         const modeIndicator = document.getElementById('mode-indicator');
@@ -374,9 +374,27 @@
         if (currentMode === 'tidy') {
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
+            console.log('DOMContentLoaded: Restored tidy tree mode from localStorage');
+            
+            // Wait for tree data to be available, then render in tidy mode
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max (50 * 100ms)
+            const checkAndRenderTidy = () => {
+                if (window.currentTreeData && typeof renderTidyTree === 'function') {
+                    renderTidyTree(window.currentTreeData);
+                    console.log('DOMContentLoaded: Re-rendered tree in tidy mode');
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    setTimeout(checkAndRenderTidy, 100);
+                } else {
+                    console.warn('DOMContentLoaded: Timed out waiting for tree data or renderTidyTree function');
+                }
+            };
+            checkAndRenderTidy();
         } else {
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
+            console.log('DOMContentLoaded: Using radial mode (default or from localStorage)');
         }
     });
     
