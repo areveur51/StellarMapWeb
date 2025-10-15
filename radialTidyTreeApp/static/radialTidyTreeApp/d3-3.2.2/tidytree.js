@@ -472,9 +472,41 @@ function renderRadialTree(jsonData) {
             tooltip.html(tooltipHTML)
                 .style('background', backgroundColor)
                 .style('color', textColor)
-                .style('opacity', 1)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
+                .style('opacity', 1);
+            
+            // Smart positioning to prevent tooltip from going off-screen
+            const tooltipNode = tooltip.node();
+            const tooltipRect = tooltipNode.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
+            let left = event.clientX + 10;
+            let top = event.clientY - 28;
+            
+            // Check right edge - if tooltip goes off-screen, show on left side of cursor
+            if (left + tooltipRect.width > viewportWidth) {
+                left = event.clientX - tooltipRect.width - 10;
+            }
+            
+            // Check left edge - ensure tooltip doesn't go off left side
+            if (left < 0) {
+                left = 10;
+            }
+            
+            // Check bottom edge - if tooltip goes off-screen, show above cursor
+            if (top + tooltipRect.height > viewportHeight) {
+                top = event.clientY - tooltipRect.height - 10;
+            }
+            
+            // Check top edge - ensure tooltip doesn't go off top
+            if (top < 0) {
+                top = event.clientY + 20;
+            }
+            
+            // Convert to page coordinates by adding scroll offsets
+            tooltip.style('left', (left + window.scrollX) + 'px')
+                .style('top', (top + window.scrollY) + 'px');
         }
 
         function hideTooltip() {
@@ -542,9 +574,12 @@ function renderTidyTree(jsonData) {
         const width = containerRect.width || window.innerWidth;
         const height = containerRect.height || window.innerHeight;
 
-        const margin = {top: 20, right: 120, bottom: 20, left: 120};
+        const margin = {top: 20, right: 200, bottom: 20, left: 60};
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
+        
+        // Reduce horizontal spacing to 40% of available width for more compact layout
+        const treeWidth = innerWidth * 0.4;
 
         const svg = d3.select('#tree')
             .attr('width', '100%')
@@ -562,7 +597,7 @@ function renderTidyTree(jsonData) {
             .attr('transform', 'translate(20, 20)');
 
         const tree = d3.tree()
-            .size([innerHeight, innerWidth]);
+            .size([innerHeight, treeWidth]);
 
         const root = d3.hierarchy(processedData);
         console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
@@ -719,9 +754,41 @@ function renderTidyTree(jsonData) {
             tooltip.html(tooltipHTML)
                 .style('background', backgroundColor)
                 .style('color', textColor)
-                .style('opacity', 1)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
+                .style('opacity', 1);
+            
+            // Smart positioning to prevent tooltip from going off-screen
+            const tooltipNode = tooltip.node();
+            const tooltipRect = tooltipNode.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
+            let left = event.clientX + 10;
+            let top = event.clientY - 28;
+            
+            // Check right edge - if tooltip goes off-screen, show on left side of cursor
+            if (left + tooltipRect.width > viewportWidth) {
+                left = event.clientX - tooltipRect.width - 10;
+            }
+            
+            // Check left edge - ensure tooltip doesn't go off left side
+            if (left < 0) {
+                left = 10;
+            }
+            
+            // Check bottom edge - if tooltip goes off-screen, show above cursor
+            if (top + tooltipRect.height > viewportHeight) {
+                top = event.clientY - tooltipRect.height - 10;
+            }
+            
+            // Check top edge - ensure tooltip doesn't go off top
+            if (top < 0) {
+                top = event.clientY + 20;
+            }
+            
+            // Convert to page coordinates by adding scroll offsets
+            tooltip.style('left', (left + window.scrollX) + 'px')
+                .style('top', (top + window.scrollY) + 'px');
         }
 
         function hideTidyTooltip() {

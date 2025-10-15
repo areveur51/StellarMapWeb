@@ -83,9 +83,23 @@
 </div>
 
 <script>
-    // Shared visualization toggle logic
-    let currentMode = 'radial';
+    // Shared visualization toggle logic with localStorage persistence
+    let currentMode = localStorage.getItem('visualizationMode') || 'radial';
     let currentTreeData = null;
+    
+    // Initialize toggle state from localStorage on page load
+    window.addEventListener('DOMContentLoaded', function() {
+        const toggleSwitch = document.getElementById('layout-toggle');
+        const modeIndicator = document.getElementById('mode-indicator');
+        
+        if (currentMode === 'tidy') {
+            toggleSwitch.classList.add('active');
+            modeIndicator.textContent = 'Tidy Tree';
+        } else {
+            toggleSwitch.classList.remove('active');
+            modeIndicator.textContent = 'Radial';
+        }
+    });
     
     function toggleVisualizationMode() {
         const toggleSwitch = document.getElementById('layout-toggle');
@@ -93,6 +107,7 @@
         
         if (currentMode === 'radial') {
             currentMode = 'tidy';
+            localStorage.setItem('visualizationMode', 'tidy');
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
             if (currentTreeData && typeof renderTidyTree === 'function') {
@@ -100,6 +115,7 @@
             }
         } else {
             currentMode = 'radial';
+            localStorage.setItem('visualizationMode', 'radial');
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
             if (currentTreeData && typeof renderRadialTree === 'function') {

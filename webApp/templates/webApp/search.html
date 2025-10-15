@@ -45,6 +45,22 @@
     }
   </style>
   
+  <!-- Scroll Position Restoration -->
+  <script>
+    // Save scroll position on scroll event
+    window.addEventListener('scroll', function() {
+      sessionStorage.setItem('scrollPosition', window.scrollY);
+    });
+    
+    // Restore scroll position on page load
+    window.addEventListener('DOMContentLoaded', function() {
+      const savedScrollPosition = sessionStorage.getItem('scrollPosition');
+      if (savedScrollPosition !== null) {
+        window.scrollTo(0, parseInt(savedScrollPosition));
+      }
+    });
+  </script>
+  
   <div id="app">
     <!-- Include shared search container and sidebar -->
     {% include 'webApp/search_container_include.html' %}
@@ -331,8 +347,22 @@
     Vue.use(BootstrapVue);
     
     // Visualization toggle logic (global function)
-    let currentMode = 'radial';
+    let currentMode = localStorage.getItem('visualizationMode') || 'radial';
     let currentTreeData = null;
+    
+    // Initialize toggle state from localStorage on page load
+    window.addEventListener('DOMContentLoaded', function() {
+        const toggleSwitch = document.getElementById('layout-toggle');
+        const modeIndicator = document.getElementById('mode-indicator');
+        
+        if (currentMode === 'tidy') {
+            toggleSwitch.classList.add('active');
+            modeIndicator.textContent = 'Tidy Tree';
+        } else {
+            toggleSwitch.classList.remove('active');
+            modeIndicator.textContent = 'Radial';
+        }
+    });
     
     function toggleVisualizationMode() {
         const toggleSwitch = document.getElementById('layout-toggle');
@@ -340,6 +370,7 @@
         
         if (currentMode === 'radial') {
             currentMode = 'tidy';
+            localStorage.setItem('visualizationMode', 'tidy');
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
             if (currentTreeData && typeof renderTidyTree === 'function') {
@@ -347,6 +378,7 @@
             }
         } else {
             currentMode = 'radial';
+            localStorage.setItem('visualizationMode', 'radial');
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
             if (currentTreeData && typeof renderRadialTree === 'function') {
