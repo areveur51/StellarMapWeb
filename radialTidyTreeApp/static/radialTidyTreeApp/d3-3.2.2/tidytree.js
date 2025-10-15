@@ -636,7 +636,8 @@ function renderTidyTree(jsonData) {
                 const childCount = d.parent.children ? d.parent.children.length : 1;
                 // Scale factor: more children = longer lines (up to 1.5x), fewer = shorter (down to 0.6x)
                 const scaleFactor = Math.min(1.5, Math.max(0.6, 0.5 + (childCount / 20)));
-                d.y = d.parent.y + (baseSpacing * scaleFactor);
+                // Apply spacing multiplier to horizontal spacing as well
+                d.y = d.parent.y + (baseSpacing * scaleFactor * spacingMultiplier);
             } else {
                 d.y = 0;  // Root at origin
             }
