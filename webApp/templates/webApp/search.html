@@ -10,6 +10,8 @@
   <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
   <!-- include custom theme -->
   <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <!-- Shared visualization controls CSS -->
+  <link rel="stylesheet" href="{% static 'radialTidyTreeApp/css/visualization_controls.css' %}">
   <!-- include the Font Awesome library for the search icon -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
   <!-- include HighlightJS library for the terminal text fields -->
@@ -25,45 +27,7 @@
   </style>
 </head>
 <body class="bg-color-261D45">
-  <!-- Visualization Controls imported from shared component below -->
-  <style>
-    /* Override position for search page - make fully visible */
-    .visualization-controls {
-      position: fixed !important;
-      top: 80px !important;
-      right: 20px !important;
-      z-index: 10000 !important;
-      /* Ensure controls are always visible and readable */
-      opacity: 1 !important;
-      visibility: visible !important;
-      display: flex !important;
-      flex-direction: column !important;
-      width: auto !important;
-      min-width: 250px;
-      background: linear-gradient(135deg, rgba(38, 29, 69, 0.98), rgba(150, 221, 242, 0.2)) !important;
-      border: 2px solid #96DDF2 !important;
-      border-radius: 25px !important;
-      padding: 15px 20px !important;
-      box-shadow: 0 0 20px rgba(150, 221, 242, 0.3) !important;
-    }
-    
-    /* Ensure labels and controls are visible */
-    .visualization-controls .toggle-label,
-    .visualization-controls .mode-indicator,
-    .visualization-controls .spacing-value {
-      color: #96DDF2 !important;
-      opacity: 1 !important;
-    }
-    
-    /* Make sure controls don't get hidden on small screens */
-    @media (max-width: 768px) {
-      .visualization-controls {
-        top: 70px !important;
-        right: 10px !important;
-        min-width: 220px;
-      }
-    }
-  </style>
+  <!-- No CSS overrides - use styling from visualization_toggle_include.html for DRY -->
   
   <!-- Scroll Position Restoration -->
   <script>
@@ -117,9 +81,6 @@
   </script>
   
   <div id="app">
-    <!-- Include visualization controls -->
-    {% include 'radialTidyTreeApp/visualization_toggle_include.html' %}
-    
     <!-- Include shared search container and sidebar -->
     {% include 'webApp/search_container_include.html' %}
 
@@ -138,7 +99,10 @@
           {% endif %}
         </div>
       {% endif %}
-      <div class="response-container">
+      <div class="response-container" style="position: relative;">
+        <!-- Include visualization controls next to the tree -->
+        {% include 'radialTidyTreeApp/visualization_toggle_include.html' %}
+        
         <div class="radial-tree-visual">
           {% include "radialTidyTreeApp/radial_tidy_tree_partial.html" %}
         </div>
