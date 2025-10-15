@@ -109,11 +109,11 @@
     </div>
 
     <script>
-        // Securely parse tree data from context (escaped by Django) and assign to global currentTreeData
-        currentTreeData = {{ tree_data | safe }};
+        // Securely parse tree data from context (escaped by Django) and assign to global window.currentTreeData
+        window.currentTreeData = {{ tree_data | safe }};
         
         // Initialize visualization with radial tree
-        renderRadialTree(currentTreeData);
+        renderRadialTree(window.currentTreeData);
     </script>
 </body>
 </html>

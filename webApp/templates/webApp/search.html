@@ -27,39 +27,92 @@
 <body class="bg-color-261D45">
   <!-- Visualization Controls imported from shared component below -->
   <style>
-    /* Override position for search page to avoid header overlap */
+    /* Override position for search page - make fully visible */
     .visualization-controls {
       position: fixed !important;
-      top: 100px !important;
-      right: 30px !important;
+      top: 80px !important;
+      right: 20px !important;
+      z-index: 10000 !important;
+      /* Ensure controls are always visible and readable */
+      opacity: 1 !important;
+      visibility: visible !important;
+      display: flex !important;
+      flex-direction: column !important;
+      width: auto !important;
+      min-width: 250px;
+      background: linear-gradient(135deg, rgba(38, 29, 69, 0.98), rgba(150, 221, 242, 0.2)) !important;
+      border: 2px solid #96DDF2 !important;
+      border-radius: 25px !important;
+      padding: 15px 20px !important;
+      box-shadow: 0 0 20px rgba(150, 221, 242, 0.3) !important;
+    }
+    
+    /* Ensure labels and controls are visible */
+    .visualization-controls .toggle-label,
+    .visualization-controls .mode-indicator,
+    .visualization-controls .spacing-value {
+      color: #96DDF2 !important;
+      opacity: 1 !important;
+    }
+    
+    /* Make sure controls don't get hidden on small screens */
+    @media (max-width: 768px) {
+      .visualization-controls {
+        top: 70px !important;
+        right: 10px !important;
+        min-width: 220px;
+      }
     }
   </style>
   
   <!-- Scroll Position Restoration -->
   <script>
+    // Track last scroll position
+    let lastScrollPosition = 0;
+    
     // Save scroll position on scroll event
     window.addEventListener('scroll', function() {
-      const scrollPos = window.scrollY || window.pageYOffset;
-      sessionStorage.setItem('scrollPosition', scrollPos);
-      console.log('Scroll position saved:', scrollPos);
+      lastScrollPosition = window.scrollY || window.pageYOffset;
+      sessionStorage.setItem('scrollPosition', lastScrollPosition);
     }, { passive: true });
     
-    // Restore scroll position after content is fully loaded
+    // Restore scroll position after Vue updates
     function restoreScrollPosition() {
       const savedScrollPosition = sessionStorage.getItem('scrollPosition');
-      console.log('Attempting to restore scroll position:', savedScrollPosition);
       
       if (savedScrollPosition !== null && savedScrollPosition !== '0') {
-        // Use setTimeout to ensure all content is rendered
-        setTimeout(() => {
-          const scrollValue = parseInt(savedScrollPosition);
-          window.scrollTo(0, scrollValue);
-          console.log('Scroll position restored to:', scrollValue);
-        }, 100);
+        const scrollValue = parseInt(savedScrollPosition);
+        // Smooth scroll restoration
+        window.scrollTo({
+          top: scrollValue,
+          behavior: 'instant'
+        });
+        lastScrollPosition = scrollValue;
       }
     }
     
-    // Restore after all content is loaded
+    // Create a mutation observer to detect Vue updates
+    const observer = new MutationObserver(function(mutations) {
+      // Only restore if we're not at the saved position
+      if (Math.abs((window.scrollY || window.pageYOffset) - lastScrollPosition) > 50) {
+        restoreScrollPosition();
+      }
+    });
+    
+    // Start observing once DOM is ready
+    window.addEventListener('DOMContentLoaded', function() {
+      const resultsContainer = document.querySelector('.results-container');
+      if (resultsContainer) {
+        observer.observe(resultsContainer, {
+          childList: true,
+          subtree: true,
+          attributes: true
+        });
+      }
+      restoreScrollPosition();
+    });
+    
+    // Also restore on initial load
     window.addEventListener('load', restoreScrollPosition);
   </script>
   
