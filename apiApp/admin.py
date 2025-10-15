@@ -9,10 +9,11 @@ from .models import (
     StellarAccountStageExecution,
     BigQueryPipelineConfig,
 )
+from .helpers.sm_conn import CassandraConnectionsHelpers
 
 # Environment-based admin selection
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
-USE_CASSANDRA_ADMIN = (ENV == 'production')
+USE_CASSANDRA_ADMIN = (ENV in ['production', 'replit'])
 
 
 class CassandraAdminMixin:
