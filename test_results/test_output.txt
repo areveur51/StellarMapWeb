@@ -1,0 +1,72 @@
+Creating test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
+Found 341 test(s).
+Skipping setup of unused database(s): cassandra.
+Operations to perform:
+  Synchronize unmigrated apps: django_cassandra_engine, messages, staticfiles
+  Apply all migrations: admin, apiApp, auth, contenttypes, sessions
+Synchronizing apps without migrations:
+  Creating tables...
+    Running deferred SQL...
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying apiApp.0001_initial...Traceback (most recent call last):
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/apps/registry.py", line 158, in get_app_config
+    return self.app_configs[app_label]
+KeyError: 'apiApp'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/runner/workspace/manage.py", line 22, in <module>
+    main()
+  File "/home/runner/workspace/manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/__init__.py", line 436, in execute
+    self.fetch_command(subcommand).run_from_argv(self.argv)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/commands/test.py", line 24, in run_from_argv
+    super().run_from_argv(argv)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/base.py", line 413, in run_from_argv
+    self.execute(*args, **cmd_options)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/base.py", line 459, in execute
+    output = self.handle(*args, **options)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/commands/test.py", line 68, in handle
+    failures = test_runner.run_tests(test_labels)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/test/runner.py", line 1061, in run_tests
+    old_config = self.setup_databases(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/test/runner.py", line 959, in setup_databases
+    return _setup_databases(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/test/utils.py", line 203, in setup_databases
+    connection.creation.create_test_db(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/backends/base/creation.py", line 78, in create_test_db
+    call_command(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/__init__.py", line 194, in call_command
+    return command.execute(*args, **defaults)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/base.py", line 459, in execute
+    output = self.handle(*args, **options)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django_cassandra_engine/management/commands/migrate.py", line 13, in handle
+    return super(Command, self).handle(*args, **options)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/base.py", line 107, in wrapper
+    res = handle_func(*args, **kwargs)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/core/management/commands/migrate.py", line 356, in handle
+    post_migrate_state = executor.migrate(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/migrations/executor.py", line 135, in migrate
+    state = self._migrate_all_forwards(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/migrations/executor.py", line 167, in _migrate_all_forwards
+    state = self.apply_migration(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/migrations/executor.py", line 252, in apply_migration
+    state = migration.apply(state, schema_editor)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/migrations/migration.py", line 132, in apply
+    operation.database_forwards(
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/db/migrations/operations/models.py", line 94, in database_forwards
+    model = to_state.apps.get_model(app_label, self.name)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/apps/registry.py", line 208, in get_model
+    app_config = self.get_app_config(app_label)
+  File "/home/runner/workspace/.pythonlibs/lib/python3.10/site-packages/django/apps/registry.py", line 165, in get_app_config
+    raise LookupError(message)
+LookupError: No installed app with label 'apiApp'.

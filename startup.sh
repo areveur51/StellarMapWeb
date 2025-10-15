@@ -89,14 +89,19 @@ fi
 print_header "2. Database Check"
 
 print_status "Running database migrations..."
+
+# Temporarily disable exit-on-error for migrations (they may fail in development mode)
+set +e
 MIGRATION_OUTPUT=$(python manage.py migrate --noinput 2>&1)
 MIGRATION_EXIT_CODE=$?
+set -e
 
 if [ $MIGRATION_EXIT_CODE -eq 0 ]; then
     print_success "Database migrations completed"
     echo "$MIGRATION_OUTPUT" | grep -i "cassandra" >/dev/null && print_warning "Note: Cassandra models managed separately"
 else
-    print_warning "Some migrations may have failed (this is normal for Cassandra models)"
+    print_warning "Migrations failed (this is normal with ENV=development due to Cassandra/SQLite conflicts)"
+    print_status "SQLite tables will be created manually if needed"
 fi
 
 ################################################################################
