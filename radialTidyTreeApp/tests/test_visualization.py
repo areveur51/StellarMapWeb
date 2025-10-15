@@ -539,3 +539,144 @@ class ResponsiveDesignTest(TestCase):
         
         # Verify overflow handling
         self.assertContains(response, 'overflow: hidden', msg_prefix="Should hide overflow to prevent scroll bars")
+
+
+class SpacingSliderTest(TestCase):
+    """Test suite for spacing slider functionality"""
+    
+    def setUp(self):
+        self.client = Client()
+        
+    def test_spacing_slider_exists_on_tree_page(self):
+        """Test that spacing slider is rendered on /tree page"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        self.assertEqual(response.status_code, 200)
+        
+        # Check for slider element
+        self.assertContains(response, 'id="spacing-slider"')
+        self.assertContains(response, 'class="spacing-slider"')
+        
+        # Check for slider attributes
+        self.assertContains(response, 'min="0.5"')
+        self.assertContains(response, 'max="2"')
+        self.assertContains(response, 'step="0.1"')
+        self.assertContains(response, 'value="1"')
+        
+    def test_spacing_value_display_exists(self):
+        """Test that spacing value display element exists"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        self.assertContains(response, 'id="spacing-value"')
+        self.assertContains(response, '1.0x')
+        
+    def test_spacing_control_styling(self):
+        """Test that spacing control has proper cyberpunk styling"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check for cyberpunk-themed styling
+        self.assertContains(response, 'class="spacing-control"')
+        self.assertContains(response, 'SPACING:')
+        
+    def test_spacing_slider_javascript_initialization(self):
+        """Test that spacing slider JavaScript properly initializes"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check for global spacing multiplier variable
+        self.assertContains(response, 'window.nodeSpacingMultiplier')
+        
+        # Check for localStorage persistence
+        self.assertContains(response, 'localStorage.getItem(\'nodeSpacingMultiplier\')')
+        self.assertContains(response, 'localStorage.setItem(\'nodeSpacingMultiplier\'')
+        
+    def test_spacing_multiplier_validation(self):
+        """Test that spacing multiplier has proper validation"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check for validation logic
+        self.assertContains(response, '!isNaN(')
+        self.assertContains(response, '>= 0.5')
+        self.assertContains(response, '<= 2.0')
+        
+    def test_spacing_multiplier_applied_to_radial_tree(self):
+        """Test that spacing multiplier is read in radial tree rendering"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Check that renderRadialTree reads the spacing multiplier
+        self.assertIn('window.nodeSpacingMultiplier', tidytree_content)
+        
+        # Check that it's applied to separation function
+        self.assertIn('spacingMultiplier', tidytree_content)
+        self.assertIn('baseSeparation * spacingMultiplier', tidytree_content)
+        
+    def test_spacing_multiplier_applied_to_tidy_tree(self):
+        """Test that spacing multiplier is read in tidy tree rendering"""
+        tidytree_path = Path(__file__).parent.parent / 'static' / 'radialTidyTreeApp' / 'd3-3.2.2' / 'tidytree.js'
+        
+        with open(tidytree_path, 'r') as f:
+            tidytree_content = f.read()
+        
+        # Check that renderTidyTree reads the spacing multiplier
+        radial_tree_section = tidytree_content[tidytree_content.find('function renderRadialTree'):]
+        tidy_tree_section = tidytree_content[tidytree_content.find('function renderTidyTree'):]
+        
+        # Both functions should read window.nodeSpacingMultiplier
+        self.assertIn('window.nodeSpacingMultiplier', radial_tree_section)
+        self.assertIn('window.nodeSpacingMultiplier', tidy_tree_section)
+        
+    def test_slider_rerenders_tree_on_change(self):
+        """Test that slider change triggers tree re-rendering"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check for event listener
+        self.assertContains(response, 'spacingSlider.addEventListener(\'input\'')
+        
+        # Check that it calls render functions
+        self.assertContains(response, 'renderRadialTree(window.currentTreeData)')
+        self.assertContains(response, 'renderTidyTree(window.currentTreeData)')
+        
+    def test_spacing_control_position(self):
+        """Test that spacing control is positioned correctly"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check that it's within the visualization-controls container
+        self.assertContains(response, 'class="visualization-controls"')
+        self.assertContains(response, 'class="spacing-control"')
+        
+        # Check for separation from toggle
+        self.assertContains(response, 'border-top: 1px solid')
+        
+    def test_spacing_slider_range_bounds(self):
+        """Test that spacing slider enforces proper range bounds"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Verify min/max bounds are set correctly
+        content = response.content.decode('utf-8')
+        
+        # Find the slider input
+        slider_pattern = r'<input[^>]*id="spacing-slider"[^>]*>'
+        match = re.search(slider_pattern, content)
+        self.assertIsNotNone(match, "Spacing slider input should exist")
+        
+        slider_html = match.group(0)
+        self.assertIn('min="0.5"', slider_html)
+        self.assertIn('max="2"', slider_html)
+        
+    def test_console_logging_for_spacing_changes(self):
+        """Test that spacing changes are logged to console"""
+        response = self.client.get(reverse('radialTidyTreeApp:radial_tidy_tree'))
+        
+        # Check for console logging
+        self.assertContains(response, 'console.log(\'Spacing multiplier changed to:\'')
+        self.assertContains(response, 'console.log(\'Spacing changed: Re-rendered')
+        
+    def test_spacing_slider_on_search_page(self):
+        """Test that spacing slider is included on /search page"""
+        # Note: This test requires a valid account to be in the database for /search to work
+        # For now, we'll just test that the visualization toggle include is present
+        response = self.client.get('/search')
+        
+        # Check that visualization controls are included
+        self.assertContains(response, 'visualization-controls')
+        self.assertContains(response, 'spacing-slider')

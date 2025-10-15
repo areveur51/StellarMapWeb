@@ -40,7 +40,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Frontend Interactivity**: Django templates enhanced with Vue.js components for real-time updates and JSON viewing.
 
 ## Security and Monitoring
-- **Comprehensive Testing**: 122+ tests cover security, functionality, and monitoring.
+- **Comprehensive Testing**: 134+ tests cover security, functionality, visualization controls, and monitoring. Includes 12 spacing slider tests.
 - **Input Validation**: Multi-layer validation for Stellar addresses.
 - **Injection Prevention**: Robust measures against various injection types.
 - **API Security**: CSRF protection, Content-Type validation, query parameter security, and HTTP security headers.
