@@ -74,6 +74,10 @@ class BigQueryPipelineConfig(django_models.Model):
     class Meta:
         verbose_name = "BigQuery Pipeline Configuration"
         verbose_name_plural = "BigQuery Pipeline Configuration"
+        # Always use default database (SQLite), not Cassandra
+        # This is a Django admin config model, not a Cassandra model
+        db_table = 'bigquery_pipeline_config'
+        app_label = 'apiApp'
 
     def __str__(self):
         return f"BigQuery Pipeline Config (Cost Limit: ${self.cost_limit_usd}, Mode: {self.pipeline_mode})"
