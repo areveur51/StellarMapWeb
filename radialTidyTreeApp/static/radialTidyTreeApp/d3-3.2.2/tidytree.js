@@ -574,12 +574,12 @@ function renderTidyTree(jsonData) {
         const width = containerRect.width || window.innerWidth;
         const height = containerRect.height || window.innerHeight;
 
-        const margin = {top: 20, right: 200, bottom: 20, left: 60};
+        const margin = {top: 20, right: 150, bottom: 20, left: 60};
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
         
-        // Reduce horizontal spacing to 40% of available width for more compact layout
-        const treeWidth = innerWidth * 0.4;
+        // Use MORE horizontal space (80% of width) for wider tree spread
+        const treeWidth = innerWidth * 0.8;
 
         const svg = d3.select('#tree')
             .attr('width', '100%')
@@ -596,20 +596,16 @@ function renderTidyTree(jsonData) {
             .attr('class', 'breadcrumb-container')
             .attr('transform', 'translate(20, 20)');
 
-        // Calculate node size based on tree depth for better vertical spacing
         const root = d3.hierarchy(processedData);
-        const maxDepth = root.height || 1; // Prevent division by zero
-        const verticalSpacing = Math.max(30, Math.min(80, innerHeight / (root.descendants().length * 0.5)));
-        const horizontalSpacing = maxDepth > 0 ? treeWidth / maxDepth : treeWidth;
-        
         console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
-        console.log('Tree depth:', maxDepth, 'Vertical spacing:', verticalSpacing, 'Horizontal spacing:', horizontalSpacing);
+        console.log('Tree depth:', root.height);
 
+        // Use standard tree().size() for proper horizontal spread
         const tree = d3.tree()
-            .nodeSize([verticalSpacing, horizontalSpacing])
+            .size([innerHeight, treeWidth])
             .separation((a, b) => {
-                // Increase separation between sibling nodes (same parent)
-                return a.parent === b.parent ? 1.5 : 2;
+                // Reduce separation to keep vertical spacing tight
+                return a.parent === b.parent ? 0.8 : 1;
             });
 
         tree(root);

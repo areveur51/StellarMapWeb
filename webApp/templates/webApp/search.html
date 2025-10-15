@@ -49,28 +49,27 @@
   <script>
     // Save scroll position on scroll event
     window.addEventListener('scroll', function() {
-      sessionStorage.setItem('scrollPosition', window.scrollY);
-    });
+      const scrollPos = window.scrollY || window.pageYOffset;
+      sessionStorage.setItem('scrollPosition', scrollPos);
+      console.log('Scroll position saved:', scrollPos);
+    }, { passive: true });
     
     // Restore scroll position after content is fully loaded
     function restoreScrollPosition() {
       const savedScrollPosition = sessionStorage.getItem('scrollPosition');
-      if (savedScrollPosition !== null) {
-        // Use requestAnimationFrame to ensure DOM is painted
-        requestAnimationFrame(() => {
-          window.scrollTo({
-            top: parseInt(savedScrollPosition),
-            behavior: 'instant'
-          });
-          console.log('Scroll position restored to:', savedScrollPosition);
-        });
+      console.log('Attempting to restore scroll position:', savedScrollPosition);
+      
+      if (savedScrollPosition !== null && savedScrollPosition !== '0') {
+        // Use setTimeout to ensure all content is rendered
+        setTimeout(() => {
+          const scrollValue = parseInt(savedScrollPosition);
+          window.scrollTo(0, scrollValue);
+          console.log('Scroll position restored to:', scrollValue);
+        }, 100);
       }
     }
     
-    // Restore after DOM content is loaded
-    window.addEventListener('DOMContentLoaded', restoreScrollPosition);
-    
-    // Also restore after all images/content are loaded (backup)
+    // Restore after all content is loaded
     window.addEventListener('load', restoreScrollPosition);
   </script>
   
@@ -361,7 +360,11 @@
     
     // Visualization toggle logic (global function)
     let currentMode = localStorage.getItem('visualizationMode') || 'radial';
-    let currentTreeData = null;
+    
+    // Use window.currentTreeData for true global scope (accessible across all scripts)
+    if (typeof window.currentTreeData === 'undefined') {
+        window.currentTreeData = null;
+    }
     
     // Initialize toggle state from localStorage on page load
     window.addEventListener('DOMContentLoaded', function() {
@@ -386,16 +389,18 @@
             localStorage.setItem('visualizationMode', 'tidy');
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
-            if (currentTreeData && typeof renderTidyTree === 'function') {
-                renderTidyTree(currentTreeData);
+            if (window.currentTreeData && typeof renderTidyTree === 'function') {
+                renderTidyTree(window.currentTreeData);
+                console.log('Toggle: Switched to Tidy Tree with data');
             }
         } else {
             currentMode = 'radial';
             localStorage.setItem('visualizationMode', 'radial');
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
-            if (currentTreeData && typeof renderRadialTree === 'function') {
-                renderRadialTree(currentTreeData);
+            if (window.currentTreeData && typeof renderRadialTree === 'function') {
+                renderRadialTree(window.currentTreeData);
+                console.log('Toggle: Switched to Radial with data');
             }
         }
     }
