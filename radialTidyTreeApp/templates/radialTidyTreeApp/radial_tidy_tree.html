@@ -114,8 +114,13 @@
         // Securely parse tree data from context (escaped by Django) and assign to global window.currentTreeData
         window.currentTreeData = {{ tree_data | safe }};
         
-        // Initialize visualization with radial tree
-        renderRadialTree(window.currentTreeData);
+        // Initialize visualization based on saved mode in localStorage
+        const savedMode = localStorage.getItem('visualizationMode') || 'radial';
+        if (savedMode === 'tidy' && typeof renderTidyTree === 'function') {
+            renderTidyTree(window.currentTreeData);
+        } else {
+            renderRadialTree(window.currentTreeData);
+        }
     </script>
 </body>
 </html>

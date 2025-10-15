@@ -57,7 +57,14 @@
             
             // Add slider event listener
             spacingSlider.addEventListener('input', function() {
+                console.log('Slider input event fired, value:', this.value);
                 const newValue = parseFloat(this.value);
+                console.log('Parsed value:', newValue);
+                console.log('Current mode:', window.currentMode);
+                console.log('Current tree data exists:', !!window.currentTreeData);
+                console.log('renderRadialTree exists:', typeof renderRadialTree);
+                console.log('renderTidyTree exists:', typeof renderTidyTree);
+                
                 // Validate the new value
                 if (!isNaN(newValue) && newValue >= 0.5 && newValue <= 2.0) {
                     window.nodeSpacingMultiplier = newValue;
@@ -69,11 +76,15 @@
                     // Re-render the current tree with new spacing using global window.currentMode
                     if (window.currentTreeData) {
                         if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            console.log('About to call renderRadialTree...');
                             renderRadialTree(window.currentTreeData);
                             console.log('Spacing changed: Re-rendered radial tree with', window.nodeSpacingMultiplier + 'x spacing');
                         } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            console.log('About to call renderTidyTree...');
                             renderTidyTree(window.currentTreeData);
                             console.log('Spacing changed: Re-rendered tidy tree with', window.nodeSpacingMultiplier + 'x spacing');
+                        } else {
+                            console.error('Cannot determine which render function to call');
                         }
                     } else {
                         console.warn('Spacing changed but no tree data available to re-render');
