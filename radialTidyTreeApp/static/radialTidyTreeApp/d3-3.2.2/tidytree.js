@@ -300,8 +300,29 @@ function renderRadialTree(jsonData) {
             
         svg.selectAll('*').remove();
 
+        // Create main group for zoom/pan transformations
         const g = svg.append('g')
             .attr('transform', `translate(${size / 2},${size / 2})`);
+        
+        // Set up D3 zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .on('zoom', (event) => {
+                g.attr('transform', `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`);
+            });
+        
+        // Apply zoom to SVG
+        svg.call(zoom);
+        
+        // Store zoom and SVG in global scope for zoom controls
+        window.zoomBehavior = zoom;
+        window.svg = svg;
+        
+        // Reset zoom function for "Fit to Window" button
+        window.resetZoom = function() {
+            svg.transition().duration(750)
+                .call(zoom.transform, d3.zoomIdentity);
+        };
 
         const breadcrumbContainer = svg.append('g')
             .attr('class', 'breadcrumb-container')
@@ -600,8 +621,29 @@ function renderTidyTree(jsonData) {
             
         svg.selectAll('*').remove();
 
+        // Create main group for zoom/pan transformations
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
+        
+        // Set up D3 zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .on('zoom', (event) => {
+                g.attr('transform', `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+            });
+        
+        // Apply zoom to SVG
+        svg.call(zoom);
+        
+        // Store zoom and SVG in global scope for zoom controls
+        window.zoomBehavior = zoom;
+        window.svg = svg;
+        
+        // Reset zoom function for "Fit to Window" button
+        window.resetZoom = function() {
+            svg.transition().duration(750)
+                .call(zoom.transform, d3.zoomIdentity);
+        };
 
         const breadcrumbContainer = svg.append('g')
             .attr('class', 'breadcrumb-container')
