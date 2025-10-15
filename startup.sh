@@ -105,13 +105,28 @@ fi
 
 print_header "3. Restarting Application"
 
-print_status "Note: Workflows are managed by Replit and will auto-restart"
+print_status "Restarting Django Server to pick up environment changes..."
+
+# Kill existing Django server process (Replit will auto-restart it)
+pkill -f "manage.py runserver" || print_status "No existing Django process found"
+
+# Wait for workflow to auto-restart
+print_status "Waiting for Django server to restart..."
+sleep 5
+
+# Verify server is starting up
+if pgrep -f "manage.py runserver" > /dev/null; then
+    print_success "Django Server restarted successfully"
+else
+    print_warning "Django Server may still be starting..."
+fi
+
 print_status "Current workflows:"
-echo "  - Django Server (port 5000)"
+echo "  - Django Server (port 5000) - Restarted"
 echo "  - BigQuery Pipeline"
 
 sleep 2
-print_success "Application restart initiated"
+print_success "Application restart completed"
 
 ################################################################################
 # Step 4: Run Test Suite

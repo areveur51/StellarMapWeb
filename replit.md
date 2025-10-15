@@ -64,6 +64,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Security Policy**: SECURITY.md with vulnerability reporting procedures, known issues, and production deployment checklist.
 - **GitHub Actions**: Automated CI workflow for testing, linting, security audits, and deployment checks across Python 3.10 and 3.11.
 - **Environment Configuration**: Complete .env.example with all required variables for easy setup.
+- **Startup Script**: `startup.sh` automatically restarts Django server to pick up ENV secret changes. Running `./startup.sh` after changing ENV (development/replit/production) ensures immediate database switching (SQLite ↔ Cassandra).
 
 # External Dependencies
 
