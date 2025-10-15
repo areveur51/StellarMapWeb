@@ -19,7 +19,10 @@
 
 <script>
     // Shared visualization toggle logic with localStorage persistence
-    let currentMode = localStorage.getItem('visualizationMode') || 'radial';
+    // Use window.currentMode for true global scope (accessible by both toggle and slider)
+    if (typeof window.currentMode === 'undefined') {
+        window.currentMode = localStorage.getItem('visualizationMode') || 'radial';
+    }
     
     // Global spacing multiplier (persisted in localStorage) with validation
     const savedSpacing = localStorage.getItem('nodeSpacingMultiplier');
@@ -38,8 +41,8 @@
         const spacingSlider = document.getElementById('spacing-slider');
         const spacingValue = document.getElementById('spacing-value');
         
-        // Initialize toggle
-        if (currentMode === 'tidy') {
+        // Initialize toggle using global window.currentMode
+        if (window.currentMode === 'tidy') {
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
         } else {
@@ -63,12 +66,12 @@
                     
                     console.log('Spacing multiplier changed to:', window.nodeSpacingMultiplier);
                     
-                    // Re-render the current tree with new spacing
+                    // Re-render the current tree with new spacing using global window.currentMode
                     if (window.currentTreeData) {
-                        if (currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
                             renderRadialTree(window.currentTreeData);
                             console.log('Spacing changed: Re-rendered radial tree with', window.nodeSpacingMultiplier + 'x spacing');
-                        } else if (currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
                             renderTidyTree(window.currentTreeData);
                             console.log('Spacing changed: Re-rendered tidy tree with', window.nodeSpacingMultiplier + 'x spacing');
                         }
@@ -86,8 +89,9 @@
         const toggleSwitch = document.getElementById('layout-toggle');
         const modeIndicator = document.getElementById('mode-indicator');
         
-        if (currentMode === 'radial') {
-            currentMode = 'tidy';
+        // Use global window.currentMode for consistency
+        if (window.currentMode === 'radial') {
+            window.currentMode = 'tidy';
             localStorage.setItem('visualizationMode', 'tidy');
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
@@ -96,7 +100,7 @@
                 console.log('Toggle: Switched to Tidy Tree with data');
             }
         } else {
-            currentMode = 'radial';
+            window.currentMode = 'radial';
             localStorage.setItem('visualizationMode', 'radial');
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
