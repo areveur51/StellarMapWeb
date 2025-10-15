@@ -574,12 +574,12 @@ function renderTidyTree(jsonData) {
         const width = containerRect.width || window.innerWidth;
         const height = containerRect.height || window.innerHeight;
 
-        const margin = {top: 20, right: 150, bottom: 20, left: 60};
+        const margin = {top: 20, right: 250, bottom: 20, left: 60};  // Increased right margin to prevent text overflow
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
         
-        // Use MORE horizontal space (80% of width) for wider tree spread
-        const treeWidth = innerWidth * 0.8;
+        // Use 70% of width to leave room for text labels
+        const treeWidth = innerWidth * 0.7;
 
         const svg = d3.select('#tree')
             .attr('width', '100%')
@@ -609,6 +609,22 @@ function renderTidyTree(jsonData) {
             });
 
         tree(root);
+        
+        // Calculate dynamic horizontal positions based on child count
+        // More children = longer lines (spread further right), fewer children = shorter lines
+        const maxDepth = root.height || 1;
+        const baseSpacing = treeWidth / maxDepth;
+        
+        root.descendants().forEach(d => {
+            if (d.parent) {
+                const childCount = d.parent.children ? d.parent.children.length : 1;
+                // Scale factor: more children = longer lines (up to 1.5x), fewer = shorter (down to 0.6x)
+                const scaleFactor = Math.min(1.5, Math.max(0.6, 0.5 + (childCount / 20)));
+                d.y = d.parent.y + (baseSpacing * scaleFactor);
+            } else {
+                d.y = 0;  // Root at origin
+            }
+        });
 
         // Center the tree vertically by finding min/max y coordinates
         const descendants = root.descendants();
@@ -655,10 +671,10 @@ function renderTidyTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', '14px')  // Increased from 13px for better readability
-            .style('font-weight', '600')  // Increased from 500 for better readability
-            .style('text-shadow', '2px 2px 4px rgba(0,0,0,0.9)')  // Enhanced shadow for better contrast
-            .style('letter-spacing', '0.3px');  // Added letter spacing for clarity
+            .style('font-size', '13px')  // Reduced from 14px for less thickness
+            .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
+            .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
+            .style('letter-spacing', '0.5px');  // Slightly increased letter spacing for clarity
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {
