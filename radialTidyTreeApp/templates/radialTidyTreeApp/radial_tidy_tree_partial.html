@@ -21,8 +21,25 @@
                 currentTreeData = JSON.parse(treeDataEl.textContent);
                 console.log('Processing tree data:', currentTreeData);
                 console.log('Tree has', currentTreeData.children ? currentTreeData.children.length : 0, 'children');
-                renderRadialTree(currentTreeData);
-                console.log('Radial tree rendered successfully');
+                
+                // Check saved visualization mode from localStorage
+                const savedMode = localStorage.getItem('visualizationMode') || 'radial';
+                
+                // Update toggle UI to match saved preference
+                const toggleSwitch = document.getElementById('layout-toggle');
+                const modeIndicator = document.getElementById('mode-indicator');
+                
+                if (savedMode === 'tidy' && typeof renderTidyTree === 'function') {
+                    if (toggleSwitch) toggleSwitch.classList.add('active');
+                    if (modeIndicator) modeIndicator.textContent = 'Tidy Tree';
+                    renderTidyTree(currentTreeData);
+                    console.log('Tidy tree rendered from saved preference');
+                } else {
+                    if (toggleSwitch) toggleSwitch.classList.remove('active');
+                    if (modeIndicator) modeIndicator.textContent = 'Radial';
+                    renderRadialTree(currentTreeData);
+                    console.log('Radial tree rendered successfully');
+                }
             } else {
                 // Retry after a short delay if not ready yet
                 setTimeout(renderTreeWhenReady, 100);

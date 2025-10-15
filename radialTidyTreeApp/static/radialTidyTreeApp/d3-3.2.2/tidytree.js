@@ -596,13 +596,30 @@ function renderTidyTree(jsonData) {
             .attr('class', 'breadcrumb-container')
             .attr('transform', 'translate(20, 20)');
 
-        const tree = d3.tree()
-            .size([innerHeight, treeWidth]);
-
+        // Calculate node size based on tree depth for better vertical spacing
         const root = d3.hierarchy(processedData);
+        const maxDepth = root.height || 1; // Prevent division by zero
+        const verticalSpacing = Math.max(30, Math.min(80, innerHeight / (root.descendants().length * 0.5)));
+        const horizontalSpacing = maxDepth > 0 ? treeWidth / maxDepth : treeWidth;
+        
         console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
+        console.log('Tree depth:', maxDepth, 'Vertical spacing:', verticalSpacing, 'Horizontal spacing:', horizontalSpacing);
+
+        const tree = d3.tree()
+            .nodeSize([verticalSpacing, horizontalSpacing])
+            .separation((a, b) => {
+                // Increase separation between sibling nodes (same parent)
+                return a.parent === b.parent ? 1.5 : 2;
+            });
 
         tree(root);
+
+        // Center the tree vertically by finding min/max y coordinates
+        const descendants = root.descendants();
+        const minY = d3.min(descendants, d => d.x);
+        const maxY = d3.max(descendants, d => d.x);
+        const treeHeight = maxY - minY;
+        const yOffset = (innerHeight - treeHeight) / 2 - minY;
 
         const link = g.selectAll('.link')
             .data(root.links())
@@ -610,17 +627,17 @@ function renderTidyTree(jsonData) {
             .attr('class', 'link')
             .attr('d', d3.linkHorizontal()
                 .x(d => d.y)
-                .y(d => d.x))
+                .y(d => d.x + yOffset))
             .style('stroke', '#3f2c70')
             .style('stroke-width', '1.5px')
             .style('fill', 'none')
             .style('opacity', 0.6);
 
         const node = g.selectAll('.node')
-            .data(root.descendants())
+            .data(descendants)
             .enter().append('g')
             .attr('class', 'node')
-            .attr('transform', d => `translate(${d.y},${d.x})`);
+            .attr('transform', d => `translate(${d.y},${d.x + yOffset})`);
 
         node.append('circle')
             .attr('r', 5)
