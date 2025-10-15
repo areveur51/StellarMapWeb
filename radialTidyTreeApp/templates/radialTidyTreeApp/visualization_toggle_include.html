@@ -34,8 +34,8 @@
         window.currentTreeData = null;
     }
     
-    // Initialize toggle state and slider from localStorage on page load
-    window.addEventListener('DOMContentLoaded', function() {
+    // Function to initialize controls (will be called by main page after rendering)
+    window.initializeVisualizationControls = function() {
         const toggleSwitch = document.getElementById('layout-toggle');
         const modeIndicator = document.getElementById('mode-indicator');
         const spacingSlider = document.getElementById('spacing-slider');
@@ -52,6 +52,7 @@
         
         // Initialize slider
         if (spacingSlider && spacingValue) {
+            console.log('Spacing slider found, initializing...');
             spacingSlider.value = window.nodeSpacingMultiplier;
             spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
             
@@ -93,8 +94,11 @@
                     console.error('Invalid spacing value:', newValue);
                 }
             });
+            console.log('Spacing slider event listener attached successfully');
+        } else {
+            console.error('Spacing slider or value element not found!');
         }
-    });
+    };
     
     function toggleVisualizationMode() {
         const toggleSwitch = document.getElementById('layout-toggle');

@@ -117,9 +117,16 @@
         // Initialize visualization based on saved mode in localStorage
         const savedMode = localStorage.getItem('visualizationMode') || 'radial';
         if (savedMode === 'tidy' && typeof renderTidyTree === 'function') {
+            window.currentMode = 'tidy';  // Ensure currentMode matches the render choice
             renderTidyTree(window.currentTreeData);
         } else {
+            window.currentMode = 'radial';  // Ensure currentMode matches the render choice
             renderRadialTree(window.currentTreeData);
+        }
+        
+        // Initialize controls AFTER rendering to ensure everything is synced
+        if (typeof window.initializeVisualizationControls === 'function') {
+            window.initializeVisualizationControls();
         }
     </script>
 </body>
