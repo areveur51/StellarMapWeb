@@ -505,3 +505,250 @@ function renderRadialTree(jsonData) {
         }
     }
 }
+
+// Global function to render left-to-right tidy tree with data
+function renderTidyTree(jsonData) {
+    try {
+        const existingSvg = document.querySelector('#tree');
+        if (existingSvg) {
+            existingSvg.innerHTML = '';
+        }
+
+        let processedData;
+        if (jsonData && typeof jsonData === 'object') {
+            if (jsonData.name || jsonData.children || jsonData.stellar_account) {
+                processedData = jsonData;
+            } else {
+                processedData = {
+                    name: jsonData.stellar_account || 'Root Node',
+                    node_type: jsonData.node_type || 'ACCOUNT',
+                    created: jsonData.created || new Date().toISOString(),
+                    children: jsonData.children || []
+                };
+            }
+        } else {
+            processedData = {
+                name: 'Sample Root',
+                node_type: 'ACCOUNT',
+                created: '2015-09-30 13:15:54',
+                children: []
+            };
+        }
+
+        console.log('Processing tidy tree data:', processedData);
+
+        const container = document.querySelector('.visualization-container') || document.body;
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || window.innerWidth;
+        const height = containerRect.height || window.innerHeight;
+
+        const margin = {top: 20, right: 120, bottom: 20, left: 120};
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+
+        const svg = d3.select('#tree')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
+            
+        svg.selectAll('*').remove();
+
+        const g = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+
+        const breadcrumbContainer = svg.append('g')
+            .attr('class', 'breadcrumb-container')
+            .attr('transform', 'translate(20, 20)');
+
+        const tree = d3.tree()
+            .size([innerHeight, innerWidth]);
+
+        const root = d3.hierarchy(processedData);
+        console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
+
+        tree(root);
+
+        const link = g.selectAll('.link')
+            .data(root.links())
+            .enter().append('path')
+            .attr('class', 'link')
+            .attr('d', d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x))
+            .style('stroke', '#3f2c70')
+            .style('stroke-width', '1.5px')
+            .style('fill', 'none')
+            .style('opacity', 0.6);
+
+        const node = g.selectAll('.node')
+            .data(root.descendants())
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.y},${d.x})`);
+
+        node.append('circle')
+            .attr('r', 5)
+            .attr('data-node-type', d => d.data.node_type)
+            .style('fill', '#3f2c70')
+            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
+            .style('stroke-width', '2px')
+            .on('mouseover', function(event, d) { showTidyTooltip(event, d); })
+            .on('mouseout', function(event, d) { hideTidyTooltip(); });
+
+        node.append('text')
+            .attr('dy', '0.31em')
+            .attr('x', d => d.children ? -12 : 12)
+            .attr('text-anchor', d => d.children ? 'end' : 'start')
+            .text(d => {
+                if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
+                    return d.data.stellar_account.slice(-7);
+                }
+                return d.data.asset_code || d.data.name || 'Unnamed';
+            })
+            .style('fill', 'white')
+            .style('font-size', '13px')
+            .style('font-weight', '500')
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
+
+        let tooltip = d3.select('body').select('.tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0)
+                .style('position', 'absolute')
+                .style('color', 'black')
+                .style('padding', '10px')
+                .style('border-radius', '6px')
+                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
+                .style('font', '12px sans-serif')
+                .style('width', '250px')
+                .style('word-wrap', 'break-word')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+        }
+
+        function getPathToRoot(node) {
+            const path = [];
+            let current = node;
+            while (current) {
+                path.unshift(current);
+                current = current.parent;
+            }
+            return path;
+        }
+
+        function showTidyTooltip(event, d) {
+            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
+            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
+            
+            const pathToRoot = getPathToRoot(d);
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
+            }
+            
+            link.style('stroke', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '3px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? 1 : 0.3;
+            });
+
+            breadcrumbContainer.selectAll('*').remove();
+            
+            let xOffset = 0;
+            pathToRoot.forEach((node, i) => {
+                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+                let breadcrumbText;
+                if (node.data.stellar_account && node.data.node_type === 'ISSUER') {
+                    breadcrumbText = node.data.stellar_account.slice(-7);
+                } else {
+                    breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
+                }
+                const textWidth = breadcrumbText.length * 7;
+                
+                breadcrumbContainer.append('rect')
+                    .attr('x', xOffset)
+                    .attr('y', 0)
+                    .attr('width', textWidth + 20)
+                    .attr('height', 25)
+                    .attr('fill', breadcrumbColor)
+                    .attr('rx', 4);
+                
+                breadcrumbContainer.append('text')
+                    .attr('x', xOffset + 10)
+                    .attr('y', 17)
+                    .text(breadcrumbText)
+                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold');
+                
+                xOffset += textWidth + 25;
+                
+                if (i < pathToRoot.length - 1) {
+                    breadcrumbContainer.append('text')
+                        .attr('x', xOffset)
+                        .attr('y', 17)
+                        .text('>')
+                        .style('fill', 'white')
+                        .style('font-size', '14px')
+                        .style('font-weight', 'bold');
+                    xOffset += 20;
+                }
+            });
+            
+            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
+            if (d.data.node_type === 'ASSET') {
+                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
+                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
+                tooltipHTML += '<b>Balance:</b> ' + (d.data.balance || '0') + '<br>';
+            } else {
+                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
+                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
+                tooltipHTML += '<b>XLM Balance:</b> ' + (d.data.xlm_balance || '0') + '<br>';
+                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
+            }
+            tooltip.html(tooltipHTML)
+                .style('background', backgroundColor)
+                .style('color', textColor)
+                .style('opacity', 1)
+                .style('left', (event.pageX + 10) + 'px')
+                .style('top', (event.pageY - 28) + 'px');
+        }
+
+        function hideTidyTooltip() {
+            tooltip.style('opacity', 0);
+            
+            link.style('stroke', '#3f2c70')
+                .style('stroke-width', '1.5px')
+                .style('opacity', 0.6);
+            
+            breadcrumbContainer.selectAll('*').remove();
+        }
+
+        console.log('Tidy tree rendered successfully');
+        
+    } catch (error) {
+        console.error('Error rendering tidy tree:', error);
+        
+        const svg = d3.select('#tree');
+        if (!svg.empty()) {
+            svg.selectAll('*').remove();
+            svg.append('text')
+                .attr('x', 400)
+                .attr('y', 400)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .style('fill', '#666')
+                .text('Tree visualization unavailable');
+        }
+    }
+}
