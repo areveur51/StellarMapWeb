@@ -2,125 +2,12 @@
 {% load static %}
 
 <style>
-    .radial-tree-visual {
-        position: relative !important;
-        overflow: visible !important;
-    }
-    
     #radial-tree-container {
         position: relative;
         width: 100%;
         height: 800px;
     }
-    
-    /* Visualization Toggle Styles */
-    .visualization-toggle {
-        position: fixed !important;
-        top: 100px !important;
-        right: 30px !important;
-        z-index: 99999 !important;
-        background: red !important;  /* TEMP: Bright color for debugging */
-        border: 5px solid yellow !important;
-        border-radius: 25px;
-        padding: 15px 20px;
-        display: flex !important;
-        align-items: center;
-        gap: 15px;
-        box-shadow: 0 0 20px rgba(150, 221, 242, 0.3);
-        transition: all 0.3s ease;
-    }
-    
-    .visualization-toggle:hover {
-        box-shadow: 0 0 30px rgba(150, 221, 242, 0.5);
-        border-color: #0BE784;
-    }
-    
-    .toggle-label {
-        color: #96DDF2;
-        font-weight: 600;
-        font-size: 0.9em;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    .toggle-switch {
-        position: relative;
-        width: 60px;
-        height: 28px;
-        background: rgba(150, 221, 242, 0.2);
-        border-radius: 14px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: 1px solid #96DDF2;
-    }
-    
-    .toggle-switch:hover {
-        background: rgba(150, 221, 242, 0.3);
-        box-shadow: 0 0 15px rgba(150, 221, 242, 0.4);
-    }
-    
-    .toggle-slider {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 22px;
-        height: 22px;
-        background: linear-gradient(135deg, #96DDF2, #0BE784);
-        border-radius: 50%;
-        transition: all 0.3s ease;
-        box-shadow: 0 0 10px rgba(150, 221, 242, 0.5);
-    }
-    
-    .toggle-switch.active .toggle-slider {
-        transform: translateX(32px);
-        background: linear-gradient(135deg, #0BE784, #96DDF2);
-    }
-    
-    .mode-indicator {
-        color: #0BE784;
-        font-weight: 700;
-        font-size: 0.95em;
-        min-width: 80px;
-        text-align: right;
-        text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
-    }
 </style>
-
-<!-- Visualization Toggle (embedded directly for /search compatibility) -->
-<div class="visualization-toggle">
-    <span class="toggle-label">Layout:</span>
-    <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()">
-        <div class="toggle-slider"></div>
-    </div>
-    <span class="mode-indicator" id="mode-indicator">Radial</span>
-</div>
-
-<script>
-    // Shared visualization toggle logic
-    let currentMode = 'radial';
-    let currentTreeData = null;
-    
-    function toggleVisualizationMode() {
-        const toggleSwitch = document.getElementById('layout-toggle');
-        const modeIndicator = document.getElementById('mode-indicator');
-        
-        if (currentMode === 'radial') {
-            currentMode = 'tidy';
-            toggleSwitch.classList.add('active');
-            modeIndicator.textContent = 'Tidy Tree';
-            if (currentTreeData && typeof renderTidyTree === 'function') {
-                renderTidyTree(currentTreeData);
-            }
-        } else {
-            currentMode = 'radial';
-            toggleSwitch.classList.remove('active');
-            modeIndicator.textContent = 'Radial';
-            if (currentTreeData && typeof renderRadialTree === 'function') {
-                renderRadialTree(currentTreeData);
-            }
-        }
-    }
-</script>
 
 <div id="radial-tree-container">
     <svg id="tree" width="800" height="800"></svg>
