@@ -203,8 +203,32 @@
     <script>
         // Securely parse tree data from context (escaped by Django)
         const treeData = {{ tree_data | safe }};
-        // Call render function from radial_tidy_tree.js (assumed defined)
-        renderRadialTree(treeData);  // Efficient: Render once on load
+        
+        // Track current layout mode (default: radial)
+        let currentLayout = 'radial';
+        
+        // Initialize visualization with radial tree
+        renderRadialTree(treeData);
+        
+        // Toggle functionality
+        const toggleSwitch = document.getElementById('layoutToggle');
+        const modeText = document.getElementById('modeText');
+        
+        toggleSwitch.addEventListener('click', function() {
+            // Toggle the switch UI
+            toggleSwitch.classList.toggle('active');
+            
+            // Switch between layouts
+            if (currentLayout === 'radial') {
+                currentLayout = 'tidy';
+                modeText.textContent = 'Tidy Tree';
+                renderTidyTree(treeData);
+            } else {
+                currentLayout = 'radial';
+                modeText.textContent = 'Radial';
+                renderRadialTree(treeData);
+            }
+        });
     </script>
 </body>
 </html>
