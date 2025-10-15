@@ -7,7 +7,7 @@ from apiApp.managers import StellarAccountSearchCacheManager, StellarCreatorAcco
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.helpers.sm_cache import StellarMapCacheHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
-from apiApp.models import (
+from apiApp.model_loader import (
     PENDING_MAKE_PARENT_LINEAGE,
     IN_PROGRESS_MAKE_PARENT_LINEAGE,
     DONE_MAKE_PARENT_LINEAGE,

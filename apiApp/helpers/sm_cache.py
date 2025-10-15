@@ -1,13 +1,14 @@
 # apiApp/helpers/sm_cache.py
 import datetime
 import json
-from apiApp.models import (
+from apiApp.model_loader import (
     StellarAccountSearchCache, 
     StellarCreatorAccountLineage,
     PENDING,
     PROCESSING,
     COMPLETE,
     BIGQUERY_COMPLETE,
+    USE_CASSANDRA,
 )
 
 

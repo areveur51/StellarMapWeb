@@ -6,7 +6,7 @@ from apiApp.helpers.sm_async import StellarMapAsyncHelpers
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
-from apiApp.models import DONE_UPDATING_FROM_OPERATIONS_RAW_DATA, IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE, DONE_GRANDPARENT_LINEAGE
+from apiApp.model_loader import DONE_UPDATING_FROM_OPERATIONS_RAW_DATA, IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE, DONE_GRANDPARENT_LINEAGE
 
 logger = logging.getLogger(__name__)
 

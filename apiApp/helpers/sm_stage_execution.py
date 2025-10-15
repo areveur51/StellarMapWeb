@@ -1,4 +1,4 @@
-from apiApp.models import StellarAccountStageExecution
+from apiApp.model_loader import StellarAccountStageExecution
 
 
 STAGE_DEFINITIONS = [

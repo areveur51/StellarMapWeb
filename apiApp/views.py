@@ -33,11 +33,12 @@ def pending_accounts_api(request):
     """
     pending_accounts_data = []
     try:
-        from apiApp.models import (
+        from apiApp.model_loader import (
             StellarCreatorAccountLineage,
             PENDING,
             PROCESSING,
             STUCK_THRESHOLD_MINUTES,
+            USE_CASSANDRA,
         )
         from datetime import datetime
         
@@ -55,12 +56,26 @@ def pending_accounts_api(request):
             return int(age_delta.total_seconds() / 60)
         
         # Fetch PENDING and PROCESSING records only
-        try:
-            # Try Django ORM syntax (SQLite)
+        if USE_CASSANDRA:
+            # Cassandra query - cannot filter by status (not part of primary key)
+            # Must fetch all and filter in Python
+            records = StellarCreatorAccountLineage.objects.all()
+            for record in records:
+                if record.status in [PENDING, PROCESSING]:
+                    age_mins = calculate_age_minutes(record.updated_at)
+                    pending_accounts_data.append({
+                        'stellar_account': record.stellar_account,
+                        'network_name': record.network_name,
+                        'status': record.status,
+                        'created_at': convert_timestamp(record.created_at),
+                        'updated_at': convert_timestamp(record.updated_at),
+                        'age_minutes': age_mins,
+                        'is_stuck': age_mins >= STUCK_THRESHOLD_MINUTES,
+                        'retry_count': record.retry_count if record.retry_count else 0,
+                    })
+        else:
+            # SQL query - can use filter
             records = list(StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING]))
-        except AttributeError:
-            # Fall back to Cassandra syntax
-            records = StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING]).all()
             for record in records:
                 age_mins = calculate_age_minutes(record.updated_at)
                 pending_accounts_data.append({
@@ -73,8 +88,6 @@ def pending_accounts_api(request):
                     'is_stuck': age_mins >= STUCK_THRESHOLD_MINUTES,
                     'retry_count': record.retry_count if record.retry_count else 0,
                 })
-        except Exception as e:
-            sentry_sdk.capture_exception(e)
                 
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -121,7 +134,7 @@ def stage_executions_api(request):
     
     stage_executions_data = []
     try:
-        from apiApp.models import StellarAccountStageExecution
+        from apiApp.model_loader import StellarAccountStageExecution, USE_CASSANDRA
         from datetime import datetime
         
         def convert_timestamp(ts):
@@ -134,19 +147,18 @@ def stage_executions_api(request):
             return str(ts)
         
         # Fetch stage executions for the specific address and network
-        # Order by created_at DESC and stage_number to show latest executions first
-        try:
-            # Try Django ORM syntax first (SQLite)
-            records = StellarAccountStageExecution.objects.filter(
-                stellar_account=account,
-                network_name=network
-            ).order_by('-created_at')[:100]
-        except AttributeError:
-            # Fall back to Cassandra syntax
+        if USE_CASSANDRA:
+            # Cassandra query - partition key (stellar_account, network_name) allows direct filtering
             records = StellarAccountStageExecution.objects.filter(
                 stellar_account=account,
                 network_name=network
             ).limit(100)
+        else:
+            # SQL query - can use order_by
+            records = StellarAccountStageExecution.objects.filter(
+                stellar_account=account,
+                network_name=network
+            ).order_by('-created_at')[:100]
         
         # Convert to list and sort by stage_number and created_at (latest first)
         records_list = list(records)
@@ -233,7 +245,7 @@ def account_lineage_api(request):
         }, status=400)
     
     try:
-        from apiApp.models import StellarCreatorAccountLineage
+        from apiApp.model_loader import StellarCreatorAccountLineage, USE_CASSANDRA
         from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
         from datetime import datetime
         import json
@@ -270,19 +282,19 @@ def account_lineage_api(request):
                             if account_age > timedelta(days=365):
                                 logger.info(f"Account {account} is {account_age.days} days old (>1 year) - checking for existing data")
                                 # Check if lineage data already exists in database
-                                try:
-                                    # Try Django ORM syntax (SQLite)
-                                    existing = StellarCreatorAccountLineage.objects.filter(
-                                        stellar_account=account,
-                                        network_name=network
-                                    ).first()
-                                except AttributeError:
-                                    # Fall back to Cassandra syntax
+                                if USE_CASSANDRA:
+                                    # Cassandra query
                                     existing = list(StellarCreatorAccountLineage.objects.filter(
                                         stellar_account=account,
                                         network_name=network
                                     ).limit(1))
                                     existing = existing[0] if existing else None
+                                else:
+                                    # SQL query
+                                    existing = StellarCreatorAccountLineage.objects.filter(
+                                        stellar_account=account,
+                                        network_name=network
+                                    ).first()
 
                                 if existing and existing.status == 'BIGQUERY_COMPLETE':
                                     # Data exists - skip BigQuery and use database directly
@@ -370,19 +382,19 @@ def account_lineage_api(request):
 
                         # Queue account for background processing
                         try:
-                            try:
-                                # Try Django ORM syntax (SQLite)
-                                existing = StellarCreatorAccountLineage.objects.filter(
-                                    stellar_account=account,
-                                    network_name=network
-                                ).first()
-                            except AttributeError:
-                                # Fall back to Cassandra syntax
+                            if USE_CASSANDRA:
+                                # Cassandra query
                                 existing_list = list(StellarCreatorAccountLineage.objects.filter(
                                     stellar_account=account,
                                     network_name=network
                                 ).limit(1))
                                 existing = existing_list[0] if existing_list else None
+                            else:
+                                # SQL query
+                                existing = StellarCreatorAccountLineage.objects.filter(
+                                    stellar_account=account,
+                                    network_name=network
+                                ).first()
 
                             if not existing:
                                 StellarCreatorAccountLineage.objects.create(
@@ -430,15 +442,15 @@ def account_lineage_api(request):
             visited_accounts.add(current_account)
             
             # Fetch lineage record for current account
-            try:
-                # Try Django ORM syntax (SQLite)
+            if USE_CASSANDRA:
+                # Cassandra query
                 lineage_records = list(StellarCreatorAccountLineage.objects.filter(
                     stellar_account=current_account,
                     network_name=network
                 ))
-            except AttributeError:
-                # Fall back to Cassandra syntax
-                lineage_records = StellarCreatorAccountLineage.objects.filter(
+            else:
+                # SQL query
+                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
                     stellar_account=current_account,
                     network_name=network
                 ).all()
@@ -496,18 +508,17 @@ def account_lineage_api(request):
 
         for account_addr in all_records:
             try:
-                try:
-                    # Try Django ORM syntax (SQLite)
+                if USE_CASSANDRA:
+                    # Cassandra query - cannot filter by stellar_creator_account (not in primary key)
+                    # Must fetch all and filter in Python
+                    all_lineage = StellarCreatorAccountLineage.objects.all()
+                    child_records = [r for r in all_lineage if r.stellar_creator_account == account_addr and r.network_name == network]
+                else:
+                    # SQL query
                     child_records = list(StellarCreatorAccountLineage.objects.filter(
                         stellar_creator_account=account_addr,
                         network_name=network
                     ))
-                except AttributeError:
-                    # Fall back to Cassandra syntax
-                    child_records = StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=account_addr,
-                        network_name=network
-                    ).all()
 
                 for child in child_records:
                     if child.stellar_account in all_records:
@@ -741,27 +752,30 @@ def retry_failed_account_api(request):
         }, status=400)
     
     try:
-        from apiApp.models import StellarCreatorAccountLineage, FAILED
+        from apiApp.model_loader import StellarCreatorAccountLineage, FAILED, USE_CASSANDRA
         RE_INQUIRY = 'RE_INQUIRY'  # Define locally since it might not be in models
         from datetime import datetime
         
         # Find the FAILED record
         try:
-            try:
-                # Try Django ORM syntax (SQLite)
+            if USE_CASSANDRA:
+                # Cassandra query - must fetch all and filter (status not in primary key)
+                all_records = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network
+                )
+                record = None
+                for r in all_records:
+                    if r.status == FAILED:
+                        record = r
+                        break
+            else:
+                # SQL query
                 record = StellarCreatorAccountLineage.objects.filter(
                     stellar_account=account,
                     network_name=network,
                     status=FAILED
                 ).first()
-            except AttributeError:
-                # Fall back to Cassandra syntax
-                record_list = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=account,
-                    network_name=network,
-                    status=FAILED
-                ).limit(1))
-                record = record_list[0] if record_list else None
             
             if not record:
                 return JsonResponse({

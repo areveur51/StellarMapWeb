@@ -19,7 +19,7 @@ import logging
 import json
 from datetime import datetime, timedelta
 from django.core.management.base import BaseCommand
-from apiApp.models import StellarCreatorAccountLineage, BigQueryPipelineConfig
+from apiApp.model_loader import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
 from apiApp.helpers.env import EnvHelpers
 import sentry_sdk

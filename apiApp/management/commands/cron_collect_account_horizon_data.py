@@ -8,7 +8,7 @@ from apiApp.helpers.env import EnvHelpers
 from apiApp.helpers.sm_cron import StellarMapCronHelpers
 from apiApp.helpers.sm_horizon import StellarMapHorizonAPIHelpers
 from apiApp.managers import StellarCreatorAccountLineageManager
-from apiApp.models import (
+from apiApp.model_loader import (
     PENDING_HORIZON_API_DATASETS,
     IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,
     DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS,

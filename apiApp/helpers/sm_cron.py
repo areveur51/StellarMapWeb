@@ -1,7 +1,7 @@
 # apiApp/helpers/sm_cron.py
 import logging
 import sentry_sdk
-from apiApp.models import ManagementCronHealth
+from apiApp.model_loader import ManagementCronHealth
 
 
 class StellarMapCronHelpers:

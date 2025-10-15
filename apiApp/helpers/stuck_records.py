@@ -5,7 +5,7 @@ Simplified helper functions for detecting and recovering stuck pipeline records.
 import datetime
 import sentry_sdk
 from typing import List, Dict, Any
-from apiApp.models import (
+from apiApp.model_loader import (
     StellarCreatorAccountLineage,
     PENDING,
     PROCESSING,

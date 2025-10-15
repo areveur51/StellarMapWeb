@@ -11,11 +11,12 @@ from django.http import HttpRequest
 from .sm_horizon import StellarMapHorizonAPIParserHelpers, StellarMapHorizonAPIHelpers
 from .sm_stellarexpert import StellarMapStellarExpertAPIHelpers, StellarMapStellarExpertAPIParserHelpers
 from .env import EnvHelpers
-from apiApp.models import (
+from apiApp.model_loader import (
     PENDING,
     PROCESSING,
     COMPLETE,
-    BIGQUERY_COMPLETE
+    BIGQUERY_COMPLETE,
+    USE_CASSANDRA,
 )
 
 
