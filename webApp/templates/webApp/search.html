@@ -25,23 +25,13 @@
   </style>
 </head>
 <body class="bg-color-261D45">
-  <!-- Visualization Toggle (outside Vue app to prevent interference) -->
-  <div class="visualization-toggle" style="position: fixed; top: 100px; right: 30px; z-index: 99999; background: linear-gradient(135deg, rgba(38, 29, 69, 0.95), rgba(150, 221, 242, 0.15)); border: 2px solid #96DDF2; border-radius: 25px; padding: 15px 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 0 20px rgba(150, 221, 242, 0.3); transition: all 0.3s ease;">
-    <span style="color: #96DDF2; font-weight: 600; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px;">Layout:</span>
-    <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()" style="position: relative; width: 60px; height: 28px; background: rgba(150, 221, 242, 0.2); border-radius: 14px; cursor: pointer; border: 1px solid #96DDF2; transition: all 0.3s ease;">
-      <div class="toggle-slider" style="position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; background: linear-gradient(135deg, #96DDF2, #0BE784); border-radius: 50%; transition: all 0.3s ease; box-shadow: 0 0 10px rgba(150, 221, 242, 0.5);"></div>
-    </div>
-    <span id="mode-indicator" style="color: #0BE784; font-weight: 700; font-size: 0.95em; min-width: 80px; text-align: right; text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);">Radial</span>
-  </div>
-  
+  <!-- Visualization Controls imported from shared component below -->
   <style>
-    .visualization-toggle:hover {
-      box-shadow: 0 0 30px rgba(150, 221, 242, 0.5);
-      border-color: #0BE784;
-    }
-    .toggle-switch:hover {
-      background: rgba(150, 221, 242, 0.3);
-      box-shadow: 0 0 15px rgba(150, 221, 242, 0.4);
+    /* Override position for search page to avoid header overlap */
+    .visualization-controls {
+      position: fixed !important;
+      top: 100px !important;
+      right: 30px !important;
     }
   </style>
   
@@ -358,22 +348,17 @@
     // Register BootstrapVue with Vue
     Vue.use(BootstrapVue);
     
-    // Visualization toggle logic (global function)
-    let currentMode = localStorage.getItem('visualizationMode') || 'radial';
-    
     // Use window.currentTreeData for true global scope (accessible across all scripts)
     if (typeof window.currentTreeData === 'undefined') {
         window.currentTreeData = null;
     }
     
-    // Initialize toggle state and rendering from localStorage on page load
+    // Wait for shared visualization component to load, then check if we need to restore tidy mode
     window.addEventListener('DOMContentLoaded', function() {
-        const toggleSwitch = document.getElementById('layout-toggle');
-        const modeIndicator = document.getElementById('mode-indicator');
+        // Check saved visualization mode
+        const savedMode = localStorage.getItem('visualizationMode') || 'radial';
         
-        if (currentMode === 'tidy') {
-            toggleSwitch.classList.add('active');
-            modeIndicator.textContent = 'Tidy Tree';
+        if (savedMode === 'tidy') {
             console.log('DOMContentLoaded: Restored tidy tree mode from localStorage');
             
             // Wait for tree data to be available, then render in tidy mode
@@ -392,36 +377,9 @@
             };
             checkAndRenderTidy();
         } else {
-            toggleSwitch.classList.remove('active');
-            modeIndicator.textContent = 'Radial';
             console.log('DOMContentLoaded: Using radial mode (default or from localStorage)');
         }
     });
-    
-    function toggleVisualizationMode() {
-        const toggleSwitch = document.getElementById('layout-toggle');
-        const modeIndicator = document.getElementById('mode-indicator');
-        
-        if (currentMode === 'radial') {
-            currentMode = 'tidy';
-            localStorage.setItem('visualizationMode', 'tidy');
-            toggleSwitch.classList.add('active');
-            modeIndicator.textContent = 'Tidy Tree';
-            if (window.currentTreeData && typeof renderTidyTree === 'function') {
-                renderTidyTree(window.currentTreeData);
-                console.log('Toggle: Switched to Tidy Tree with data');
-            }
-        } else {
-            currentMode = 'radial';
-            localStorage.setItem('visualizationMode', 'radial');
-            toggleSwitch.classList.remove('active');
-            modeIndicator.textContent = 'Radial';
-            if (window.currentTreeData && typeof renderRadialTree === 'function') {
-                renderRadialTree(window.currentTreeData);
-                console.log('Toggle: Switched to Radial with data');
-            }
-        }
-    }
     
     var vm = new Vue({
         el: '#app',

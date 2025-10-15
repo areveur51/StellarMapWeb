@@ -2,7 +2,7 @@
 <!-- Shared visualization toggle component for both /tree and /search endpoints -->
 
 <style>
-    .visualization-toggle {
+    .visualization-controls {
         position: absolute;
         top: 20px;
         right: 20px;
@@ -12,15 +12,29 @@
         border-radius: 25px;
         padding: 15px 20px;
         display: flex !important;
-        align-items: center;
+        flex-direction: column;
         gap: 15px;
         box-shadow: 0 0 20px rgba(150, 221, 242, 0.3);
         transition: all 0.3s ease;
     }
     
-    .visualization-toggle:hover {
+    .visualization-controls:hover {
         box-shadow: 0 0 30px rgba(150, 221, 242, 0.5);
         border-color: #0BE784;
+    }
+    
+    .visualization-toggle {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .spacing-control {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(150, 221, 242, 0.3);
     }
     
     .toggle-label {
@@ -72,36 +86,143 @@
         text-align: right;
         text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
     }
+    
+    .spacing-slider {
+        -webkit-appearance: none;
+        width: 150px;
+        height: 6px;
+        background: rgba(150, 221, 242, 0.2);
+        border-radius: 5px;
+        outline: none;
+        border: 1px solid #96DDF2;
+        transition: all 0.3s ease;
+    }
+    
+    .spacing-slider:hover {
+        background: rgba(150, 221, 242, 0.3);
+        box-shadow: 0 0 10px rgba(150, 221, 242, 0.4);
+    }
+    
+    .spacing-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(135deg, #96DDF2, #0BE784);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(150, 221, 242, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    .spacing-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 15px rgba(150, 221, 242, 0.8);
+    }
+    
+    .spacing-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: linear-gradient(135deg, #96DDF2, #0BE784);
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 0 10px rgba(150, 221, 242, 0.5);
+        transition: all 0.3s ease;
+    }
+    
+    .spacing-slider::-moz-range-thumb:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 15px rgba(150, 221, 242, 0.8);
+    }
+    
+    .spacing-value {
+        color: #0BE784;
+        font-weight: 600;
+        font-size: 0.85em;
+        min-width: 35px;
+        text-align: center;
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
+    }
 </style>
 
-<div class="visualization-toggle">
-    <span class="toggle-label">Layout:</span>
-    <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()">
-        <div class="toggle-slider"></div>
+<div class="visualization-controls">
+    <div class="visualization-toggle">
+        <span class="toggle-label">Layout:</span>
+        <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()">
+            <div class="toggle-slider"></div>
+        </div>
+        <span class="mode-indicator" id="mode-indicator">Radial</span>
     </div>
-    <span class="mode-indicator" id="mode-indicator">Radial</span>
+    <div class="spacing-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Spacing:</span>
+        <input type="range" id="spacing-slider" class="spacing-slider" min="0.5" max="2" step="0.1" value="1">
+        <span class="spacing-value" id="spacing-value">1.0x</span>
+    </div>
 </div>
 
 <script>
     // Shared visualization toggle logic with localStorage persistence
     let currentMode = localStorage.getItem('visualizationMode') || 'radial';
     
+    // Global spacing multiplier (persisted in localStorage) with validation
+    const savedSpacing = localStorage.getItem('nodeSpacingMultiplier');
+    const parsedSpacing = parseFloat(savedSpacing);
+    window.nodeSpacingMultiplier = (!isNaN(parsedSpacing) && parsedSpacing >= 0.5 && parsedSpacing <= 2.0) ? parsedSpacing : 1.0;
+    
     // Use window.currentTreeData for true global scope
     if (typeof window.currentTreeData === 'undefined') {
         window.currentTreeData = null;
     }
     
-    // Initialize toggle state from localStorage on page load
+    // Initialize toggle state and slider from localStorage on page load
     window.addEventListener('DOMContentLoaded', function() {
         const toggleSwitch = document.getElementById('layout-toggle');
         const modeIndicator = document.getElementById('mode-indicator');
+        const spacingSlider = document.getElementById('spacing-slider');
+        const spacingValue = document.getElementById('spacing-value');
         
+        // Initialize toggle
         if (currentMode === 'tidy') {
             toggleSwitch.classList.add('active');
             modeIndicator.textContent = 'Tidy Tree';
         } else {
             toggleSwitch.classList.remove('active');
             modeIndicator.textContent = 'Radial';
+        }
+        
+        // Initialize slider
+        if (spacingSlider && spacingValue) {
+            spacingSlider.value = window.nodeSpacingMultiplier;
+            spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
+            
+            // Add slider event listener
+            spacingSlider.addEventListener('input', function() {
+                const newValue = parseFloat(this.value);
+                // Validate the new value
+                if (!isNaN(newValue) && newValue >= 0.5 && newValue <= 2.0) {
+                    window.nodeSpacingMultiplier = newValue;
+                    spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
+                    localStorage.setItem('nodeSpacingMultiplier', window.nodeSpacingMultiplier);
+                    
+                    console.log('Spacing multiplier changed to:', window.nodeSpacingMultiplier);
+                    
+                    // Re-render the current tree with new spacing
+                    if (window.currentTreeData) {
+                        if (currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            renderRadialTree(window.currentTreeData);
+                            console.log('Spacing changed: Re-rendered radial tree with', window.nodeSpacingMultiplier + 'x spacing');
+                        } else if (currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            renderTidyTree(window.currentTreeData);
+                            console.log('Spacing changed: Re-rendered tidy tree with', window.nodeSpacingMultiplier + 'x spacing');
+                        }
+                    } else {
+                        console.warn('Spacing changed but no tree data available to re-render');
+                    }
+                } else {
+                    console.error('Invalid spacing value:', newValue);
+                }
+            });
         }
     });
     

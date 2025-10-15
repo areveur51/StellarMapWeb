@@ -304,10 +304,15 @@ function renderRadialTree(jsonData) {
             .attr('class', 'breadcrumb-container')
             .attr('transform', 'translate(20, 20)');
 
+        // Get spacing multiplier from global variable (controlled by slider)
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        console.log('Radial tree rendering with spacing multiplier:', spacingMultiplier);
+        
         const tree = d3.tree()
             .size([2 * Math.PI, radius])
             .separation((a, b) => {
-                return (a.parent === b.parent ? 3 : 4) / (a.depth + 1);
+                const baseSeparation = (a.parent === b.parent ? 3 : 4) / (a.depth + 1);
+                return baseSeparation * spacingMultiplier;
             });
 
         const root = d3.hierarchy(processedData);
@@ -600,12 +605,17 @@ function renderTidyTree(jsonData) {
         console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
         console.log('Tree depth:', root.height);
 
+        // Get spacing multiplier from global variable (controlled by slider)
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        console.log('Tidy tree rendering with spacing multiplier:', spacingMultiplier);
+        
         // Use standard tree().size() for proper horizontal spread with better spacing
         const tree = d3.tree()
             .size([innerHeight, treeWidth])
             .separation((a, b) => {
-                // Increased separation to prevent overlap - siblings 1.5x, non-siblings 2x
-                return a.parent === b.parent ? 1.5 : 2;
+                // Base separation with multiplier - siblings 1.5x, non-siblings 2x
+                const baseSeparation = a.parent === b.parent ? 1.5 : 2;
+                return baseSeparation * spacingMultiplier;
             });
 
         tree(root);
