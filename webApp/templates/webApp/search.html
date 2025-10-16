@@ -262,6 +262,20 @@
                   </div>
                 </template>
               </b-tab>
+              <b-tab title="Logs" :title-link-attributes="{ title: 'Latest 1700 lines from Django Server logs' }">
+                <template>
+                  <div v-if="logsLoading" style="text-align: center; padding: 20px;">
+                    <b-spinner variant="primary"></b-spinner>
+                    <p>Loading logs...</p>
+                  </div>
+                  <div v-else-if="logsError" class="alert alert-danger">
+                    {{ logsError }}
+                  </div>
+                  <div v-else>
+                    <pre v-html="highlightedLogs" style="max-height: 600px; overflow-y: auto;"></pre>
+                  </div>
+                </template>
+              </b-tab>
             </b-tabs>
           </b-card>
         </div>
@@ -413,6 +427,7 @@
           highlightedRequestStatus: '',
           highlightedAccountLineage: '',
           highlightedPendingAccounts: '',
+          highlightedLogs: '',
           network_toggle: {% if network == 'testnet' %}false{% else %}true{% endif %},
           network_selected: '{{ network|default:"public" }}',
           loading_animation: true,
@@ -425,6 +440,8 @@
           stage_executions_data: { stages: [] },
           stageExecutionsLoading: false,
           stageExecutionsError: null,
+          logsLoading: false,
+          logsError: null,
           stageExecutionsInterval: null,
           lineageLoading: false,
           lineageError: null,
