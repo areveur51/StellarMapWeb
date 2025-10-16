@@ -256,7 +256,8 @@ def account_lineage_api(request):
         # INSTANT SEARCH: Query BigQuery directly first (only for accounts <1 year old)
         # In development mode, BigQuery is typically not available, so skip to database
         from django.conf import settings
-        if getattr(settings, 'ENV', 'development') == 'production':
+        env_value = getattr(settings, 'ENV', 'development')
+        if env_value in ['production', 'replit']:
             bigquery_helper = StellarBigQueryHelper()
             if bigquery_helper.is_available():
                 try:
@@ -417,7 +418,7 @@ def account_lineage_api(request):
                 except Exception as bq_error:
                     logger.warning(f"BigQuery instant query failed, falling back to database: {bq_error}")
         else:
-            logger.info("Development mode: Skipping BigQuery, using database directly")
+            logger.info(f"Development mode (ENV={env_value}): Skipping BigQuery, using database directly")
         
         # FALLBACK: Query database if BigQuery fails or unavailable
         
