@@ -757,6 +757,36 @@
             });
           }
         },
+        async fetchServerLogs() {
+          try {
+            this.logsLoading = true;
+            this.logsError = null;
+            
+            const response = await fetch('/api/server-logs/');
+            
+            if (response.ok) {
+              const data = await response.json();
+              // Highlight logs using same format as Tree Data
+              try {
+                if (typeof hljs !== 'undefined') {
+                  this.highlightedLogs = hljs.highlight(data.logs, {language: 'shell'}).value;
+                } else {
+                  this.highlightedLogs = data.logs;
+                }
+              } catch (e) {
+                this.highlightedLogs = data.logs;
+              }
+            } else {
+              const error = await response.json();
+              this.logsError = error.error || 'Failed to fetch logs';
+            }
+          } catch (e) {
+            console.error('Error fetching server logs:', e);
+            this.logsError = 'Error fetching server logs';
+          } finally {
+            this.logsLoading = false;
+          }
+        },
         getStatusVariant(status) {
           if (status === 'SUCCESS') return 'success';
           if (status === 'FAILED' || status === 'ERROR') return 'danger';
@@ -1036,6 +1066,9 @@
         
         // Fetch pending accounts immediately on mount
         this.fetchPendingAccounts();
+        
+        // Fetch server logs immediately on mount
+        this.fetchServerLogs();
         
         // Set up auto-refresh for pending accounts every 5 seconds
         this.pendingAccountsInterval = setInterval(() => {

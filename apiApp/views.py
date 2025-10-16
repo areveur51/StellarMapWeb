@@ -814,3 +814,55 @@ def retry_failed_account_api(request):
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
+
+
+def server_logs_api(request):
+    """
+    API endpoint that returns the latest 1700 lines from Django Server logs.
+    
+    Returns:
+        JsonResponse: Latest log lines as plain text
+    """
+    try:
+        import os
+        
+        # Get the latest Django Server log file
+        log_dir = '/tmp/logs'
+        if not os.path.exists(log_dir):
+            return JsonResponse({
+                'error': 'Log directory not found',
+                'logs': ''
+            }, status=404)
+        
+        # Find Django Server log files
+        log_files = [f for f in os.listdir(log_dir) if f.startswith('Django_Server_')]
+        if not log_files:
+            return JsonResponse({
+                'error': 'No Django Server logs found',
+                'logs': ''
+            }, status=404)
+        
+        # Sort by modification time, get the latest
+        log_files.sort(key=lambda f: os.path.getmtime(os.path.join(log_dir, f)), reverse=True)
+        latest_log_file = os.path.join(log_dir, log_files[0])
+        
+        # Read last 1700 lines
+        with open(latest_log_file, 'r') as f:
+            all_lines = f.readlines()
+            last_1700_lines = all_lines[-1700:]
+            logs_content = ''.join(last_1700_lines)
+        
+        return JsonResponse({
+            'logs': logs_content,
+            'file': log_files[0],
+            'total_lines': len(all_lines),
+            'returned_lines': len(last_1700_lines)
+        })
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Failed to fetch logs',
+            'message': str(e),
+            'logs': ''
+        }, status=500)

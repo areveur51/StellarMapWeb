@@ -11,4 +11,5 @@ urlpatterns = [
     path('account-lineage/', views.account_lineage_api, name='account_lineage_api'),
     path('fetch-toml/', views.fetch_toml_api, name='fetch_toml_api'),
     path('retry-failed-account/', views.retry_failed_account_api, name='retry_failed_account_api'),
+    path('server-logs/', views.server_logs_api, name='server_logs_api'),
 ]
