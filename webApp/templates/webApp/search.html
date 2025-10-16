@@ -24,6 +24,37 @@
       transform: translateX(32px) !important;
       background: linear-gradient(135deg, #0BE784, #96DDF2) !important;
     }
+    
+    /* Logs Display Styling - High Contrast for Cyberpunk Theme */
+    .logs-display {
+      max-height: 600px;
+      overflow-y: auto;
+      background-color: #1a1a2e !important;
+      color: #00ff88 !important;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid #0BE784;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    /* Override highlight.js colors for better visibility */
+    .logs-display .hljs-string,
+    .logs-display .hljs-variable,
+    .logs-display .hljs-title,
+    .logs-display .hljs-keyword {
+      color: #0BE784 !important;
+    }
+    
+    .logs-display .hljs-number,
+    .logs-display .hljs-built_in {
+      color: #96DDF2 !important;
+    }
+    
+    .logs-display .hljs-comment {
+      color: #888 !important;
+    }
   </style>
 </head>
 <body class="bg-color-261D45">
@@ -272,7 +303,7 @@
                     {{ logsError }}
                   </div>
                   <div v-else>
-                    <pre v-html="highlightedLogs" style="max-height: 600px; overflow-y: auto;"></pre>
+                    <pre v-html="highlightedLogs" class="logs-display"></pre>
                   </div>
                 </template>
               </b-tab>
