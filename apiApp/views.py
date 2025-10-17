@@ -867,3 +867,63 @@ def server_logs_api(request):
             'message': str(e),
             'logs': ''
         }, status=500)
+
+
+def error_logs_api(request):
+    """
+    API endpoint that returns the latest 710 lines containing errors/warnings from Django Server logs.
+    
+    Returns:
+        JsonResponse: Latest error/warning log lines as plain text
+    """
+    try:
+        import os
+        import re
+        
+        # Get the latest Django Server log file
+        log_dir = '/tmp/logs'
+        if not os.path.exists(log_dir):
+            return JsonResponse({
+                'error': 'Log directory not found',
+                'logs': ''
+            }, status=404)
+        
+        # Find Django Server log files
+        log_files = [f for f in os.listdir(log_dir) if f.startswith('Django_Server_')]
+        if not log_files:
+            return JsonResponse({
+                'error': 'No Django Server logs found',
+                'logs': ''
+            }, status=404)
+        
+        # Sort by modification time, get the latest
+        log_files.sort(key=lambda f: os.path.getmtime(os.path.join(log_dir, f)), reverse=True)
+        latest_log_file = os.path.join(log_dir, log_files[0])
+        
+        # Read all lines and filter for errors/warnings
+        with open(latest_log_file, 'r') as f:
+            all_lines = f.readlines()
+            
+            # Filter lines containing error/warning keywords (case-insensitive)
+            error_pattern = re.compile(r'(error|warning|exception|traceback|failed|critical)', re.IGNORECASE)
+            error_lines = [line for line in all_lines if error_pattern.search(line)]
+            
+            # Get last 710 error lines
+            last_error_lines = error_lines[-710:] if len(error_lines) > 710 else error_lines
+            logs_content = ''.join(last_error_lines)
+        
+        return JsonResponse({
+            'logs': logs_content,
+            'file': log_files[0],
+            'total_lines': len(all_lines),
+            'total_error_lines': len(error_lines),
+            'returned_lines': len(last_error_lines)
+        })
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Failed to fetch error logs',
+            'message': str(e),
+            'logs': ''
+        }, status=500)

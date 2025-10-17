@@ -55,6 +55,24 @@
     .logs-display .hljs-comment {
       color: #888 !important;
     }
+    
+    /* Error Logs - Red/Orange Theme for Errors */
+    .logs-display.error-logs {
+      border-color: #ff6b6b;
+      color: #ff6b6b !important;
+    }
+    
+    .logs-display.error-logs .hljs-string,
+    .logs-display.error-logs .hljs-variable,
+    .logs-display.error-logs .hljs-title,
+    .logs-display.error-logs .hljs-keyword {
+      color: #ff6b6b !important;
+    }
+    
+    .logs-display.error-logs .hljs-number,
+    .logs-display.error-logs .hljs-built_in {
+      color: #ffa500 !important;
+    }
   </style>
 </head>
 <body class="bg-color-261D45">
@@ -140,7 +158,7 @@
 
         <div>
           <b-card no-body class="bv-tabs">
-            <b-tabs card>
+            <b-tabs card @input="onTabChange">
               <b-tab title="Account Lineage" active :title-link-attributes="{ title: 'View lineage table leading back to origin/creator accounts' }">
                 <template>
                   <div v-if="lineageLoading" style="text-align: center; padding: 20px;">
@@ -304,6 +322,23 @@
                   </div>
                   <div v-else>
                     <pre v-html="highlightedLogs" class="logs-display"></pre>
+                  </div>
+                </template>
+              </b-tab>
+              <b-tab title="Error Logs" :title-link-attributes="{ title: 'Latest 710 error/warning lines from Django Server logs' }">
+                <template>
+                  <div v-if="errorLogsLoading" style="text-align: center; padding: 20px;">
+                    <b-spinner variant="danger"></b-spinner>
+                    <p>Loading error logs...</p>
+                  </div>
+                  <div v-else-if="errorLogsError" class="alert alert-danger">
+                    {{ errorLogsError }}
+                  </div>
+                  <div v-else-if="!highlightedErrorLogs || highlightedErrorLogs.trim() === ''" class="alert alert-success">
+                    <strong>No errors found!</strong> Your server is running smoothly.
+                  </div>
+                  <div v-else>
+                    <pre v-html="highlightedErrorLogs" class="logs-display error-logs"></pre>
                   </div>
                 </template>
               </b-tab>
@@ -473,6 +508,9 @@
           stageExecutionsError: null,
           logsLoading: false,
           logsError: null,
+          errorLogsLoading: false,
+          errorLogsError: null,
+          highlightedErrorLogs: '',
           stageExecutionsInterval: null,
           lineageLoading: false,
           lineageError: null,
@@ -816,6 +854,46 @@
             this.logsError = 'Error fetching server logs';
           } finally {
             this.logsLoading = false;
+          }
+        },
+        async fetchErrorLogs() {
+          try {
+            this.errorLogsLoading = true;
+            this.errorLogsError = null;
+            
+            const response = await fetch('/api/error-logs/');
+            
+            if (response.ok) {
+              const data = await response.json();
+              // Highlight error logs using shell syntax
+              try {
+                if (typeof hljs !== 'undefined') {
+                  this.highlightedErrorLogs = hljs.highlight(data.logs, {language: 'shell'}).value;
+                } else {
+                  this.highlightedErrorLogs = data.logs;
+                }
+              } catch (e) {
+                this.highlightedErrorLogs = data.logs;
+              }
+            } else {
+              const error = await response.json();
+              this.errorLogsError = error.error || 'Failed to fetch error logs';
+            }
+          } catch (e) {
+            console.error('Error fetching error logs:', e);
+            this.errorLogsError = 'Error fetching error logs';
+          } finally {
+            this.errorLogsLoading = false;
+          }
+        },
+        onTabChange(tabIndex) {
+          // Tab indices: 0=Account Lineage, 1=Tree Data, 2=Pending Accounts, 3=Stages, 4=Logs, 5=Error Logs
+          if (tabIndex === 4) {
+            // Logs tab selected
+            this.fetchServerLogs();
+          } else if (tabIndex === 5) {
+            // Error Logs tab selected
+            this.fetchErrorLogs();
           }
         },
         getStatusVariant(status) {
