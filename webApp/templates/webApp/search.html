@@ -78,55 +78,25 @@
 <body class="bg-color-261D45">
   <!-- No CSS overrides - use styling from visualization_toggle_include.html for DRY -->
   
-  <!-- Scroll Position Restoration -->
+  <!-- Scroll Position Save/Restore (on page navigation only, not on Vue updates) -->
   <script>
-    // Track last scroll position
-    let lastScrollPosition = 0;
+    // Save scroll position when user navigates away
+    window.addEventListener('beforeunload', function() {
+      sessionStorage.setItem('scrollPosition', window.scrollY || window.pageYOffset);
+    });
     
-    // Save scroll position on scroll event
-    window.addEventListener('scroll', function() {
-      lastScrollPosition = window.scrollY || window.pageYOffset;
-      sessionStorage.setItem('scrollPosition', lastScrollPosition);
-    }, { passive: true });
-    
-    // Restore scroll position after Vue updates
-    function restoreScrollPosition() {
+    // Restore scroll position only on initial page load (not on Vue updates)
+    window.addEventListener('load', function() {
       const savedScrollPosition = sessionStorage.getItem('scrollPosition');
-      
       if (savedScrollPosition !== null && savedScrollPosition !== '0') {
-        const scrollValue = parseInt(savedScrollPosition);
-        // Smooth scroll restoration
         window.scrollTo({
-          top: scrollValue,
+          top: parseInt(savedScrollPosition),
           behavior: 'instant'
         });
-        lastScrollPosition = scrollValue;
-      }
-    }
-    
-    // Create a mutation observer to detect Vue updates
-    const observer = new MutationObserver(function(mutations) {
-      // Only restore if we're not at the saved position
-      if (Math.abs((window.scrollY || window.pageYOffset) - lastScrollPosition) > 50) {
-        restoreScrollPosition();
+        // Clear the saved position after restoration
+        sessionStorage.removeItem('scrollPosition');
       }
     });
-    
-    // Start observing once DOM is ready
-    window.addEventListener('DOMContentLoaded', function() {
-      const resultsContainer = document.querySelector('.results-container');
-      if (resultsContainer) {
-        observer.observe(resultsContainer, {
-          childList: true,
-          subtree: true,
-          attributes: true
-        });
-      }
-      restoreScrollPosition();
-    });
-    
-    // Also restore on initial load
-    window.addEventListener('load', restoreScrollPosition);
   </script>
   
   <div id="app">
@@ -755,8 +725,6 @@
             return;
           }
           
-          // Store scroll position before update
-          const scrollPosition = window.scrollY;
           const isFirstLoad = this.stageExecutionsLoading && !this.stage_executions_data.stages;
           
           try {
@@ -772,7 +740,6 @@
             if (response.ok) {
               const data = await response.json();
               this.stage_executions_data = data;
-              console.log('Stage data received:', data); // Debug log
             } else {
               const error = await response.json();
               this.stageExecutionsError = error.message || 'Failed to fetch stage executions';
@@ -782,10 +749,6 @@
             this.stageExecutionsError = 'Error fetching stage executions';
           } finally {
             this.stageExecutionsLoading = false;
-            // Restore scroll position after DOM update
-            this.$nextTick(() => {
-              window.scrollTo(0, scrollPosition);
-            });
           }
         },
         async fetchAccountLineage() {
@@ -793,8 +756,6 @@
             return;
           }
           
-          // Store scroll position before update
-          const scrollPosition = window.scrollY;
           const isFirstLoad = !this.account_lineage_data || this.account_lineage_data.length === 0;
           
           try {
@@ -810,7 +771,6 @@
             if (response.ok) {
               const data = await response.json();
               this.account_lineage_data = data.lineage;
-              console.log('Lineage data received:', data); // Debug log
             } else {
               const error = await response.json();
               this.lineageError = error.message || 'Failed to fetch account lineage';
@@ -820,10 +780,6 @@
             this.lineageError = 'Error fetching account lineage';
           } finally {
             this.lineageLoading = false;
-            // Restore scroll position after DOM update
-            this.$nextTick(() => {
-              window.scrollTo(0, scrollPosition);
-            });
           }
         },
         async fetchServerLogs() {
