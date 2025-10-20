@@ -85,14 +85,40 @@ if USE_CASSANDRA_ADMIN:
     # Production mode: Use Cassandra admin with read-only functionality
     @admin.register(StellarAccountSearchCache)
     class StellarAccountSearchCacheAdmin(CassandraAdminMixin, admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'status')
+        list_display = ('stellar_account_link', 'network_name', 'status')
+
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.get('stellar_account', '') if isinstance(obj, dict) else getattr(obj, 'stellar_account', '')
+            network = obj.get('network_name', 'public') if isinstance(obj, dict) else getattr(obj, 'network_name', 'public')
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
 
         def get_table_name(self):
             return 'stellar_account_search_cache'
 
     @admin.register(StellarCreatorAccountLineage)
     class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'tags', 'status')
+        list_display = ('stellar_account_link', 'network_name', 'creator_account_link', 'xlm_balance', 'is_hva', 'tags', 'status')
+
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.get('stellar_account', '') if isinstance(obj, dict) else getattr(obj, 'stellar_account', '')
+            network = obj.get('network_name', 'public') if isinstance(obj, dict) else getattr(obj, 'network_name', 'public')
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
+
+        def creator_account_link(self, obj):
+            """Display stellar_creator_account as clickable link to search page."""
+            creator = obj.get('stellar_creator_account', '') if isinstance(obj, dict) else getattr(obj, 'stellar_creator_account', '')
+            if not creator:
+                return '-'
+            network = obj.get('network_name', 'public') if isinstance(obj, dict) else getattr(obj, 'network_name', 'public')
+            url = f"/search/?account={creator}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, creator, creator[:8] + '...' + creator[-8:] if len(creator) > 20 else creator)
+        creator_account_link.short_description = 'Creator Account'
 
         def get_table_name(self):
             return 'stellar_creator_account_lineage'
@@ -106,7 +132,15 @@ if USE_CASSANDRA_ADMIN:
 
     @admin.register(StellarAccountStageExecution)
     class StellarAccountStageExecutionAdmin(CassandraAdminMixin, admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'stage_number', 'status')
+        list_display = ('stellar_account_link', 'network_name', 'stage_number', 'status')
+
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.get('stellar_account', '') if isinstance(obj, dict) else getattr(obj, 'stellar_account', '')
+            network = obj.get('network_name', 'public') if isinstance(obj, dict) else getattr(obj, 'network_name', 'public')
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
 
         def get_table_name(self):
             return 'stellar_account_stage_execution'
@@ -115,17 +149,43 @@ else:
     # Local development mode: Use standard Django admin with full CRUD
     @admin.register(StellarAccountSearchCache)
     class StellarAccountSearchCacheAdmin(admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'status', 'last_fetched_at', 'retry_count')
+        list_display = ('stellar_account_link', 'network_name', 'status', 'last_fetched_at', 'retry_count')
         list_filter = ('network_name', 'status')
         search_fields = ('stellar_account',)
         readonly_fields = ('created_at', 'updated_at')
 
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.stellar_account
+            network = obj.network_name
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
+
     @admin.register(StellarCreatorAccountLineage)
     class StellarCreatorAccountLineageAdmin(admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'stellar_creator_account', 'xlm_balance', 'is_hva', 'status')
+        list_display = ('stellar_account_link', 'network_name', 'creator_account_link', 'xlm_balance', 'is_hva', 'status')
         list_filter = ('network_name', 'status', 'is_hva')
         search_fields = ('stellar_account', 'stellar_creator_account')
         readonly_fields = ('created_at', 'updated_at')
+
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.stellar_account
+            network = obj.network_name
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
+
+        def creator_account_link(self, obj):
+            """Display stellar_creator_account as clickable link to search page."""
+            if not obj.stellar_creator_account:
+                return '-'
+            creator = obj.stellar_creator_account
+            network = obj.network_name
+            url = f"/search/?account={creator}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, creator, creator[:8] + '...' + creator[-8:] if len(creator) > 20 else creator)
+        creator_account_link.short_description = 'Creator Account'
 
     @admin.register(ManagementCronHealth)
     class ManagementCronHealthAdmin(admin.ModelAdmin):
@@ -136,10 +196,18 @@ else:
 
     @admin.register(StellarAccountStageExecution)
     class StellarAccountStageExecutionAdmin(admin.ModelAdmin):
-        list_display = ('stellar_account', 'network_name', 'stage_number', 'status', 'created_at')
+        list_display = ('stellar_account_link', 'network_name', 'stage_number', 'status', 'created_at')
         list_filter = ('network_name', 'status', 'stage_number')
         search_fields = ('stellar_account', 'cron_name')
         readonly_fields = ('created_at', 'updated_at')
+
+        def stellar_account_link(self, obj):
+            """Display stellar_account as clickable link to search page."""
+            account = obj.stellar_account
+            network = obj.network_name
+            url = f"/search/?account={account}&network={network}"
+            return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, account, account[:8] + '...' + account[-8:] if len(account) > 20 else account)
+        stellar_account_link.short_description = 'Stellar Account'
 
 
 @admin.register(BigQueryPipelineConfig)

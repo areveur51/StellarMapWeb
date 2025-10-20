@@ -1,5 +1,5 @@
 Creating test database for alias 'default' ('file:memorydb_default?mode=memory&cache=shared')...
-Found 341 test(s).
+Found 353 test(s).
 Skipping setup of unused database(s): cassandra.
 Operations to perform:
   Synchronize unmigrated apps: django_cassandra_engine, messages, staticfiles
