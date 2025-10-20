@@ -28,20 +28,47 @@ class CassandraAdminMixin:
             conn_helpers.set_cql_query(cql_query)
             rows = conn_helpers.execute_cql()
             
-            # Convert rows to list of dictionaries
+            # Convert rows to list of dictionaries and process through display methods
             results = []
-            column_names = []
+            processed_rows = []
             for row in rows:
                 row_dict = dict(row._asdict())
                 results.append(row_dict)
-                if not column_names and row_dict:
-                    column_names = list(row_dict.keys())
+            
+            # Get column headers and processed row data
+            column_names = []
+            if self.list_display:
+                for display_field in self.list_display:
+                    # Get the display method or field
+                    if hasattr(self, display_field):
+                        method = getattr(self, display_field)
+                        # Use the short_description if available, otherwise use the field name
+                        if hasattr(method, 'short_description'):
+                            column_names.append(method.short_description)
+                        else:
+                            column_names.append(display_field.replace('_', ' ').title())
+                    else:
+                        column_names.append(display_field.replace('_', ' ').title())
+                
+                # Process each row through the display methods
+                for row_dict in results:
+                    processed_row = []
+                    for display_field in self.list_display:
+                        if hasattr(self, display_field):
+                            # Call the display method with the row dict
+                            method = getattr(self, display_field)
+                            value = method(row_dict)
+                        else:
+                            # Just get the raw value
+                            value = row_dict.get(display_field, '')
+                        processed_row.append(value)
+                    processed_rows.append(processed_row)
             
             conn_helpers.close_connection()
             
             context = {
                 'title': f'Select {self.model._meta.verbose_name}',
-                'results': results,
+                'results': processed_rows,
                 'column_names': column_names,
                 'opts': self.model._meta,
                 'has_add_permission': False,

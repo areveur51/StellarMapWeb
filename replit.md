@@ -1,5 +1,5 @@
 # Overview
-StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API, Stellar Expert, and Google BigQuery, stores this data in Astra DB (Cassandra), and renders it as interactive D3.js radial tree diagrams. The project aims to provide a comprehensive and cost-effective solution for exploring Stellar account relationships, with a focus on UI/UX, performance, and scalability. It includes features for identifying High-Value Accounts and offers a multi-theme interface.
+StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API, Stellar Expert, and Google BigQuery, stores this data in Astra DB (Cassandra), and renders it as interactive D3.js radial tree diagrams. The project aims to provide a comprehensive and cost-effective solution for exploring Stellar account relationships, with a focus on UI/UX, performance, and scalability. It includes features for identifying High-Value Accounts, offers a multi-theme interface, and provides enhanced admin portal navigation with clickable account hyperlinks.
 
 # User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -31,7 +31,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development, with a custom `DatabaseAppsRouter`. Cassandra models use composite primary keys.
 - **Environment-Aware Model Loading**: `apiApp/model_loader.py` dynamically imports Cassandra or SQLite models based on the environment.
-- **Django Admin Integration**: Full integration of Cassandra models with workarounds for query constraints.
+- **Django Admin Integration**: Full integration of Cassandra models with workarounds for query constraints. Admin portal features clickable hyperlinks for stellar_account and stellar_creator_account fields that open search pages in new windows.
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production, including automatic migrations.
 - **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, and `BigQueryCostGuard` for cost and size limits. An Admin Configuration Panel allows dynamic adjustment of pipeline settings. Includes an API fallback mechanism if BigQuery limits are exceeded.
 - **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for educational purposes, providing comprehensive workflow tracking.
