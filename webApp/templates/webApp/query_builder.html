@@ -311,6 +311,7 @@
             </div>
         </div>
         
+        {% verbatim %}
         <div class="query-controls" style="margin-top: 20px;">
             <h4 style="color: #0BE784; margin-bottom: 20px; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
                 <i class="fas fa-sliders-h"></i> Custom Filter Builder
@@ -337,10 +338,11 @@
                         <select v-model="filter.column" class="query-select">
                             <option value="">-- Select column --</option>
                             <option v-for="col in availableColumns" :key="col.value" :value="col.value">
-                                [[ col.label ]]
+                                {{ col.label }}
                             </option>
                         </select>
                     </div>
+        {% endverbatim %}
                     
                     <div class="filter-group" style="flex: 1;">
                         <label class="control-label">Operator</label>
@@ -380,6 +382,7 @@
             </div>
         </div>
         
+        {% verbatim %}
         <div class="results-container" v-if="showResults || isLoading">
             <div v-if="isLoading" class="loading-spinner">
                 <i class="fas fa-spinner fa-spin"></i> Executing query...
@@ -391,8 +394,8 @@
             
             <div v-else>
                 <div class="results-header">
-                    <div class="results-title">[[ queryDescription ]]</div>
-                    <div class="results-count">[[ results.length ]] records</div>
+                    <div class="results-title">{{ queryDescription }}</div>
+                    <div class="results-count">{{ results.length }} records</div>
                 </div>
                 
                 <table class="results-table">
@@ -413,32 +416,33 @@
                             <td>
                                 <a :href="'/search/?account=' + row.stellar_account + '&network=' + row.network_name" 
                                    class="account-link" target="_blank">
-                                    [[ row.stellar_account ]]
+                                    {{ row.stellar_account }}
                                 </a>
                             </td>
-                            <td>[[ row.network_name ]]</td>
+                            <td>{{ row.network_name }}</td>
                             <td v-if="showColumn('status')">
                                 <span :class="getStatusClass(row.status)" class="status-badge">
-                                    [[ row.status ]]
+                                    {{ row.status }}
                                 </span>
                             </td>
-                            <td v-if="showColumn('xlm_balance')">[[ formatNumber(row.xlm_balance) ]]</td>
+                            <td v-if="showColumn('xlm_balance')">{{ formatNumber(row.xlm_balance) }}</td>
                             <td v-if="showColumn('creator_account')">
                                 <a v-if="row.creator_account" 
                                    :href="'/search/?account=' + row.creator_account + '&network=' + row.network_name" 
                                    class="account-link" target="_blank">
-                                    [[ row.creator_account.substring(0, 10) ]]...
+                                    {{ row.creator_account.substring(0, 10) }}...
                                 </a>
                                 <span v-else>-</span>
                             </td>
-                            <td v-if="showColumn('age_minutes')">[[ row.age_minutes || '-' ]]</td>
-                            <td v-if="showColumn('retry_count')">[[ row.retry_count || 0 ]]</td>
-                            <td v-if="showColumn('updated_at')">[[ formatDate(row.updated_at) ]]</td>
+                            <td v-if="showColumn('age_minutes')">{{ row.age_minutes || '-' }}</td>
+                            <td v-if="showColumn('retry_count')">{{ row.retry_count || 0 }}</td>
+                            <td v-if="showColumn('updated_at')">{{ formatDate(row.updated_at) }}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+        {% endverbatim %}
     </div>
   </div>
 
@@ -453,7 +457,6 @@
     
     var vm = new Vue({
         el: '#app',
-        delimiters: ['[[', ']]'],
         data: {
           query_account: '',
           network_toggle: true,
