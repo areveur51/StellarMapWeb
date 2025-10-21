@@ -31,6 +31,11 @@ skinparam sequence {
   ArrowColor #01C176
   LifeLineBorderColor #0BE784
   LifeLineBackgroundColor #100D23
+  DividerBackgroundColor #100D23
+  DividerBorderColor #0BE784
+  DividerFontColor #0BE784
+  DividerFontSize 14
+  DividerFontStyle bold
 }
 
 title <color:#0BE784>High Value Account (HVA) Ranking & Change Tracking System
