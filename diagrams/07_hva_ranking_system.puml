@@ -36,6 +36,12 @@ skinparam sequence {
   DividerFontColor #0BE784
   DividerFontSize 14
   DividerFontStyle bold
+  GroupBackgroundColor #100D23
+  GroupBorderColor #0BE784
+  GroupBorderThickness 2
+  GroupHeaderFontColor #0BE784
+  GroupHeaderFontSize 12
+  GroupHeaderFontStyle bold
 }
 
 title <color:#0BE784>High Value Account (HVA) Ranking & Change Tracking System
