@@ -570,7 +570,7 @@
               
               try {
                   const filtersParam = encodeURIComponent(JSON.stringify(this.customFilters));
-                  const response = await fetch(`/api/cassandra-query/?query=custom&table=${this.customTable}&filters=${filtersParam}&limit=${this.resultLimit}`);
+                  const response = await fetch(`/api/cassandra-query/?query=custom&table=${this.customTable}&filters=${filtersParam}&limit=${this.resultLimit}&network=${this.network_selected}`);
                   const data = await response.json();
                   
                   this.results = data.results || [];
@@ -593,7 +593,7 @@
               this.showResults = true;
               
               try {
-                  const response = await fetch(`/api/cassandra-query/?query=${this.selectedQuery}&limit=${this.resultLimit}`);
+                  const response = await fetch(`/api/cassandra-query/?query=${this.selectedQuery}&limit=${this.resultLimit}&network=${this.network_selected}`);
                   const data = await response.json();
                   
                   this.results = data.results || [];

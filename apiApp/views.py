@@ -1119,6 +1119,11 @@ def cassandra_query_api(request):
     try:
         query_name = request.GET.get('query', '')
         limit = min(int(request.GET.get('limit', 100)), 500)
+        network = request.GET.get('network', 'public').strip()
+        
+        # Validate network
+        if network not in ['public', 'testnet']:
+            network = 'public'
         
         if not query_name:
             return JsonResponse({
@@ -1179,7 +1184,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10  # Safety limit: scan at most 10x the result limit
                 
-                for record in StellarCreatorAccountLineage.objects.all():
+                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break  # Safety exit to prevent excessive scanning
@@ -1194,6 +1199,7 @@ def cassandra_query_api(request):
                 all_records.sort(key=lambda r: r.updated_at or datetime.min)
             else:
                 all_records = StellarCreatorAccountLineage.objects.filter(
+                    network_name=network,
                     updated_at__lt=cutoff_time,
                     status__contains='PROGRESS'
                 ).order_by('updated_at')[:limit]
@@ -1212,7 +1218,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_cache_scan = limit * 5  # Scan up to 5x limit for cache records
                 
-                for record in StellarAccountSearchCache.objects.all():
+                for record in StellarAccountSearchCache.objects.filter(network_name=network):
                     count += 1
                     if count > max_cache_scan:
                         break
@@ -1224,12 +1230,12 @@ def cassandra_query_api(request):
                     if len(orphans) >= limit:
                         break
                     
-                    account, network = key.rsplit('_', 1)
+                    account, net = key.rsplit('_', 1)
                     has_lineage = False
                     
                     # Check if lineage exists (PK filter is efficient)
                     for lineage in StellarCreatorAccountLineage.objects.filter(
-                        stellar_account=account, network_name=network
+                        stellar_account=account, network_name=net
                     ):
                         has_lineage = True
                         break
@@ -1240,8 +1246,8 @@ def cassandra_query_api(request):
                 results = [format_record(r, visible_columns) for r in orphans]
             else:
                 # SQLite can use subquery
-                lineage_accounts = StellarCreatorAccountLineage.objects.values_list('stellar_account', flat=True)
-                orphans = StellarAccountSearchCache.objects.exclude(
+                lineage_accounts = StellarCreatorAccountLineage.objects.filter(network_name=network).values_list('stellar_account', flat=True)
+                orphans = StellarAccountSearchCache.objects.filter(network_name=network).exclude(
                     stellar_account__in=lineage_accounts
                 )[:limit]
                 results = [format_record(r, visible_columns) for r in orphans]
@@ -1257,7 +1263,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarAccountStageExecution.objects.all():
+                for record in StellarAccountStageExecution.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1266,7 +1272,7 @@ def cassandra_query_api(request):
                         if len(failed) >= limit:
                             break
             else:
-                failed = StellarAccountStageExecution.objects.filter(status='FAILED')[:limit]
+                failed = StellarAccountStageExecution.objects.filter(network_name=network, status='FAILED')[:limit]
             
             results = [format_record(r, visible_columns) for r in failed]
         
@@ -1283,7 +1289,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarAccountSearchCache.objects.all():
+                for record in StellarAccountSearchCache.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1294,7 +1300,7 @@ def cassandra_query_api(request):
                 
                 stale.sort(key=lambda r: r.updated_at or datetime.min)
             else:
-                stale = StellarAccountSearchCache.objects.filter(updated_at__lt=cutoff_time).order_by('updated_at')[:limit]
+                stale = StellarAccountSearchCache.objects.filter(network_name=network, updated_at__lt=cutoff_time).order_by('updated_at')[:limit]
             
             results = [format_record(r, visible_columns) for r in stale]
         
@@ -1311,7 +1317,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarAccountSearchCache.objects.all():
+                for record in StellarAccountSearchCache.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1322,7 +1328,7 @@ def cassandra_query_api(request):
                 
                 fresh.sort(key=lambda r: r.updated_at or datetime.max, reverse=True)
             else:
-                fresh = StellarAccountSearchCache.objects.filter(updated_at__gte=cutoff_time).order_by('-updated_at')[:limit]
+                fresh = StellarAccountSearchCache.objects.filter(network_name=network, updated_at__gte=cutoff_time).order_by('-updated_at')[:limit]
             
             results = [format_record(r, visible_columns) for r in fresh]
         
@@ -1337,7 +1343,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarCreatorAccountLineage.objects.all():
+                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1346,7 +1352,7 @@ def cassandra_query_api(request):
                         if len(pending) >= limit:
                             break
             else:
-                pending = StellarCreatorAccountLineage.objects.filter(status='PENDING')[:limit]
+                pending = StellarCreatorAccountLineage.objects.filter(network_name=network, status='PENDING')[:limit]
             
             results = [format_record(r, visible_columns) for r in pending]
         
@@ -1361,7 +1367,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarCreatorAccountLineage.objects.all():
+                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1370,7 +1376,7 @@ def cassandra_query_api(request):
                         if len(processing) >= limit:
                             break
             else:
-                processing = StellarCreatorAccountLineage.objects.filter(status__contains='PROGRESS')[:limit]
+                processing = StellarCreatorAccountLineage.objects.filter(network_name=network, status__contains='PROGRESS')[:limit]
             
             results = [format_record(r, visible_columns) for r in processing]
         
@@ -1385,7 +1391,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarCreatorAccountLineage.objects.all():
+                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1396,6 +1402,8 @@ def cassandra_query_api(request):
             else:
                 from django.db.models import Q
                 completed = StellarCreatorAccountLineage.objects.filter(
+                    network_name=network
+                ).filter(
                     Q(status__contains='COMPLETE') | Q(status__contains='DONE')
                 )[:limit]
             
@@ -1412,7 +1420,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in StellarCreatorAccountLineage.objects.all():
+                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1424,7 +1432,7 @@ def cassandra_query_api(request):
                 # Sort by balance descending
                 hva_list.sort(key=lambda r: r.xlm_balance or 0, reverse=True)
             else:
-                hva_list = StellarCreatorAccountLineage.objects.filter(xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
+                hva_list = StellarCreatorAccountLineage.objects.filter(network_name=network, xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
             
             results = [format_record(r, visible_columns) for r in hva_list]
         
@@ -1441,7 +1449,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in HVAStandingChange.objects.all():
+                for record in HVAStandingChange.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break
@@ -1453,7 +1461,7 @@ def cassandra_query_api(request):
                 # Sort by created_at descending
                 changes.sort(key=lambda r: r.created_at or datetime.min, reverse=True)
             else:
-                changes = HVAStandingChange.objects.filter(created_at__gte=cutoff_time).order_by('-created_at')[:limit]
+                changes = HVAStandingChange.objects.filter(network_name=network, created_at__gte=cutoff_time).order_by('-created_at')[:limit]
             
             # Format HVA changes differently
             for change in changes:
@@ -1545,7 +1553,8 @@ def cassandra_query_api(request):
             count = 0
             max_scan = limit * 20  # For custom filters, allow more scanning
             
-            for record in model.objects.all():
+            # Start with network filter for efficiency
+            for record in model.objects.filter(network_name=network):
                 count += 1
                 if count > max_scan:
                     break  # Safety exit to prevent excessive scanning
