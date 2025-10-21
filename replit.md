@@ -23,9 +23,10 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **DRY Template Architecture**: Shared components like `search_container_include.html` ensure no code duplication.
 - **Icon-Free Navigation**: Clean, cyberpunk-styled navigation buttons.
 - **High Value Account (HVA) Leaderboard**: Identifies and ranks accounts with >1M XLM, displayed on a dedicated page with efficient filtering.
+- **HVA Ranking System**: Event-based change tracking that records only meaningful ranking changes (ENTERED, EXITED, RANK_UP, RANK_DOWN) achieving 480x storage efficiency vs snapshots. UI displays 24h rank changes with visual indicators (arrows, badges, percentages). See [HVA_RANKING_SYSTEM.md](HVA_RANKING_SYSTEM.md) for details.
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements using a consistent color palette.
 - **Dashboard Layout**: Alerts & Recommendations are prioritized at the top for immediate visibility.
-- **Architecture Diagrams**: 5 PlantUML diagrams are used for documentation.
+- **Architecture Diagrams**: 7 PlantUML diagrams are used for documentation.
 
 ## Technical Implementation
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
@@ -33,7 +34,8 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Environment-Aware Model Loading**: `apiApp/model_loader.py` dynamically imports Cassandra or SQLite models based on the environment.
 - **Django Admin Integration**: Full integration of Cassandra models with workarounds for query constraints. Admin portal features clickable hyperlinks for stellar_account and stellar_creator_account fields that open search pages in new windows.
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production, including automatic migrations.
-- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, and `BigQueryCostGuard` for cost and size limits. An Admin Configuration Panel allows dynamic adjustment of pipeline settings. Includes an API fallback mechanism if BigQuery limits are exceeded.
+- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, and `BigQueryCostGuard` for cost and size limits. An Admin Configuration Panel allows dynamic adjustment of pipeline settings. Includes an API fallback mechanism if BigQuery limits are exceeded. Pipeline automatically detects and records HVA ranking changes.
+- **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility. `recalculate_hva_rankings` management command for initial backfill.
 - **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for educational purposes, providing comprehensive workflow tracking.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Two-Tier Creator Extraction**: BigQuery for `create_account` operations; API pipeline with Stellar Expert fallback.
