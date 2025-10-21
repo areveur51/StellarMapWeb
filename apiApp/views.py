@@ -1109,7 +1109,6 @@ def cassandra_query_api(request):
     from apiApp.model_loader import (
         StellarAccountSearchCache,
         StellarCreatorAccountLineage,
-        HighValueAccount,
         HVAStandingChange,
         StellarAccountStageExecution,
         USE_CASSANDRA
@@ -1413,7 +1412,7 @@ def cassandra_query_api(request):
                 count = 0
                 max_scan = limit * 10
                 
-                for record in HighValueAccount.objects.all():
+                for record in StellarCreatorAccountLineage.objects.all():
                     count += 1
                     if count > max_scan:
                         break
@@ -1425,7 +1424,7 @@ def cassandra_query_api(request):
                 # Sort by balance descending
                 hva_list.sort(key=lambda r: r.xlm_balance or 0, reverse=True)
             else:
-                hva_list = HighValueAccount.objects.filter(xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
+                hva_list = StellarCreatorAccountLineage.objects.filter(xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
             
             results = [format_record(r, visible_columns) for r in hva_list]
         
@@ -1483,7 +1482,7 @@ def cassandra_query_api(request):
             table_models = {
                 'lineage': StellarCreatorAccountLineage,
                 'cache': StellarAccountSearchCache,
-                'hva': HighValueAccount,
+                'hva': StellarCreatorAccountLineage,  # HVAs are in lineage table with xlm_balance > 1M
                 'stages': StellarAccountStageExecution,
                 'hva_changes': HVAStandingChange
             }

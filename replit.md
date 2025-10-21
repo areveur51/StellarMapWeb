@@ -1,5 +1,5 @@
 # Overview
-StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API, Stellar Expert, and Google BigQuery, stores this data in Astra DB (Cassandra), and renders it as interactive D3.js radial tree diagrams. The project aims to provide a comprehensive and cost-effective solution for exploring Stellar account relationships, with a focus on UI/UX, performance, and scalability. It includes features for identifying High-Value Accounts, offers a multi-theme interface, and provides enhanced admin portal navigation with clickable account hyperlinks.
+StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from the Horizon API, Stellar Expert, and Google BigQuery, stores this data in Astra DB (Cassandra), and renders it as interactive D3.js radial tree diagrams. The project aims to provide a comprehensive and cost-effective solution for exploring Stellar account relationships, with a focus on UI/UX, performance, and scalability. It includes features for identifying High-Value Accounts, offers a multi-theme interface, provides enhanced admin portal navigation with clickable account hyperlinks, and features a powerful Query Builder for Cassandra database exploration.
 
 # User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -24,6 +24,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Icon-Free Navigation**: Clean, cyberpunk-styled navigation buttons.
 - **High Value Account (HVA) Leaderboard**: Identifies and ranks accounts with >1M XLM, displayed on a dedicated page with efficient filtering.
 - **HVA Ranking System**: Event-based change tracking that records only meaningful ranking changes (ENTERED, EXITED, RANK_UP, RANK_DOWN) achieving 480x storage efficiency vs snapshots. UI displays 24h rank changes with visual indicators (arrows, badges, percentages). See [HVA_RANKING_SYSTEM.md](HVA_RANKING_SYSTEM.md) for details.
+- **Query Builder**: Comprehensive Cassandra database explorer at /web/query-builder/ with 10 pre-defined queries (stuck accounts, orphan accounts, failed stages, etc.) and custom multi-filter builder supporting AND logic. Features performance safeguards with max_scan limits (10x-20x result limit) to prevent unbounded table scans. Includes sortable results table with clickable account links and result limits (50-500 records).
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements using a consistent color palette.
 - **Dashboard Layout**: Alerts & Recommendations are prioritized at the top for immediate visibility.
 - **Architecture Diagrams**: 7 PlantUML diagrams are used for documentation.
