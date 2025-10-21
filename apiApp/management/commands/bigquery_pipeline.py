@@ -623,6 +623,14 @@ class Command(BaseCommand):
                 ]
             })
             
+            # Store balance and home_domain in database fields (for querying and display)
+            if horizon_data:
+                account_obj.xlm_balance = horizon_data.get('balance', 0.0)
+                account_obj.home_domain = horizon_data.get('home_domain', '')
+            else:
+                account_obj.xlm_balance = 0.0
+                account_obj.home_domain = ''
+            
             # Calculate flags from Horizon data
             if horizon_data and 'flags' in horizon_data:
                 flags = horizon_data['flags']
