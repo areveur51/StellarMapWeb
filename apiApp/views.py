@@ -1092,3 +1092,497 @@ def bulk_queue_accounts_api(request):
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
+
+
+@ratelimit(key='ip', rate='30/m', method='GET', block=True)
+def cassandra_query_api(request):
+    """
+    API endpoint for executing pre-defined queries on Cassandra database.
+    
+    Query Parameters:
+        query (str): Pre-defined query name
+        limit (int): Result limit (default 100, max 500)
+    
+    Returns:
+        JsonResponse: Query results with metadata
+    """
+    from apiApp.model_loader import (
+        StellarAccountSearchCache,
+        StellarCreatorAccountLineage,
+        HighValueAccount,
+        HVAStandingChange,
+        StellarAccountStageExecution,
+        USE_CASSANDRA
+    )
+    from datetime import datetime, timedelta
+    from django.utils import timezone
+    
+    try:
+        query_name = request.GET.get('query', '')
+        limit = min(int(request.GET.get('limit', 100)), 500)
+        
+        if not query_name:
+            return JsonResponse({
+                'error': 'Missing query parameter'
+            }, status=400)
+        
+        results = []
+        description = ''
+        visible_columns = []
+        
+        # Helper function to calculate age
+        def calculate_age_minutes(updated_at):
+            if not updated_at:
+                return None
+            try:
+                if isinstance(updated_at, datetime):
+                    age_delta = datetime.utcnow() - updated_at
+                else:
+                    age_delta = datetime.utcnow() - datetime.fromtimestamp(updated_at.timestamp())
+                return int(age_delta.total_seconds() / 60)
+            except:
+                return None
+        
+        # Helper function to format record
+        def format_record(record, include_fields):
+            data = {
+                'stellar_account': getattr(record, 'stellar_account', ''),
+                'network_name': getattr(record, 'network_name', 'public'),
+            }
+            
+            if 'status' in include_fields:
+                data['status'] = getattr(record, 'status', '')
+            if 'xlm_balance' in include_fields:
+                data['xlm_balance'] = getattr(record, 'xlm_balance', 0)
+            if 'creator_account' in include_fields:
+                data['creator_account'] = getattr(record, 'stellar_creator_account', '')
+            if 'age_minutes' in include_fields:
+                data['age_minutes'] = calculate_age_minutes(getattr(record, 'updated_at', None))
+            if 'retry_count' in include_fields:
+                data['retry_count'] = getattr(record, 'retry_count', 0)
+            if 'updated_at' in include_fields:
+                updated = getattr(record, 'updated_at', None)
+                data['updated_at'] = updated.isoformat() if updated else None
+            
+            return data
+        
+        # Execute query based on query_name
+        if query_name == 'stuck_accounts':
+            description = 'Stuck Accounts (Processing > 60 minutes)'
+            visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
+            
+            cutoff_time = datetime.utcnow() - timedelta(minutes=60)
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: Cannot filter by updated_at/status (non-PK fields)
+                # Strategy: Collect matches with early exit, then sort by updated_at DESC
+                all_records = []
+                count = 0
+                max_scan = limit * 10  # Safety limit: scan at most 10x the result limit
+                
+                for record in StellarCreatorAccountLineage.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break  # Safety exit to prevent excessive scanning
+                    
+                    if record.updated_at and record.updated_at < cutoff_time:
+                        if record.status and 'PROGRESS' in record.status:
+                            all_records.append(record)
+                            if len(all_records) >= limit:
+                                break
+                
+                # Sort by updated_at descending (oldest stuck records first)
+                all_records.sort(key=lambda r: r.updated_at or datetime.min)
+            else:
+                all_records = StellarCreatorAccountLineage.objects.filter(
+                    updated_at__lt=cutoff_time,
+                    status__contains='PROGRESS'
+                ).order_by('updated_at')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in all_records]
+        
+        elif query_name == 'orphan_accounts':
+            description = 'Orphan Accounts (Cached Without Lineage)'
+            visible_columns = ['status', 'updated_at']
+            
+            # Find accounts in cache without lineage
+            if USE_CASSANDRA:
+                # Cassandra limitation: Must collect all cache, then check lineage
+                # Strategy: Limit cache collection, check lineage per account
+                cached_accounts = {}
+                count = 0
+                max_cache_scan = limit * 5  # Scan up to 5x limit for cache records
+                
+                for record in StellarAccountSearchCache.objects.all():
+                    count += 1
+                    if count > max_cache_scan:
+                        break
+                    key = f"{record.stellar_account}_{record.network_name}"
+                    cached_accounts[key] = record
+                
+                orphans = []
+                for key, cache_record in cached_accounts.items():
+                    if len(orphans) >= limit:
+                        break
+                    
+                    account, network = key.rsplit('_', 1)
+                    has_lineage = False
+                    
+                    # Check if lineage exists (PK filter is efficient)
+                    for lineage in StellarCreatorAccountLineage.objects.filter(
+                        stellar_account=account, network_name=network
+                    ):
+                        has_lineage = True
+                        break
+                    
+                    if not has_lineage:
+                        orphans.append(cache_record)
+                
+                results = [format_record(r, visible_columns) for r in orphans]
+            else:
+                # SQLite can use subquery
+                lineage_accounts = StellarCreatorAccountLineage.objects.values_list('stellar_account', flat=True)
+                orphans = StellarAccountSearchCache.objects.exclude(
+                    stellar_account__in=lineage_accounts
+                )[:limit]
+                results = [format_record(r, visible_columns) for r in orphans]
+        
+        elif query_name == 'failed_stages':
+            description = 'Failed Stage Executions'
+            visible_columns = ['status', 'updated_at']
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: status not in PK, must scan
+                # Strategy: Early exit after finding limit records
+                failed = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarAccountStageExecution.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.status == 'FAILED':
+                        failed.append(record)
+                        if len(failed) >= limit:
+                            break
+            else:
+                failed = StellarAccountStageExecution.objects.filter(status='FAILED')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in failed]
+        
+        elif query_name == 'stale_records':
+            description = 'Stale Records (>12 hours old)'
+            visible_columns = ['status', 'age_minutes', 'updated_at']
+            
+            cutoff_time = datetime.utcnow() - timedelta(hours=12)
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: updated_at not in PK
+                # Strategy: Collect with early exit, sort by age
+                stale = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarAccountSearchCache.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.updated_at and record.updated_at < cutoff_time:
+                        stale.append(record)
+                        if len(stale) >= limit:
+                            break
+                
+                stale.sort(key=lambda r: r.updated_at or datetime.min)
+            else:
+                stale = StellarAccountSearchCache.objects.filter(updated_at__lt=cutoff_time).order_by('updated_at')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in stale]
+        
+        elif query_name == 'fresh_records':
+            description = 'Fresh Records (Recently Updated)'
+            visible_columns = ['status', 'age_minutes', 'updated_at']
+            
+            cutoff_time = datetime.utcnow() - timedelta(hours=1)
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: updated_at not in PK
+                # Strategy: Collect with early exit, sort by updated_at DESC
+                fresh = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarAccountSearchCache.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.updated_at and record.updated_at >= cutoff_time:
+                        fresh.append(record)
+                        if len(fresh) >= limit:
+                            break
+                
+                fresh.sort(key=lambda r: r.updated_at or datetime.max, reverse=True)
+            else:
+                fresh = StellarAccountSearchCache.objects.filter(updated_at__gte=cutoff_time).order_by('-updated_at')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in fresh]
+        
+        elif query_name == 'pending_accounts':
+            description = 'Pending Accounts'
+            visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: status not in PK
+                # Strategy: Early exit with max scan limit
+                pending = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarCreatorAccountLineage.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.status == 'PENDING':
+                        pending.append(record)
+                        if len(pending) >= limit:
+                            break
+            else:
+                pending = StellarCreatorAccountLineage.objects.filter(status='PENDING')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in pending]
+        
+        elif query_name == 'processing_accounts':
+            description = 'Processing Accounts'
+            visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: status not in PK
+                # Strategy: Early exit with max scan limit
+                processing = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarCreatorAccountLineage.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.status and 'PROGRESS' in record.status:
+                        processing.append(record)
+                        if len(processing) >= limit:
+                            break
+            else:
+                processing = StellarCreatorAccountLineage.objects.filter(status__contains='PROGRESS')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in processing]
+        
+        elif query_name == 'completed_accounts':
+            description = 'Completed Accounts'
+            visible_columns = ['status', 'creator_account', 'updated_at']
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: status not in PK
+                # Strategy: Early exit with max scan limit
+                completed = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in StellarCreatorAccountLineage.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.status and ('COMPLETE' in record.status or 'DONE' in record.status):
+                        completed.append(record)
+                        if len(completed) >= limit:
+                            break
+            else:
+                from django.db.models import Q
+                completed = StellarCreatorAccountLineage.objects.filter(
+                    Q(status__contains='COMPLETE') | Q(status__contains='DONE')
+                )[:limit]
+            
+            results = [format_record(r, visible_columns) for r in completed]
+        
+        elif query_name == 'high_value_accounts':
+            description = 'High Value Accounts (>1M XLM)'
+            visible_columns = ['xlm_balance', 'creator_account', 'updated_at']
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: xlm_balance not in PK
+                # Strategy: Early exit with max scan limit
+                hva_list = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in HighValueAccount.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.xlm_balance and record.xlm_balance > 1000000:
+                        hva_list.append(record)
+                        if len(hva_list) >= limit:
+                            break
+                
+                # Sort by balance descending
+                hva_list.sort(key=lambda r: r.xlm_balance or 0, reverse=True)
+            else:
+                hva_list = HighValueAccount.objects.filter(xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
+            
+            results = [format_record(r, visible_columns) for r in hva_list]
+        
+        elif query_name == 'recent_hva_changes':
+            description = 'Recent HVA Standing Changes (24 hours)'
+            visible_columns = ['status', 'updated_at']
+            
+            cutoff_time = timezone.now() - timedelta(hours=24)
+            
+            if USE_CASSANDRA:
+                # Cassandra limitation: created_at not in PK
+                # Strategy: Early exit with max scan limit
+                changes = []
+                count = 0
+                max_scan = limit * 10
+                
+                for record in HVAStandingChange.objects.all():
+                    count += 1
+                    if count > max_scan:
+                        break
+                    if record.created_at and record.created_at >= cutoff_time:
+                        changes.append(record)
+                        if len(changes) >= limit:
+                            break
+                
+                # Sort by created_at descending
+                changes.sort(key=lambda r: r.created_at or datetime.min, reverse=True)
+            else:
+                changes = HVAStandingChange.objects.filter(created_at__gte=cutoff_time).order_by('-created_at')[:limit]
+            
+            # Format HVA changes differently
+            for change in changes:
+                results.append({
+                    'stellar_account': getattr(change, 'stellar_account', ''),
+                    'network_name': getattr(change, 'network_name', 'public'),
+                    'status': getattr(change, 'event_type', ''),
+                    'updated_at': getattr(change, 'created_at', None).isoformat() if getattr(change, 'created_at', None) else None
+                })
+        
+        elif query_name == 'custom':
+            # Custom query with multiple filters (AND logic)
+            table_name = request.GET.get('table', '')
+            filters_json = request.GET.get('filters', '[]')
+            
+            try:
+                import json
+                filters = json.loads(filters_json)
+            except:
+                return JsonResponse({'error': 'Invalid filters JSON'}, status=400)
+            
+            if not table_name or not filters:
+                return JsonResponse({'error': 'Missing table or filters'}, status=400)
+            
+            # Map table names to models
+            table_models = {
+                'lineage': StellarCreatorAccountLineage,
+                'cache': StellarAccountSearchCache,
+                'hva': HighValueAccount,
+                'stages': StellarAccountStageExecution,
+                'hva_changes': HVAStandingChange
+            }
+            
+            model = table_models.get(table_name)
+            if not model:
+                return JsonResponse({'error': 'Invalid table name'}, status=400)
+            
+            description = f'Custom Query on {table_name.title()}'
+            visible_columns = ['status', 'creator_account', 'xlm_balance', 'age_minutes', 'retry_count', 'updated_at']
+            
+            # Helper to apply filter
+            def matches_filter(record, filter_obj):
+                column = filter_obj.get('column')
+                operator = filter_obj.get('operator')
+                value = filter_obj.get('value', '')
+                
+                if not column or not operator:
+                    return True
+                
+                # Get field value
+                field_value = getattr(record, column, None)
+                if field_value is None:
+                    return False
+                
+                # Convert to string for comparison
+                field_str = str(field_value)
+                
+                # Apply operator
+                if operator == 'equals':
+                    return field_str.lower() == value.lower()
+                elif operator == 'contains':
+                    return value.lower() in field_str.lower()
+                elif operator == 'gt':
+                    try:
+                        return float(field_value) > float(value)
+                    except:
+                        return False
+                elif operator == 'lt':
+                    try:
+                        return float(field_value) < float(value)
+                    except:
+                        return False
+                elif operator == 'gte':
+                    try:
+                        return float(field_value) >= float(value)
+                    except:
+                        return False
+                elif operator == 'lte':
+                    try:
+                        return float(field_value) <= float(value)
+                    except:
+                        return False
+                
+                return False
+            
+            # Fetch and filter records (AND logic)
+            # Cassandra limitation: Must scan, but limit with max_scan
+            filtered_records = []
+            count = 0
+            max_scan = limit * 20  # For custom filters, allow more scanning
+            
+            for record in model.objects.all():
+                count += 1
+                if count > max_scan:
+                    break  # Safety exit to prevent excessive scanning
+                
+                # Apply all filters with AND logic
+                matches_all = True
+                for filter_obj in filters:
+                    if not matches_filter(record, filter_obj):
+                        matches_all = False
+                        break
+                
+                if matches_all:
+                    filtered_records.append(record)
+                    if len(filtered_records) >= limit:
+                        break
+            
+            results = [format_record(r, visible_columns) for r in filtered_records]
+        
+        else:
+            return JsonResponse({
+                'error': 'Invalid query name',
+                'query': query_name
+            }, status=400)
+        
+        return JsonResponse({
+            'results': results,
+            'description': description,
+            'visible_columns': visible_columns,
+            'count': len(results)
+        }, status=200)
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in cassandra_query_api: {e}')
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)

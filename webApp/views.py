@@ -848,3 +848,21 @@ def bulk_search_view(request):
         HttpResponse: Rendered bulk search page.
     """
     return render(request, 'webApp/bulk_search.html')
+
+
+@ratelimit(key='ip', rate='20/m', method='GET', block=True)
+def query_builder_view(request):
+    """
+    Query Builder view: Interactive page for analyzing Cassandra database data.
+    
+    Rate limited to 20 requests per minute per IP address.
+    Allows users to select pre-defined queries from the dashboard or build custom queries
+    to explore and analyze Cassandra database records.
+
+    Args:
+        request: HttpRequest object.
+
+    Returns:
+        HttpResponse: Rendered query builder page.
+    """
+    return render(request, 'webApp/query_builder.html')

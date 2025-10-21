@@ -14,4 +14,5 @@ urlpatterns = [
     path('server-logs/', views.server_logs_api, name='server_logs_api'),
     path('error-logs/', views.error_logs_api, name='error_logs_api'),
     path('bulk-queue-accounts/', views.bulk_queue_accounts_api, name='bulk_queue_accounts_api'),
+    path('cassandra-query/', views.cassandra_query_api, name='cassandra_query_api'),
 ]

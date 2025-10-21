@@ -1,0 +1,663 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StellarMap Web - Query Builder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  
+  <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
+  <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
+  
+  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  
+  <style>
+    body {
+        background: #261D45;
+        color: #96DDF2;
+        min-height: 100vh;
+    }
+    
+    .query-builder-content {
+        padding: 30px 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    .query-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 25px;
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .query-title {
+        color: #96DDF2;
+        text-shadow: 0 0 20px rgba(150, 221, 242, 0.5);
+        font-size: 2rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    
+    .query-subtitle {
+        color: #c4b5fd;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+    
+    .query-controls {
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .control-label {
+        color: #0BE784;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+        display: block;
+    }
+    
+    .query-select {
+        width: 100%;
+        padding: 12px 15px;
+        background: #1a1530;
+        border: 1px solid #3f2c70;
+        border-radius: 4px;
+        color: #96DDF2;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .query-select:focus {
+        outline: none;
+        border-color: #0BE784;
+        box-shadow: 0 0 10px rgba(11, 231, 132, 0.3);
+    }
+    
+    .query-select option {
+        background: #1a1530;
+        color: #96DDF2;
+    }
+    
+    .results-container {
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        padding: 25px;
+        overflow-x: auto;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        min-height: 300px;
+    }
+    
+    .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #96DDF2;
+    }
+    
+    .results-title {
+        color: #96DDF2;
+        font-size: 1.2rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
+    }
+    
+    .results-count {
+        color: #0BE784;
+        font-size: 1rem;
+        font-weight: bold;
+    }
+    
+    .results-table {
+        width: 100%;
+        color: #96DDF2;
+        border-collapse: collapse;
+    }
+    
+    .results-table thead {
+        border-bottom: 2px solid #96DDF2;
+    }
+    
+    .results-table th {
+        padding: 15px 12px;
+        text-align: left;
+        color: #96DDF2;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .results-table th:hover {
+        color: #0BE784;
+    }
+    
+    .results-table td {
+        padding: 15px 12px;
+        border-top: 1px solid #3f2c70;
+        vertical-align: middle;
+    }
+    
+    .results-table tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .results-table tbody tr:hover {
+        background: rgba(150, 221, 242, 0.1);
+        transform: translateX(3px);
+        box-shadow: 0 2px 10px rgba(150, 221, 242, 0.2);
+    }
+    
+    .account-link {
+        color: #96DDF2;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        text-shadow: 0 0 5px rgba(150, 221, 242, 0.2);
+    }
+    
+    .account-link:hover {
+        color: #0BE784;
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.4);
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-completed {
+        background: rgba(11, 231, 132, 0.2);
+        color: #0BE784;
+        border: 1px solid #0BE784;
+    }
+    
+    .status-pending {
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border: 1px solid #ffc107;
+    }
+    
+    .status-processing {
+        background: rgba(150, 221, 242, 0.2);
+        color: #96DDF2;
+        border: 1px solid #96DDF2;
+    }
+    
+    .status-failed {
+        background: rgba(229, 82, 111, 0.2);
+        color: #E5526F;
+        border: 1px solid #E5526F;
+    }
+    
+    .loading-spinner {
+        text-align: center;
+        padding: 40px;
+        color: #96DDF2;
+        font-size: 1.2rem;
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 40px;
+        color: #c4b5fd;
+        font-size: 1rem;
+    }
+    
+    .filter-row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .btn-execute {
+        padding: 12px 30px;
+        background: linear-gradient(135deg, #0BE784 0%, #0a9e5f 100%);
+        border: none;
+        border-radius: 4px;
+        color: #1a1530;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 15px rgba(11, 231, 132, 0.3);
+    }
+    
+    .btn-execute:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(11, 231, 132, 0.5);
+    }
+    
+    .btn-execute:active {
+        transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-color-261D45">
+  <div id="app">
+    {% include 'webApp/search_container_include.html' %}
+
+    <div class="query-builder-content">
+        <div class="query-header">
+            <h1 class="query-title">Query Builder</h1>
+            <p class="query-subtitle">Analyze and explore your Cassandra database with pre-defined or custom queries</p>
+        </div>
+        
+        <div class="query-controls">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="control-label">Select Pre-Defined Query</label>
+                    <select v-model="selectedQuery" @change="onQueryChange" class="query-select">
+                        <option value="">-- Choose a query --</option>
+                        <option value="stuck_accounts">Stuck Accounts (Processing > 60 min)</option>
+                        <option value="orphan_accounts">Orphan Accounts (No Lineage Data)</option>
+                        <option value="failed_stages">Failed Stage Executions</option>
+                        <option value="stale_records">Stale Records (>12 hours old)</option>
+                        <option value="fresh_records">Fresh Records (Recently Updated)</option>
+                        <option value="pending_accounts">Pending Accounts</option>
+                        <option value="processing_accounts">Processing Accounts</option>
+                        <option value="completed_accounts">Completed Accounts</option>
+                        <option value="high_value_accounts">High Value Accounts (>1M XLM)</option>
+                        <option value="recent_hva_changes">Recent HVA Standing Changes (24h)</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="control-label">Result Limit</label>
+                    <select v-model="resultLimit" class="query-select">
+                        <option value="50">50 records</option>
+                        <option value="100">100 records</option>
+                        <option value="250">250 records</option>
+                        <option value="500">500 records</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button @click="executeQuery" :disabled="!selectedQuery || isLoading" class="btn-execute">
+                    <i class="fas fa-search"></i> Execute Query
+                </button>
+            </div>
+        </div>
+        
+        <div class="query-controls" style="margin-top: 20px;">
+            <h4 style="color: #0BE784; margin-bottom: 20px; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px;">
+                <i class="fas fa-sliders-h"></i> Custom Filter Builder
+            </h4>
+            
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="control-label">Table</label>
+                    <select v-model="customTable" @change="onTableChange" class="query-select">
+                        <option value="">-- Select table --</option>
+                        <option value="lineage">Account Lineage</option>
+                        <option value="cache">Search Cache</option>
+                        <option value="hva">High Value Accounts</option>
+                        <option value="stages">Stage Executions</option>
+                        <option value="hva_changes">HVA Standing Changes</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div v-if="customTable" style="margin-top: 20px;">
+                <div v-for="(filter, index) in customFilters" :key="index" class="filter-row" style="align-items: flex-end; background: rgba(38, 29, 69, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 10px; border: 1px solid #3f2c70;">
+                    <div class="filter-group" style="flex: 2;">
+                        <label class="control-label">Column</label>
+                        <select v-model="filter.column" class="query-select">
+                            <option value="">-- Select column --</option>
+                            <option v-for="col in availableColumns" :key="col.value" :value="col.value">
+                                [[ col.label ]]
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" style="flex: 1;">
+                        <label class="control-label">Operator</label>
+                        <select v-model="filter.operator" class="query-select">
+                            <option value="equals">Equals</option>
+                            <option value="contains">Contains</option>
+                            <option value="gt">Greater Than</option>
+                            <option value="lt">Less Than</option>
+                            <option value="gte">Greater or Equal</option>
+                            <option value="lte">Less or Equal</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group" style="flex: 2;">
+                        <label class="control-label">Value</label>
+                        <input v-model="filter.value" type="text" class="query-select" placeholder="Enter value" style="padding: 11px 15px;">
+                    </div>
+                    
+                    <div class="filter-group" style="flex: 0.5;">
+                        <button @click="removeFilter(index)" class="btn-execute" style="background: linear-gradient(135deg, #E5526F 0%, #b83a50 100%); padding: 11px 15px; width: 100%;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <button @click="addFilter" class="btn-execute" style="background: linear-gradient(135deg, #96DDF2 0%, #6bb8d4 100%); padding: 10px 20px; font-size: 0.9rem;">
+                        <i class="fas fa-plus"></i> Add Filter (AND)
+                    </button>
+                </div>
+                
+                <div style="text-align: center; margin-top: 20px;">
+                    <button @click="executeCustomQuery" :disabled="customFilters.length === 0 || isLoading" class="btn-execute">
+                        <i class="fas fa-search"></i> Execute Custom Query
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="results-container" v-if="showResults || isLoading">
+            <div v-if="isLoading" class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i> Executing query...
+            </div>
+            
+            <div v-else-if="results.length === 0" class="no-results">
+                <i class="fas fa-info-circle"></i> No results found for this query.
+            </div>
+            
+            <div v-else>
+                <div class="results-header">
+                    <div class="results-title">[[ queryDescription ]]</div>
+                    <div class="results-count">[[ results.length ]] records</div>
+                </div>
+                
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th @click="sortBy('stellar_account')">Account</th>
+                            <th @click="sortBy('network_name')">Network</th>
+                            <th @click="sortBy('status')" v-if="showColumn('status')">Status</th>
+                            <th @click="sortBy('xlm_balance')" v-if="showColumn('xlm_balance')">XLM Balance</th>
+                            <th @click="sortBy('creator_account')" v-if="showColumn('creator_account')">Creator</th>
+                            <th @click="sortBy('age_minutes')" v-if="showColumn('age_minutes')">Age (min)</th>
+                            <th @click="sortBy('retry_count')" v-if="showColumn('retry_count')">Retries</th>
+                            <th @click="sortBy('updated_at')" v-if="showColumn('updated_at')">Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="row in sortedResults" :key="row.stellar_account">
+                            <td>
+                                <a :href="'/search/?account=' + row.stellar_account + '&network=' + row.network_name" 
+                                   class="account-link" target="_blank">
+                                    [[ row.stellar_account ]]
+                                </a>
+                            </td>
+                            <td>[[ row.network_name ]]</td>
+                            <td v-if="showColumn('status')">
+                                <span :class="getStatusClass(row.status)" class="status-badge">
+                                    [[ row.status ]]
+                                </span>
+                            </td>
+                            <td v-if="showColumn('xlm_balance')">[[ formatNumber(row.xlm_balance) ]]</td>
+                            <td v-if="showColumn('creator_account')">
+                                <a v-if="row.creator_account" 
+                                   :href="'/search/?account=' + row.creator_account + '&network=' + row.network_name" 
+                                   class="account-link" target="_blank">
+                                    [[ row.creator_account.substring(0, 10) ]]...
+                                </a>
+                                <span v-else>-</span>
+                            </td>
+                            <td v-if="showColumn('age_minutes')">[[ row.age_minutes || '-' ]]</td>
+                            <td v-if="showColumn('retry_count')">[[ row.retry_count || 0 ]]</td>
+                            <td v-if="showColumn('updated_at')">[[ formatDate(row.updated_at) ]]</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
+  
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  
+  <script>
+    Vue.use(BootstrapVue);
+    
+    var vm = new Vue({
+        el: '#app',
+        delimiters: ['[[', ']]'],
+        data: {
+          query_account: '',
+          network_toggle: true,
+          network_selected: 'public',
+          selectedQuery: '',
+          resultLimit: '100',
+          isLoading: false,
+          showResults: false,
+          results: [],
+          queryDescription: '',
+          sortColumn: null,
+          sortDirection: 'asc',
+          visibleColumns: [],
+          customTable: '',
+          customFilters: [],
+          availableColumns: [],
+          tableColumns: {
+              lineage: [
+                  {value: 'status', label: 'Status'},
+                  {value: 'stellar_creator_account', label: 'Creator Account'},
+                  {value: 'retry_count', label: 'Retry Count'},
+                  {value: 'network_name', label: 'Network'}
+              ],
+              cache: [
+                  {value: 'status', label: 'Status'},
+                  {value: 'network_name', label: 'Network'}
+              ],
+              hva: [
+                  {value: 'xlm_balance', label: 'XLM Balance'},
+                  {value: 'stellar_creator_account', label: 'Creator Account'},
+                  {value: 'tags', label: 'Tags'},
+                  {value: 'network_name', label: 'Network'}
+              ],
+              stages: [
+                  {value: 'status', label: 'Status'},
+                  {value: 'stage_name', label: 'Stage Name'},
+                  {value: 'network_name', label: 'Network'}
+              ],
+              hva_changes: [
+                  {value: 'event_type', label: 'Event Type'},
+                  {value: 'rank_change', label: 'Rank Change'},
+                  {value: 'network_name', label: 'Network'}
+              ]
+          }
+        },
+        computed: {
+            sortedResults() {
+                if (!this.sortColumn) return this.results;
+                
+                const sorted = [...this.results].sort((a, b) => {
+                    let aVal = a[this.sortColumn];
+                    let bVal = b[this.sortColumn];
+                    
+                    if (typeof aVal === 'number' && typeof bVal === 'number') {
+                        return this.sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+                    }
+                    
+                    aVal = String(aVal || '');
+                    bVal = String(bVal || '');
+                    
+                    if (this.sortDirection === 'asc') {
+                        return aVal.localeCompare(bVal);
+                    } else {
+                        return bVal.localeCompare(aVal);
+                    }
+                });
+                
+                return sorted;
+            }
+        },
+        methods: {
+          toggleNetwork() {
+            this.network_toggle = !this.network_toggle;
+            this.network_selected = this.network_toggle ? 'public' : 'testnet';
+          },
+          
+          async search() {
+            if (this.query_account && this.query_account.trim()) {
+              const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
+              window.location.href = searchUrl;
+            }
+          },
+          
+          onQueryChange() {
+              this.showResults = false;
+              this.results = [];
+          },
+          
+          onTableChange() {
+              this.availableColumns = this.tableColumns[this.customTable] || [];
+              this.customFilters = [];
+          },
+          
+          addFilter() {
+              this.customFilters.push({
+                  column: '',
+                  operator: 'equals',
+                  value: ''
+              });
+          },
+          
+          removeFilter(index) {
+              this.customFilters.splice(index, 1);
+          },
+          
+          async executeCustomQuery() {
+              if (!this.customTable || this.customFilters.length === 0) return;
+              
+              this.isLoading = true;
+              this.showResults = true;
+              
+              try {
+                  const filtersParam = encodeURIComponent(JSON.stringify(this.customFilters));
+                  const response = await fetch(`/api/cassandra-query/?query=custom&table=${this.customTable}&filters=${filtersParam}&limit=${this.resultLimit}`);
+                  const data = await response.json();
+                  
+                  this.results = data.results || [];
+                  this.queryDescription = data.description || 'Custom Query Results';
+                  this.visibleColumns = data.visible_columns || [];
+                  
+              } catch (error) {
+                  console.error('Custom query execution failed:', error);
+                  this.results = [];
+                  this.queryDescription = 'Error executing custom query';
+              } finally {
+                  this.isLoading = false;
+              }
+          },
+          
+          async executeQuery() {
+              if (!this.selectedQuery) return;
+              
+              this.isLoading = true;
+              this.showResults = true;
+              
+              try {
+                  const response = await fetch(`/api/cassandra-query/?query=${this.selectedQuery}&limit=${this.resultLimit}`);
+                  const data = await response.json();
+                  
+                  this.results = data.results || [];
+                  this.queryDescription = data.description || 'Query Results';
+                  this.visibleColumns = data.visible_columns || [];
+                  
+              } catch (error) {
+                  console.error('Query execution failed:', error);
+                  this.results = [];
+                  this.queryDescription = 'Error executing query';
+              } finally {
+                  this.isLoading = false;
+              }
+          },
+          
+          sortBy(column) {
+              if (this.sortColumn === column) {
+                  this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+              } else {
+                  this.sortColumn = column;
+                  this.sortDirection = 'asc';
+              }
+          },
+          
+          showColumn(column) {
+              if (this.visibleColumns.length === 0) return true;
+              return this.visibleColumns.includes(column);
+          },
+          
+          getStatusClass(status) {
+              if (!status) return '';
+              const statusLower = status.toLowerCase();
+              if (statusLower.includes('complete') || statusLower.includes('done') || statusLower.includes('success')) {
+                  return 'status-completed';
+              } else if (statusLower.includes('pending')) {
+                  return 'status-pending';
+              } else if (statusLower.includes('progress') || statusLower.includes('processing')) {
+                  return 'status-processing';
+              } else if (statusLower.includes('fail') || statusLower.includes('error')) {
+                  return 'status-failed';
+              }
+              return '';
+          },
+          
+          formatNumber(num) {
+              if (!num) return '-';
+              return Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 });
+          },
+          
+          formatDate(dateStr) {
+              if (!dateStr) return '-';
+              try {
+                  const date = new Date(dateStr);
+                  return date.toLocaleString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                  });
+              } catch {
+                  return dateStr;
+              }
+          }
+        },
+        mounted() {
+        }
+    });
+  </script>
+</body>
+</html>
