@@ -1,126 +1,154 @@
 @startuml HVA Ranking System
-!theme cerulean-outline
-skinparam backgroundColor #0a0e27
-skinparam defaultFontColor #00ffff
-skinparam defaultFontSize 12
-skinparam roundcorner 10
 
-title High Value Account (HVA) Ranking & Change Tracking System
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
 
-actor User as user
+skinparam participant {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam actor {
+  BackgroundColor #0BE784
+  BorderColor #0BE784
+  FontColor #100D23
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam sequence {
+  ArrowColor #01C176
+  LifeLineBorderColor #0BE784
+  LifeLineBackgroundColor #100D23
+}
+
+title <color:#0BE784>High Value Account (HVA) Ranking & Change Tracking System
+
+actor User as user #0BE784
 participant "Django Server" as django
 participant "BigQuery Pipeline" as pipeline
 participant "HVARankingHelper" as helper
 database "Astra DB\n(Cassandra)" as cassandra
 participant "HVA Leaderboard\nView" as view
 
-== Initial Setup: Backfill Rankings ==
+== <color:#0BE784>Initial Setup: Backfill Rankings ==
 
-user -> django: python manage.py\nrecalculate_hva_rankings
+user -[#01C176]-> django: python manage.py\nrecalculate_hva_rankings
 activate django
-django -> cassandra: Query all accounts\nWHERE xlm_balance > 1M
-cassandra --> django: HVA accounts
-django -> helper: get_current_rankings(network)
+django -[#01C176]-> cassandra: Query all accounts\nWHERE xlm_balance > 1M
+cassandra -[#01C176]-> django: HVA accounts
+django -[#01C176]-> helper: get_current_rankings(network)
 activate helper
-helper -> helper: Sort by XLM balance DESC
-helper --> django: Rankings (1-1000)
+helper -[#01C176]-> helper: Sort by XLM balance DESC
+helper -[#01C176]-> django: Rankings (1-1000)
 deactivate helper
 
 loop For each HVA account
-    django -> cassandra: Check for existing\nchange events
+    django -[#01C176]-> cassandra: Check for existing\nchange events
     alt No existing events
-        django -> cassandra: Create HVAStandingChange\nevent_type=ENTERED
-        note right
-            Records initial entry
-            into top 1000
+        django -[#01C176]-> cassandra: Create HVAStandingChange\nevent_type=ENTERED
+        note right #231B3D
+            <color:#96DDF2>Records initial entry
+            <color:#96DDF2>into top 1000
         end note
     end
 end
 
-django --> user: Backfill complete\n(X events created)
+django -[#01C176]-> user: Backfill complete\n(X events created)
 deactivate django
 
-== Continuous Tracking: Pipeline Updates ==
+== <color:#0BE784>Continuous Tracking: Pipeline Updates ==
 
-pipeline -> cassandra: Update account balance\n(old_balance → new_balance)
+pipeline -[#01C176]-> cassandra: Update account balance\n(old_balance → new_balance)
 activate pipeline
 
-pipeline -> helper: detect_and_record_change(\naccount, old_balance, new_balance)
+pipeline -[#01C176]-> helper: detect_and_record_change(\naccount, old_balance, new_balance)
 activate helper
 
-helper -> helper: Calculate old_rank\nfrom old_balance
-helper -> helper: Calculate new_rank\nfrom new_balance
+helper -[#01C176]-> helper: Calculate old_rank\nfrom old_balance
+helper -[#01C176]-> helper: Calculate new_rank\nfrom new_balance
 
 alt Significant change detected
-    helper -> helper: Determine event_type:\n- ENTERED (NULL → rank)\n- EXITED (rank → NULL)\n- RANK_UP (rank improved ≥10)\n- RANK_DOWN (rank dropped ≥10)\n- BALANCE_INCREASE (≥5%)\n- BALANCE_DECREASE (≥5%)
+    helper -[#01C176]-> helper: Determine event_type:\n<color:#96DDF2>• ENTERED (NULL → rank)\n<color:#96DDF2>• EXITED (rank → NULL)\n<color:#96DDF2>• RANK_UP (rank improved ≥10)\n<color:#96DDF2>• RANK_DOWN (rank dropped ≥10)\n<color:#96DDF2>• BALANCE_INCREASE (≥5%)\n<color:#96DDF2>• BALANCE_DECREASE (≥5%)
     
-    helper -> cassandra: Create HVAStandingChange
-    note right
-        Event includes:
-        - stellar_account
-        - change_time (TimeUUID)
-        - event_type
-        - old_rank, new_rank
-        - old_balance, new_balance
-        - rank_change (calculated)
-        - balance_change_pct (calculated)
+    helper -[#01C176]-> cassandra: Create HVAStandingChange
+    note right #231B3D
+        <color:#0BE784>Event includes:
+        <color:#96DDF2>• stellar_account
+        <color:#96DDF2>• change_time (TimeUUID)
+        <color:#96DDF2>• event_type
+        <color:#96DDF2>• old_rank, new_rank
+        <color:#96DDF2>• old_balance, new_balance
+        <color:#96DDF2>• rank_change (calculated)
+        <color:#96DDF2>• balance_change_pct (calculated)
     end note
     
-    helper --> pipeline: Change event created
+    helper -[#01C176]-> pipeline: Change event created
 else No significant change
-    helper --> pipeline: NULL (no event)
+    helper -[#01C176]-> pipeline: NULL (no event)
 end
 
 deactivate helper
-pipeline --> pipeline: Continue pipeline
+pipeline -[#01C176]-> pipeline: Continue pipeline
 deactivate pipeline
 
-== User Views Leaderboard ==
+== <color:#0BE784>User Views Leaderboard ==
 
-user -> view: GET /high-value-accounts
+user -[#01C176]-> view: GET /high-value-accounts
 activate view
 
-view -> cassandra: Query all accounts\nWHERE xlm_balance > 1M\nORDER BY xlm_balance DESC
-cassandra --> view: Sorted HVA list
+view -[#01C176]-> cassandra: Query all accounts\nWHERE xlm_balance > 1M\nORDER BY xlm_balance DESC
+cassandra -[#01C176]-> view: Sorted HVA list
 
-view -> view: Calculate cutoff_time\n(24 hours ago)
+view -[#01C176]-> view: Calculate cutoff_time\n(24 hours ago)
 
 loop For each account
-    view -> cassandra: Query HVAStandingChange\nWHERE stellar_account = X\nAND created_at >= cutoff_time\nLIMIT 1
-    cassandra --> view: Most recent change event
+    view -[#01C176]-> cassandra: Query HVAStandingChange\nWHERE stellar_account = X\nAND created_at >= cutoff_time\nLIMIT 1
+    cassandra -[#01C176]-> view: Most recent change event
     
     alt Change event found
-        view -> view: Enrich account:\n- rank_change_24h\n- rank_change_direction\n- is_new_entry
-        note right
-            UI displays:
-            🔼 +5 (rank improved)
-            🔽 -2 (rank dropped)
-            ⭐ NEW (entered top 1000)
-            +12.5% (balance increased)
+        view -[#01C176]-> view: Enrich account:\n<color:#96DDF2>• rank_change_24h\n<color:#96DDF2>• rank_change_direction\n<color:#96DDF2>• is_new_entry
+        note right #231B3D
+            <color:#0BE784>UI displays:
+            <color:#96DDF2>🔼 +5 (rank improved)
+            <color:#96DDF2>🔽 -2 (rank dropped)
+            <color:#96DDF2>⭐ NEW (entered top 1000)
+            <color:#96DDF2>+12.5% (balance increased)
         end note
     end
 end
 
-view --> user: Rendered leaderboard\nwith change indicators
+view -[#01C176]-> user: Rendered leaderboard\nwith change indicators
 deactivate view
 
-== Storage Efficiency ==
+== <color:#0BE784>Storage Efficiency ==
 
-note over cassandra
-    **Event-Based Tracking**
-    Only stores CHANGES, not snapshots
+note over cassandra #231B3D
+    <color:#0BE784>**Event-Based Tracking**
+    <color:#96DDF2>Only stores CHANGES, not snapshots
     
-    Traditional snapshot approach:
-    - 1,000 accounts × 24 snapshots/day = 24,000 records/day
+    <color:#96DDF2>Traditional snapshot approach:
+    <color:#96DDF2>• 1,000 accounts × 24 snapshots/day = 24,000 records/day
     
-    Event-based approach:
-    - Only ~50 accounts change significantly/day
-    - **480x storage reduction**
+    <color:#0BE784>Event-based approach:
+    <color:#96DDF2>• Only ~50 accounts change significantly/day
+    <color:#0BE784>• **480x storage reduction**
     
-    Event retention enables:
-    - Historical rank trend analysis
-    - Leaderboard volatility metrics
-    - Account trajectory insights
+    <color:#96DDF2>Event retention enables:
+    <color:#96DDF2>• Historical rank trend analysis
+    <color:#96DDF2>• Leaderboard volatility metrics
+    <color:#96DDF2>• Account trajectory insights
 end note
 
 @enduml

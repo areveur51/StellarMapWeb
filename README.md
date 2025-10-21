@@ -256,6 +256,9 @@ Includes web server and BigQuery cron job in one stack.
 #### 6. Hybrid Production Architecture
 ![Hybrid Architecture](./diagrams/06_hybrid_architecture.png)
 
+#### 7. High Value Account (HVA) Ranking System
+![HVA Ranking System](./diagrams/07_hva_ranking_system.png)
+
 ---
 
 ### Framework and Structure
@@ -332,6 +335,59 @@ python manage.py bigquery_pipeline --limit 100
 python manage.py bigquery_pipeline --reset
 ```
 
+#### High Value Account (HVA) Ranking System
+
+**Event-Based Change Tracking for Top 1,000 Accounts**
+
+The HVA Ranking System provides efficient monitoring of Stellar's wealthiest accounts (>1M XLM) with intelligent change detection and storage optimization.
+
+**Architecture:**
+- **Event-Based Storage**: Records only meaningful changes, not full snapshots
+- **480x Storage Efficiency**: ~50 events/day vs 24,000 snapshots/day
+- **6 Event Types**: ENTERED, EXITED, RANK_UP, RANK_DOWN, BALANCE_INCREASE, BALANCE_DECREASE
+- **Smart Thresholds**: Rank changes ≥10 positions, balance changes ≥5%
+- **Dual Compatibility**: SQLite (dev) and Cassandra (prod) with timezone-aware timestamps
+
+**Pipeline Integration:**
+```python
+# Automatic change detection in BigQuery pipeline
+HVARankingHelper.detect_and_record_change(
+    stellar_account=account,
+    new_balance=new_balance,
+    old_balance=old_balance,
+    network_name='public'
+)
+```
+
+**Management Commands:**
+```bash
+# Initial backfill - create ENTERED events for current top 1000
+python manage.py recalculate_hva_rankings
+
+# Dry run (see what would be created without making changes)
+python manage.py recalculate_hva_rankings --dry-run
+
+# Specific network
+python manage.py recalculate_hva_rankings --network testnet
+
+# Clear existing events and rebuild
+python manage.py recalculate_hva_rankings --clear-existing
+```
+
+**UI Features:**
+- 🔼 **+5** (Green) - Rank improved by 5 positions
+- 🔽 **-2** (Red) - Rank dropped by 2 positions
+- ⭐ **NEW** (Gold, pulsing) - Entered top 1,000 in last 24h
+- **+12.5%** - Balance increased
+- **-3.2%** - Balance decreased
+
+**Performance:**
+- **Queries**: Optimized with composite indexes (account + time)
+- **Filtering**: 24-hour time window for recent changes
+- **Scalability**: Handles indefinite event retention without bloat
+
+**See:** [HVA_RANKING_SYSTEM.md](./HVA_RANKING_SYSTEM.md) for complete technical documentation, API reference, and troubleshooting guide.
+
 #### API-Based Pipeline (Educational Reference)
 - **Alternative Approach**: 8-stage sequential pipeline using Horizon API and Stellar Expert.
 - **Processing Time**: 2-3 minutes per account.
@@ -387,6 +443,7 @@ python manage.py bigquery_pipeline --reset
 - **Default Display**: Default display of pending accounts.
 - **Cache Prevention**: Browser caching prevented using `Cache-Control` headers.
 - **High Value Account (HVA) Tracking**: Automatic identification and tagging of accounts with >1M XLM balance. Dedicated HVA page at `/web/high-value-accounts/` displays all high-value accounts with total balance statistics, sorted by balance descending. Uses efficient boolean-based filtering with `is_hva` column for scalable queries.
+- **HVA Ranking System**: Event-based change tracking system that monitors the top 1,000 accounts by XLM balance, recording only meaningful changes (ENTERED, EXITED, RANK_UP, RANK_DOWN, BALANCE_INCREASE, BALANCE_DECREASE). Achieves **480x storage efficiency** vs traditional snapshot approaches. UI displays 24-hour rank changes with visual indicators (🔼 +5, 🔽 -2, ⭐ NEW). Dual database compatibility (SQLite dev, Cassandra prod) with timezone-aware timestamps. See [HVA_RANKING_SYSTEM.md](./HVA_RANKING_SYSTEM.md) for complete documentation.
 
 #### Pending Accounts UI
 - **Real-time Display**: Vue.js watcher displays all `PENDING`/`IN_PROGRESS`/`RE_INQUIRY` accounts from `StellarAccountSearchCache` and `StellarCreatorAccountLineage` tables.
