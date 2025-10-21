@@ -1414,20 +1414,36 @@ def cassandra_query_api(request):
             visible_columns = ['xlm_balance', 'creator_account', 'updated_at']
             
             if USE_CASSANDRA:
-                # Cassandra limitation: xlm_balance not in PK
-                # Strategy: Early exit with max scan limit
+                # Cassandra limitation: is_hva/xlm_balance not in PK
+                # Strategy: Use is_hva flag with higher max_scan for sparse data
+                # HVAs are rare (1-10 per 10k accounts), so need deeper scan
+                # WARNING: This approach may miss HVAs if dataset grows beyond max_scan
+                # TODO: Implement materialized view or secondary index on is_hva for guaranteed coverage
                 hva_list = []
                 count = 0
-                max_scan = limit * 10
+                max_scan = limit * 100  # Higher multiplier for sparse HVA data
+                hit_scan_limit = False
                 
                 for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
+                        hit_scan_limit = True
                         break
-                    if record.xlm_balance and record.xlm_balance > 1000000:
+                    # Use is_hva flag (set automatically when xlm_balance > 1M)
+                    if record.is_hva:
                         hva_list.append(record)
                         if len(hva_list) >= limit:
                             break
+                
+                # Log warning if max_scan limit was hit (potential false negatives)
+                if hit_scan_limit:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.warning(
+                        f"HVA query hit max_scan limit ({max_scan}). "
+                        f"Found {len(hva_list)} HVAs but may have missed others. "
+                        f"Network: {network}, Limit: {limit}"
+                    )
                 
                 # Sort by balance descending
                 hva_list.sort(key=lambda r: r.xlm_balance or 0, reverse=True)
