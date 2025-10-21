@@ -714,7 +714,8 @@
             const response = await fetch('/api/pending-accounts/');
             if (response.ok) {
               const data = await response.json();
-              this.pending_accounts_data = data;
+              // Handle new response format: {accounts: [...], count: X, total_pending: Y}
+              this.pending_accounts_data = data.accounts || data;
             }
           } catch (e) {
             console.error('Error fetching pending accounts:', e);
@@ -1135,27 +1136,27 @@
         // Fetch server logs immediately on mount
         this.fetchServerLogs();
         
-        // Set up auto-refresh for pending accounts every 5 seconds
+        // Set up auto-refresh for pending accounts every 15 seconds (optimized from 5s)
         this.pendingAccountsInterval = setInterval(() => {
           this.fetchPendingAccounts();
-        }, 5000);
+        }, 15000);
         
         // Fetch stage executions immediately if account is available
         if (this.query_account && this.network_selected) {
           this.fetchStageExecutions();
           
-          // Set up auto-refresh for stage executions every 5 seconds
+          // Set up auto-refresh for stage executions every 15 seconds (optimized from 5s)
           this.stageExecutionsInterval = setInterval(() => {
             this.fetchStageExecutions();
-          }, 5000);
+          }, 15000);
           
           // Fetch account lineage immediately on mount
           this.fetchAccountLineage();
           
-          // Set up auto-refresh for account lineage every 5 seconds
+          // Set up auto-refresh for account lineage every 15 seconds (optimized from 5s)
           this.lineageInterval = setInterval(() => {
             this.fetchAccountLineage();
-          }, 5000);
+          }, 15000);
         }
         
         // JSON display is automatically updated by the watcher

@@ -25,15 +25,37 @@ def health_check(request):
     }, status=200)
 
 
+# Simple in-memory cache for pending accounts (10 second TTL)
+_pending_accounts_cache = {'data': None, 'timestamp': None, 'ttl': 10}
+
 def pending_accounts_api(request):
     """
     API endpoint that returns pending accounts data as JSON.
-    Simplified to show only PENDING and PROCESSING statuses.
+    Optimized with caching and result limiting to prevent 2MB+ responses.
+    
+    Performance optimizations:
+    - 10-second cache to reduce database load
+    - Limit to 100 most recent records
+    - Minimal payload (no timestamps, only essential fields)
     
     Returns:
-        JsonResponse: List of pending/processing accounts with stuck indicators.
+        JsonResponse: Dict with pending accounts list and metadata.
     """
+    from datetime import datetime, timedelta
+    
+    # Check cache first
+    cache = _pending_accounts_cache
+    if cache['data'] and cache['timestamp']:
+        age_seconds = (datetime.utcnow() - cache['timestamp']).total_seconds()
+        if age_seconds < cache['ttl']:
+            # Mark response as cached before returning
+            cached_response = cache['data'].copy()
+            cached_response['cached'] = True
+            return JsonResponse(cached_response, safe=False)
+    
     pending_accounts_data = []
+    total_count = 0
+    
     try:
         from apiApp.model_loader import (
             StellarCreatorAccountLineage,
@@ -42,14 +64,6 @@ def pending_accounts_api(request):
             STUCK_THRESHOLD_MINUTES,
             USE_CASSANDRA,
         )
-        from datetime import datetime
-        
-        def convert_timestamp(ts):
-            if ts is None:
-                return None
-            if isinstance(ts, datetime):
-                return ts.isoformat()
-            return str(ts)
         
         def calculate_age_minutes(updated_at):
             if not updated_at:
@@ -57,44 +71,60 @@ def pending_accounts_api(request):
             age_delta = datetime.utcnow() - updated_at
             return int(age_delta.total_seconds() / 60)
         
-        # Fetch PENDING and PROCESSING records only
+        # Fetch records with optimization
         if USE_CASSANDRA:
-            # Cassandra query - cannot filter by status (not part of primary key)
-            # Must fetch all and filter in Python
-            records = StellarCreatorAccountLineage.objects.all()
-            for record in records:
+            # Cassandra: Collect all pending/processing, then sort by updated_at and limit to 100
+            all_pending = []
+            total_count = 0
+            for record in StellarCreatorAccountLineage.objects.all():
                 if record.status in [PENDING, PROCESSING]:
-                    age_mins = calculate_age_minutes(record.updated_at)
-                    pending_accounts_data.append({
-                        'stellar_account': record.stellar_account,
-                        'network_name': record.network_name,
-                        'status': record.status,
-                        'created_at': convert_timestamp(record.created_at),
-                        'updated_at': convert_timestamp(record.updated_at),
-                        'age_minutes': age_mins,
-                        'is_stuck': age_mins >= STUCK_THRESHOLD_MINUTES,
-                        'retry_count': record.retry_count if record.retry_count else 0,
-                    })
+                    all_pending.append(record)
+                    total_count += 1
+            
+            # Sort by updated_at descending (most recent first) and limit to 100
+            records = sorted(all_pending, key=lambda r: r.updated_at or datetime.min, reverse=True)[:100]
         else:
-            # SQL query - can use filter
-            records = list(StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING]))
-            for record in records:
-                age_mins = calculate_age_minutes(record.updated_at)
-                pending_accounts_data.append({
-                    'stellar_account': record.stellar_account,
-                    'network_name': record.network_name,
-                    'status': record.status,
-                    'created_at': convert_timestamp(record.created_at),
-                    'updated_at': convert_timestamp(record.updated_at),
-                    'age_minutes': age_mins,
-                    'is_stuck': age_mins >= STUCK_THRESHOLD_MINUTES,
-                    'retry_count': record.retry_count if record.retry_count else 0,
-                })
-                
+            # SQLite: Use efficient filtering with ordering
+            all_records = StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING])
+            total_count = all_records.count()
+            records = list(all_records.order_by('-updated_at')[:100])
+        
+        # Build minimal response (no timestamps to reduce payload size)
+        for record in records:
+            age_mins = calculate_age_minutes(record.updated_at)
+            pending_accounts_data.append({
+                'stellar_account': record.stellar_account,
+                'network_name': record.network_name,
+                'status': record.status,
+                'age_minutes': age_mins,
+                'is_stuck': age_mins >= STUCK_THRESHOLD_MINUTES,
+                'retry_count': record.retry_count if record.retry_count else 0,
+            })
+        
+        # Build response with metadata
+        response_data = {
+            'accounts': pending_accounts_data,
+            'count': len(pending_accounts_data),
+            'total_pending': total_count,
+            'cached': False,
+            'cache_ttl': cache['ttl']
+        }
+        
+        # Update cache
+        cache['data'] = response_data
+        cache['timestamp'] = datetime.utcnow()
+        
     except Exception as e:
         sentry_sdk.capture_exception(e)
+        response_data = {
+            'accounts': [],
+            'count': 0,
+            'total_pending': 0,
+            'error': str(e),
+            'cached': False
+        }
     
-    return JsonResponse(pending_accounts_data, safe=False)
+    return JsonResponse(response_data, safe=False)
 
 
 def stage_executions_api(request):
