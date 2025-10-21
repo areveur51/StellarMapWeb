@@ -12,7 +12,7 @@ packages = ["glibcLocales", "graphviz", "iana-etc", "libev", "plantuml", "vim-fu
 language = "python3"
 
 [deployment]
-run = ["gunicorn", "--bind", "0.0.0.0:3000", "--workers", "4", "--timeout", "120", "StellarMapWeb.wsgi:application"]
+run = ["bash", "scripts/start_production.sh"]
 deploymentTarget = "autoscale"
 build = ["python", "manage.py", "collectstatic", "--noinput"]
 
