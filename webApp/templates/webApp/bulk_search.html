@@ -1,307 +1,428 @@
-{% extends "webApp/base.html" %}
 {% load static %}
 
-{% block title %}Bulk Search - Stellar Lineage{% endblock %}
+<!DOCTYPE html>
+<html>
+<head>
+  <title>StellarMap Web - Bulk Account Search</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  
+  <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
+  <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
+  
+  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
+  
+  <style>
+    body {
+        background: #261D45;
+        color: #96DDF2;
+        min-height: 100vh;
+    }
+    
+    .bulk-content {
+        padding: 30px 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .bulk-header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 25px;
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .bulk-title {
+        color: #96DDF2;
+        text-shadow: 0 0 20px rgba(150, 221, 242, 0.5);
+        font-size: 2rem;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    
+    .bulk-subtitle {
+        color: #c4b5fd;
+        font-size: 1rem;
+        margin-bottom: 0;
+    }
+    
+    .bulk-main-container {
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        margin-bottom: 30px;
+    }
+    
+    .bulk-info {
+        background: rgba(150, 221, 242, 0.1);
+        border-left: 4px solid #96DDF2;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 4px;
+    }
+    
+    .bulk-info h3 {
+        color: #96DDF2;
+        font-size: 1.2rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+    
+    .bulk-info ul {
+        margin: 0;
+        padding-left: 20px;
+    }
+    
+    .bulk-info li {
+        color: #c4b5fd;
+        margin: 8px 0;
+        line-height: 1.6;
+    }
+    
+    .bulk-textarea {
+        width: 100%;
+        min-height: 300px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        padding: 15px;
+        border: 2px solid #96DDF2;
+        background: rgba(150, 221, 242, 0.05);
+        color: #96DDF2;
+        border-radius: 8px;
+        resize: vertical;
+        transition: all 0.3s ease;
+    }
+    
+    .bulk-textarea:focus {
+        outline: none;
+        border-color: #0BE784;
+        box-shadow: 0 0 20px rgba(11, 231, 132, 0.3);
+    }
+    
+    .bulk-textarea::placeholder {
+        color: rgba(150, 221, 242, 0.4);
+    }
+    
+    .bulk-controls {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin: 20px 0 0 0;
+        flex-wrap: wrap;
+    }
+    
+    .bulk-submit-btn {
+        background: linear-gradient(135deg, #96DDF2, #0BE784);
+        color: #1a1530;
+        border: none;
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 15px rgba(11, 231, 132, 0.3);
+    }
+    
+    .bulk-submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(11, 231, 132, 0.5);
+    }
+    
+    .bulk-submit-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .bulk-clear-btn {
+        background: rgba(255, 107, 107, 0.1);
+        color: #ff6b6b;
+        border: 1px solid #ff6b6b;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .bulk-clear-btn:hover {
+        background: rgba(255, 107, 107, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .account-counter {
+        color: #c4b5fd;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .bulk-results {
+        background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
+        border: 1px solid #3f2c70;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        display: none;
+    }
+    
+    .bulk-results.show {
+        display: block;
+        animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .results-title {
+        color: #96DDF2;
+        text-shadow: 0 0 15px rgba(150, 221, 242, 0.5);
+        font-size: 1.5rem;
+        margin-bottom: 20px;
+        font-weight: 700;
+    }
+    
+    .result-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .result-card {
+        background: rgba(150, 221, 242, 0.1);
+        padding: 20px;
+        border-radius: 6px;
+        text-align: center;
+        border: 1px solid #3f2c70;
+        transition: all 0.3s ease;
+    }
+    
+    .result-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(150, 221, 242, 0.2);
+    }
+    
+    .result-card .number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #0BE784;
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
+        margin-bottom: 8px;
+    }
+    
+    .result-card .label {
+        font-size: 0.85rem;
+        color: #c4b5fd;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .result-details {
+        margin-top: 20px;
+    }
+    
+    .result-section {
+        margin: 20px 0;
+    }
+    
+    .result-section h4 {
+        color: #96DDF2;
+        font-size: 1rem;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    
+    .account-list {
+        max-height: 300px;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.8;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #3f2c70;
+    }
+    
+    .account-item {
+        padding: 6px 10px;
+        border-left: 3px solid transparent;
+        transition: all 0.2s ease;
+        margin: 3px 0;
+    }
+    
+    .account-item:hover {
+        background: rgba(150, 221, 242, 0.1);
+    }
+    
+    .account-item.success {
+        border-left-color: #0BE784;
+        color: #0BE784;
+    }
+    
+    .account-item.duplicate {
+        border-left-color: #ffaa00;
+        color: #ffaa00;
+    }
+    
+    .account-item.invalid {
+        border-left-color: #ff6b6b;
+        color: #ff6b6b;
+    }
+    
+    .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 3px solid rgba(150, 221, 242, 0.3);
+        border-top-color: #96DDF2;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    @media (max-width: 768px) {
+        .bulk-title {
+            font-size: 1.5rem;
+        }
+        
+        .result-card .number {
+            font-size: 2rem;
+        }
+    }
+  </style>
+</head>
+<body class="bg-color-261D45">
+  <div id="app">
+    {% include 'webApp/search_container_include.html' %}
+    
+    <div class="bulk-content">
+      <div class="bulk-header">
+        <h1 class="bulk-title">📤 Bulk Account Search</h1>
+        <p class="bulk-subtitle">Queue multiple Stellar accounts for lineage processing</p>
+      </div>
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'webApp/css/search.css' %}">
-<style>
-.bulk-search-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.bulk-textarea {
-    width: 100%;
-    min-height: 300px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    padding: 15px;
-    border: 2px solid var(--accent-primary);
-    background: rgba(0, 255, 255, 0.05);
-    color: var(--text-primary);
-    border-radius: 8px;
-    resize: vertical;
-}
-
-.bulk-textarea:focus {
-    outline: none;
-    border-color: var(--accent-secondary);
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-}
-
-.bulk-textarea::placeholder {
-    color: rgba(0, 255, 255, 0.4);
-}
-
-.bulk-controls {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    margin: 20px 0;
-    flex-wrap: wrap;
-}
-
-.bulk-submit-btn {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    color: var(--bg-primary);
-    border: none;
-    padding: 12px 30px;
-    font-size: 16px;
-    font-weight: 600;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-}
-
-.bulk-submit-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
-}
-
-.bulk-submit-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.bulk-clear-btn {
-    background: rgba(255, 0, 0, 0.2);
-    color: #ff6b6b;
-    border: 1px solid #ff6b6b;
-    padding: 12px 24px;
-    font-size: 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.bulk-clear-btn:hover {
-    background: rgba(255, 0, 0, 0.3);
-}
-
-.bulk-info {
-    background: rgba(0, 255, 255, 0.1);
-    border-left: 4px solid var(--accent-primary);
-    padding: 15px 20px;
-    margin: 20px 0;
-    border-radius: 4px;
-}
-
-.bulk-info h3 {
-    margin: 0 0 10px 0;
-    color: var(--accent-primary);
-    font-size: 18px;
-}
-
-.bulk-info ul {
-    margin: 10px 0;
-    padding-left: 20px;
-}
-
-.bulk-info li {
-    margin: 5px 0;
-    color: var(--text-secondary);
-}
-
-.bulk-results {
-    margin-top: 30px;
-    padding: 20px;
-    background: rgba(0, 255, 255, 0.05);
-    border: 1px solid var(--accent-primary);
-    border-radius: 8px;
-    display: none;
-}
-
-.bulk-results.show {
-    display: block;
-    animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.result-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin: 20px 0;
-}
-
-.result-card {
-    background: rgba(0, 255, 255, 0.1);
-    padding: 15px;
-    border-radius: 6px;
-    text-align: center;
-}
-
-.result-card .number {
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--accent-primary);
-    margin-bottom: 5px;
-}
-
-.result-card .label {
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.result-details {
-    margin-top: 20px;
-}
-
-.result-section {
-    margin: 15px 0;
-}
-
-.result-section h4 {
-    color: var(--accent-secondary);
-    font-size: 14px;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.account-list {
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-}
-
-.account-item {
-    padding: 5px 10px;
-    border-left: 3px solid transparent;
-    transition: all 0.2s ease;
-}
-
-.account-item:hover {
-    background: rgba(0, 255, 255, 0.1);
-}
-
-.account-item.success {
-    border-left-color: #00ff00;
-    color: #00ff00;
-}
-
-.account-item.duplicate {
-    border-left-color: #ffaa00;
-    color: #ffaa00;
-}
-
-.account-item.invalid {
-    border-left-color: #ff0000;
-    color: #ff0000;
-}
-
-.spinner {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(0, 255, 255, 0.3);
-    border-top-color: var(--accent-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-left: 10px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="bulk-search-container">
-    <h1 style="color: var(--accent-primary); margin-bottom: 10px; font-size: 32px;">
-        Bulk Account Search
-    </h1>
-    <p style="color: var(--text-secondary); margin-bottom: 30px; font-size: 16px;">
-        Queue multiple Stellar accounts for lineage processing
-    </p>
-
-    <div class="bulk-info">
-        <h3>📋 How to Use</h3>
-        <ul>
+      <div class="bulk-main-container">
+        <div class="bulk-info">
+          <h3>📋 How to Use</h3>
+          <ul>
             <li>Paste Stellar account addresses (one per line, or comma/space separated)</li>
             <li>All valid accounts will be queued for pipeline processing</li>
             <li>Duplicates and invalid addresses will be reported</li>
             <li>Check the dashboard or individual account pages to monitor progress</li>
-        </ul>
-    </div>
+          </ul>
+        </div>
 
-    <form id="bulkSearchForm">
-        <textarea 
+        <form id="bulkSearchForm">
+          <textarea 
             id="accountsInput" 
             class="bulk-textarea" 
             placeholder="Paste Stellar account addresses here...&#10;&#10;Examples:&#10;GACJFMOXTSE7QOL5HNYI2NIAQ4RDHZTGD6FNYK4P5THDVNWIKQDGOODU&#10;GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB&#10;GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD&#10;&#10;Formats supported: enter-delimited, comma-delimited, or space-delimited"
             required
-        ></textarea>
+          ></textarea>
 
-        <div class="bulk-controls">
+          <div class="bulk-controls">
             <button type="submit" class="bulk-submit-btn" id="submitBtn">
-                Queue Accounts
+              Queue Accounts
             </button>
             <button type="button" class="bulk-clear-btn" id="clearBtn">
-                Clear
+              Clear
             </button>
-            <div id="accountCount" style="color: var(--text-secondary); font-size: 14px;">
-                0 accounts detected
+            <div id="accountCount" class="account-counter">
+              0 accounts detected
             </div>
-        </div>
-    </form>
+          </div>
+        </form>
+      </div>
 
-    <div id="bulkResults" class="bulk-results">
-        <h2 style="color: var(--accent-primary); margin-bottom: 20px;">
-            Processing Results
-        </h2>
+      <div id="bulkResults" class="bulk-results">
+        <h2 class="results-title">Processing Results</h2>
 
         <div class="result-summary">
-            <div class="result-card">
-                <div class="number" id="totalQueued">0</div>
-                <div class="label">Queued</div>
-            </div>
-            <div class="result-card">
-                <div class="number" id="totalDuplicates">0</div>
-                <div class="label">Duplicates</div>
-            </div>
-            <div class="result-card">
-                <div class="number" id="totalInvalid">0</div>
-                <div class="label">Invalid</div>
-            </div>
-            <div class="result-card">
-                <div class="number" id="totalProcessed">0</div>
-                <div class="label">Total Processed</div>
-            </div>
+          <div class="result-card">
+            <div class="number" id="totalQueued">0</div>
+            <div class="label">Queued</div>
+          </div>
+          <div class="result-card">
+            <div class="number" id="totalDuplicates">0</div>
+            <div class="label">Duplicates</div>
+          </div>
+          <div class="result-card">
+            <div class="number" id="totalInvalid">0</div>
+            <div class="label">Invalid</div>
+          </div>
+          <div class="result-card">
+            <div class="number" id="totalProcessed">0</div>
+            <div class="label">Total Processed</div>
+          </div>
         </div>
 
         <div class="result-details">
-            <div class="result-section" id="queuedSection" style="display: none;">
-                <h4>✅ Successfully Queued</h4>
-                <div class="account-list" id="queuedList"></div>
-            </div>
+          <div class="result-section" id="queuedSection" style="display: none;">
+            <h4>✅ Successfully Queued</h4>
+            <div class="account-list" id="queuedList"></div>
+          </div>
 
-            <div class="result-section" id="duplicatesSection" style="display: none;">
-                <h4>⚠️ Already Exists (Duplicates)</h4>
-                <div class="account-list" id="duplicatesList"></div>
-            </div>
+          <div class="result-section" id="duplicatesSection" style="display: none;">
+            <h4>⚠️ Already Exists (Duplicates)</h4>
+            <div class="account-list" id="duplicatesList"></div>
+          </div>
 
-            <div class="result-section" id="invalidSection" style="display: none;">
-                <h4>❌ Invalid Addresses</h4>
-                <div class="account-list" id="invalidList"></div>
-            </div>
+          <div class="result-section" id="invalidSection" style="display: none;">
+            <h4>❌ Invalid Addresses</h4>
+            <div class="account-list" id="invalidList"></div>
+          </div>
         </div>
+      </div>
     </div>
-</div>
+  </div>
 
-<script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
+  
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  
+  <script>
+    Vue.use(BootstrapVue);
+    
+    new Vue({
+      el: '#app',
+      data: {
+        query_account: '',
+        network_toggle: true,
+        network_selected: 'public'
+      },
+      methods: {
+        search() {
+          if (this.query_account.trim()) {
+            const network = this.network_toggle ? 'public' : 'testnet';
+            window.location.href = `/search?account=${encodeURIComponent(this.query_account)}&network=${network}`;
+          }
+        },
+        toggleNetwork() {
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
+        }
+      }
+    });
+  </script>
+
+  <script>
 const form = document.getElementById('bulkSearchForm');
 const accountsInput = document.getElementById('accountsInput');
 const submitBtn = document.getElementById('submitBtn');
@@ -309,7 +430,6 @@ const clearBtn = document.getElementById('clearBtn');
 const accountCount = document.getElementById('accountCount');
 const bulkResults = document.getElementById('bulkResults');
 
-// Update account count as user types
 accountsInput.addEventListener('input', () => {
     const text = accountsInput.value.trim();
     if (!text) {
@@ -328,14 +448,12 @@ accountsInput.addEventListener('input', () => {
     accountCount.textContent = countText;
 });
 
-// Clear button
 clearBtn.addEventListener('click', () => {
     accountsInput.value = '';
     accountCount.textContent = '0 accounts detected';
     bulkResults.classList.remove('show');
 });
 
-// Form submission
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -353,7 +471,6 @@ form.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Disable submit button
     submitBtn.disabled = true;
     submitBtn.innerHTML = 'Processing... <span class="spinner"></span>';
 
@@ -387,24 +504,21 @@ form.addEventListener('submit', async (e) => {
 });
 
 function parseAccounts(text) {
-    // Split by newline, comma, or space
     const accounts = text
         .split(/[\n,\s]+/)
         .map(a => a.trim())
         .filter(a => a.length > 0)
-        .filter(a => a.startsWith('G')); // Stellar addresses start with G
+        .filter(a => a.startsWith('G'));
     
     return accounts;
 }
 
 function displayResults(data) {
-    // Update summary
     document.getElementById('totalQueued').textContent = data.queued.length;
     document.getElementById('totalDuplicates').textContent = data.duplicates.length;
     document.getElementById('totalInvalid').textContent = data.invalid.length;
     document.getElementById('totalProcessed').textContent = data.total_processed;
 
-    // Display queued accounts
     if (data.queued.length > 0) {
         document.getElementById('queuedSection').style.display = 'block';
         document.getElementById('queuedList').innerHTML = data.queued
@@ -414,7 +528,6 @@ function displayResults(data) {
         document.getElementById('queuedSection').style.display = 'none';
     }
 
-    // Display duplicates
     if (data.duplicates.length > 0) {
         document.getElementById('duplicatesSection').style.display = 'block';
         document.getElementById('duplicatesList').innerHTML = data.duplicates
@@ -424,7 +537,6 @@ function displayResults(data) {
         document.getElementById('duplicatesSection').style.display = 'none';
     }
 
-    // Display invalid
     if (data.invalid.length > 0) {
         document.getElementById('invalidSection').style.display = 'block';
         document.getElementById('invalidList').innerHTML = data.invalid
@@ -434,7 +546,6 @@ function displayResults(data) {
         document.getElementById('invalidSection').style.display = 'none';
     }
 
-    // Show results section
     bulkResults.classList.add('show');
     bulkResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -453,5 +564,6 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-</script>
-{% endblock %}
+  </script>
+</body>
+</html>
