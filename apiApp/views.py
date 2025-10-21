@@ -1,5 +1,7 @@
 # apiApp/views.py
 from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
 import sentry_sdk
 
 def api_home(request):
@@ -926,4 +928,137 @@ def error_logs_api(request):
             'error': 'Failed to fetch error logs',
             'message': str(e),
             'logs': ''
+        }, status=500)
+
+@require_http_methods(["POST"])
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+def bulk_queue_accounts_api(request):
+    """
+    API endpoint for bulk queueing multiple Stellar accounts for processing.
+    
+    Accepts a JSON payload with a list of Stellar accounts and creates PENDING records
+    in the StellarCreatorAccountLineage table for each valid, unique account.
+    
+    POST /api/bulk-queue-accounts/
+    
+    Request Body:
+    {
+        "accounts": ["GABC...", "GDEF...", ...],
+        "network": "public"
+    }
+    
+    Response:
+    {
+        "queued": ["GABC..."],  # Successfully queued accounts
+        "duplicates": ["GDEF..."],  # Already exist in database
+        "invalid": ["GXYZ..."],  # Invalid addresses
+        "total_processed": 10
+    }
+    
+    Returns:
+        JsonResponse: Summary of queued, duplicate, and invalid accounts.
+    """
+    try:
+        import json
+        import logging
+        from datetime import datetime
+        from apiApp.model_loader import StellarCreatorAccountLineage
+        from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+        import sentry_sdk
+        
+        logger = logging.getLogger(__name__)
+        
+        # Parse JSON body
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON',
+                'message': 'Request body must be valid JSON'
+            }, status=400)
+        
+        # Get accounts list and network
+        accounts = data.get('accounts', [])
+        network = data.get('network', 'public')
+        
+        # Validate parameters
+        if not isinstance(accounts, list):
+            return JsonResponse({
+                'error': 'Invalid input',
+                'message': 'accounts must be an array'
+            }, status=400)
+        
+        if network not in ['public', 'testnet']:
+            return JsonResponse({
+                'error': 'Invalid network',
+                'message': 'network must be either public or testnet'
+            }, status=400)
+        
+        if len(accounts) == 0:
+            return JsonResponse({
+                'error': 'No accounts provided',
+                'message': 'Please provide at least one account'
+            }, status=400)
+        
+        if len(accounts) > 1000:
+            return JsonResponse({
+                'error': 'Too many accounts',
+                'message': 'Maximum 1000 accounts per request'
+            }, status=400)
+        
+        # Process accounts
+        queued = []
+        duplicates = []
+        invalid = []
+        
+        for account in accounts:
+            account = account.strip()
+            
+            # Validate address format
+            if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
+                invalid.append(account)
+                continue
+            
+            # Check if already exists in database
+            try:
+                existing = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network
+                ).first()
+                
+                if existing:
+                    duplicates.append(account)
+                    continue
+            except Exception as e:
+                # If filter fails, try to create anyway
+                logger.warning(f'Error checking for duplicate {account}: {e}')
+            
+            # Create PENDING record
+            try:
+                StellarCreatorAccountLineage.objects.create(
+                    stellar_account=account,
+                    network_name=network,
+                    status='PENDING',
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                queued.append(account)
+            except Exception as e:
+                logger.error(f'Error creating record for {account}: {e}')
+                duplicates.append(account)  # Likely a duplicate that wasn't caught by filter
+        
+        return JsonResponse({
+            'queued': queued,
+            'duplicates': duplicates,
+            'invalid': invalid,
+            'total_processed': len(queued) + len(duplicates) + len(invalid)
+        }, status=200)
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in bulk_queue_accounts_api: {e}')
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
         }, status=500)

@@ -13,4 +13,5 @@ urlpatterns = [
     path('retry-failed-account/', views.retry_failed_account_api, name='retry_failed_account_api'),
     path('server-logs/', views.server_logs_api, name='server_logs_api'),
     path('error-logs/', views.error_logs_api, name='error_logs_api'),
+    path('bulk-queue-accounts/', views.bulk_queue_accounts_api, name='bulk_queue_accounts_api'),
 ]

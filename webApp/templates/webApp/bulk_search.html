@@ -1,0 +1,457 @@
+{% extends "webApp/base.html" %}
+{% load static %}
+
+{% block title %}Bulk Search - Stellar Lineage{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'webApp/css/search.css' %}">
+<style>
+.bulk-search-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.bulk-textarea {
+    width: 100%;
+    min-height: 300px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    padding: 15px;
+    border: 2px solid var(--accent-primary);
+    background: rgba(0, 255, 255, 0.05);
+    color: var(--text-primary);
+    border-radius: 8px;
+    resize: vertical;
+}
+
+.bulk-textarea:focus {
+    outline: none;
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.bulk-textarea::placeholder {
+    color: rgba(0, 255, 255, 0.4);
+}
+
+.bulk-controls {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.bulk-submit-btn {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: var(--bg-primary);
+    border: none;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.bulk-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
+}
+
+.bulk-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.bulk-clear-btn {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.bulk-clear-btn:hover {
+    background: rgba(255, 0, 0, 0.3);
+}
+
+.bulk-info {
+    background: rgba(0, 255, 255, 0.1);
+    border-left: 4px solid var(--accent-primary);
+    padding: 15px 20px;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.bulk-info h3 {
+    margin: 0 0 10px 0;
+    color: var(--accent-primary);
+    font-size: 18px;
+}
+
+.bulk-info ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.bulk-info li {
+    margin: 5px 0;
+    color: var(--text-secondary);
+}
+
+.bulk-results {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(0, 255, 255, 0.05);
+    border: 1px solid var(--accent-primary);
+    border-radius: 8px;
+    display: none;
+}
+
+.bulk-results.show {
+    display: block;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.result-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.result-card {
+    background: rgba(0, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.result-card .number {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin-bottom: 5px;
+}
+
+.result-card .label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.result-details {
+    margin-top: 20px;
+}
+
+.result-section {
+    margin: 15px 0;
+}
+
+.result-section h4 {
+    color: var(--accent-secondary);
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.account-list {
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.account-item {
+    padding: 5px 10px;
+    border-left: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.account-item:hover {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+.account-item.success {
+    border-left-color: #00ff00;
+    color: #00ff00;
+}
+
+.account-item.duplicate {
+    border-left-color: #ffaa00;
+    color: #ffaa00;
+}
+
+.account-item.invalid {
+    border-left-color: #ff0000;
+    color: #ff0000;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 255, 255, 0.3);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-left: 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-search-container">
+    <h1 style="color: var(--accent-primary); margin-bottom: 10px; font-size: 32px;">
+        Bulk Account Search
+    </h1>
+    <p style="color: var(--text-secondary); margin-bottom: 30px; font-size: 16px;">
+        Queue multiple Stellar accounts for lineage processing
+    </p>
+
+    <div class="bulk-info">
+        <h3>📋 How to Use</h3>
+        <ul>
+            <li>Paste Stellar account addresses (one per line, or comma/space separated)</li>
+            <li>All valid accounts will be queued for pipeline processing</li>
+            <li>Duplicates and invalid addresses will be reported</li>
+            <li>Check the dashboard or individual account pages to monitor progress</li>
+        </ul>
+    </div>
+
+    <form id="bulkSearchForm">
+        <textarea 
+            id="accountsInput" 
+            class="bulk-textarea" 
+            placeholder="Paste Stellar account addresses here...&#10;&#10;Examples:&#10;GACJFMOXTSE7QOL5HNYI2NIAQ4RDHZTGD6FNYK4P5THDVNWIKQDGOODU&#10;GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB&#10;GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD&#10;&#10;Formats supported: enter-delimited, comma-delimited, or space-delimited"
+            required
+        ></textarea>
+
+        <div class="bulk-controls">
+            <button type="submit" class="bulk-submit-btn" id="submitBtn">
+                Queue Accounts
+            </button>
+            <button type="button" class="bulk-clear-btn" id="clearBtn">
+                Clear
+            </button>
+            <div id="accountCount" style="color: var(--text-secondary); font-size: 14px;">
+                0 accounts detected
+            </div>
+        </div>
+    </form>
+
+    <div id="bulkResults" class="bulk-results">
+        <h2 style="color: var(--accent-primary); margin-bottom: 20px;">
+            Processing Results
+        </h2>
+
+        <div class="result-summary">
+            <div class="result-card">
+                <div class="number" id="totalQueued">0</div>
+                <div class="label">Queued</div>
+            </div>
+            <div class="result-card">
+                <div class="number" id="totalDuplicates">0</div>
+                <div class="label">Duplicates</div>
+            </div>
+            <div class="result-card">
+                <div class="number" id="totalInvalid">0</div>
+                <div class="label">Invalid</div>
+            </div>
+            <div class="result-card">
+                <div class="number" id="totalProcessed">0</div>
+                <div class="label">Total Processed</div>
+            </div>
+        </div>
+
+        <div class="result-details">
+            <div class="result-section" id="queuedSection" style="display: none;">
+                <h4>✅ Successfully Queued</h4>
+                <div class="account-list" id="queuedList"></div>
+            </div>
+
+            <div class="result-section" id="duplicatesSection" style="display: none;">
+                <h4>⚠️ Already Exists (Duplicates)</h4>
+                <div class="account-list" id="duplicatesList"></div>
+            </div>
+
+            <div class="result-section" id="invalidSection" style="display: none;">
+                <h4>❌ Invalid Addresses</h4>
+                <div class="account-list" id="invalidList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const form = document.getElementById('bulkSearchForm');
+const accountsInput = document.getElementById('accountsInput');
+const submitBtn = document.getElementById('submitBtn');
+const clearBtn = document.getElementById('clearBtn');
+const accountCount = document.getElementById('accountCount');
+const bulkResults = document.getElementById('bulkResults');
+
+// Update account count as user types
+accountsInput.addEventListener('input', () => {
+    const text = accountsInput.value.trim();
+    if (!text) {
+        accountCount.textContent = '0 accounts detected';
+        return;
+    }
+
+    const accounts = parseAccounts(text);
+    const uniqueAccounts = [...new Set(accounts)];
+    const duplicateCount = accounts.length - uniqueAccounts.length;
+    
+    let countText = `${uniqueAccounts.length} unique account${uniqueAccounts.length !== 1 ? 's' : ''} detected`;
+    if (duplicateCount > 0) {
+        countText += ` (${duplicateCount} duplicate${duplicateCount !== 1 ? 's' : ''} in input)`;
+    }
+    accountCount.textContent = countText;
+});
+
+// Clear button
+clearBtn.addEventListener('click', () => {
+    accountsInput.value = '';
+    accountCount.textContent = '0 accounts detected';
+    bulkResults.classList.remove('show');
+});
+
+// Form submission
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const text = accountsInput.value.trim();
+    if (!text) {
+        alert('Please enter at least one Stellar account address');
+        return;
+    }
+
+    const accounts = parseAccounts(text);
+    const uniqueAccounts = [...new Set(accounts)];
+
+    if (uniqueAccounts.length === 0) {
+        alert('No valid accounts found in the input');
+        return;
+    }
+
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Processing... <span class="spinner"></span>';
+
+    try {
+        const response = await fetch('/api/bulk-queue-accounts/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                accounts: uniqueAccounts,
+                network: 'public'
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            displayResults(data);
+        } else {
+            alert(`Error: ${data.message || 'Failed to queue accounts'}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Network error. Please try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Queue Accounts';
+    }
+});
+
+function parseAccounts(text) {
+    // Split by newline, comma, or space
+    const accounts = text
+        .split(/[\n,\s]+/)
+        .map(a => a.trim())
+        .filter(a => a.length > 0)
+        .filter(a => a.startsWith('G')); // Stellar addresses start with G
+    
+    return accounts;
+}
+
+function displayResults(data) {
+    // Update summary
+    document.getElementById('totalQueued').textContent = data.queued.length;
+    document.getElementById('totalDuplicates').textContent = data.duplicates.length;
+    document.getElementById('totalInvalid').textContent = data.invalid.length;
+    document.getElementById('totalProcessed').textContent = data.total_processed;
+
+    // Display queued accounts
+    if (data.queued.length > 0) {
+        document.getElementById('queuedSection').style.display = 'block';
+        document.getElementById('queuedList').innerHTML = data.queued
+            .map(acc => `<div class="account-item success">✓ ${acc}</div>`)
+            .join('');
+    } else {
+        document.getElementById('queuedSection').style.display = 'none';
+    }
+
+    // Display duplicates
+    if (data.duplicates.length > 0) {
+        document.getElementById('duplicatesSection').style.display = 'block';
+        document.getElementById('duplicatesList').innerHTML = data.duplicates
+            .map(acc => `<div class="account-item duplicate">⊘ ${acc}</div>`)
+            .join('');
+    } else {
+        document.getElementById('duplicatesSection').style.display = 'none';
+    }
+
+    // Display invalid
+    if (data.invalid.length > 0) {
+        document.getElementById('invalidSection').style.display = 'block';
+        document.getElementById('invalidList').innerHTML = data.invalid
+            .map(acc => `<div class="account-item invalid">✗ ${acc}</div>`)
+            .join('');
+    } else {
+        document.getElementById('invalidSection').style.display = 'none';
+    }
+
+    // Show results section
+    bulkResults.classList.add('show');
+    bulkResults.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

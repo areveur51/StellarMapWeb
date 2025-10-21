@@ -798,3 +798,21 @@ def high_value_accounts_view(request):
     }
     
     return render(request, 'webApp/high_value_accounts.html', context)
+
+
+@ratelimit(key='ip', rate='10/m', method='GET', block=True)
+def bulk_search_view(request):
+    """
+    Bulk search view: Page for queuing multiple Stellar accounts at once.
+    
+    Rate limited to 10 requests per minute per IP address.
+    Allows users to paste multiple accounts (enter, comma, or space delimited)
+    and queue them all for pipeline processing.
+
+    Args:
+        request: HttpRequest object.
+
+    Returns:
+        HttpResponse: Rendered bulk search page.
+    """
+    return render(request, 'webApp/bulk_search.html')
