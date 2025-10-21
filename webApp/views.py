@@ -751,11 +751,14 @@ def theme_test_view(request):
 def high_value_accounts_view(request):
     """
     High Value Accounts (HVA) view - displays accounts with >1M XLM balance.
+    Now includes rank change tracking from HVAStandingChange events.
     
     Returns:
         HttpResponse: Rendered HVA page with list of high value accounts.
     """
-    from apiApp.models import StellarCreatorAccountLineage
+    from apiApp.models import StellarCreatorAccountLineage, HVAStandingChange
+    from datetime import timedelta
+    from django.utils import timezone
     import sentry_sdk
     
     hva_accounts = []
@@ -763,14 +766,40 @@ def high_value_accounts_view(request):
     
     try:
         # Query HVA accounts using is_hva boolean filter
-        # Note: Cassandra filtering on non-primary-key requires ALLOW FILTERING
-        # This is more efficient than string matching but still scans the table
-        # For production at scale, consider a dedicated HVA table or materialized view
         hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
         
-        for record in hva_records:
+        # Sort by balance descending
+        sorted_records = sorted(
+            hva_records,
+            key=lambda x: x.xlm_balance if x.xlm_balance else 0,
+            reverse=True
+        )
+        
+        # Enrich with rank change data (last 24 hours)
+        cutoff_time = timezone.now() - timedelta(hours=24)
+        
+        for rank, record in enumerate(sorted_records, start=1):
             # Split tags into list for template rendering
             tags_list = [tag.strip() for tag in record.tags.split(',')] if record.tags else []
+            
+            # Get most recent standing change
+            rank_change = 0
+            event_type = None
+            previous_rank = None
+            balance_change_pct = 0.0
+            
+            try:
+                recent_change = HVAStandingChange.objects.filter(
+                    stellar_account=record.stellar_account
+                ).first()
+                
+                if recent_change and recent_change.created_at and recent_change.created_at >= cutoff_time:
+                    rank_change = recent_change.rank_change or 0
+                    event_type = recent_change.event_type
+                    previous_rank = recent_change.old_rank
+                    balance_change_pct = recent_change.balance_change_pct or 0.0
+            except Exception:
+                pass  # Silently ignore change tracking errors
             
             hva_accounts.append({
                 'stellar_account': record.stellar_account,
@@ -782,11 +811,14 @@ def high_value_accounts_view(request):
                 'status': record.status,
                 'created_at': record.created_at,
                 'updated_at': record.updated_at,
+                # Rank change data
+                'current_rank': rank,
+                'rank_change': rank_change,
+                'event_type': event_type,
+                'previous_rank': previous_rank,
+                'balance_change_pct': balance_change_pct,
             })
             total_hva_balance += (record.xlm_balance or 0)
-        
-        # Sort by balance descending
-        hva_accounts.sort(key=lambda x: x['xlm_balance'], reverse=True)
         
     except Exception as e:
         sentry_sdk.capture_exception(e)

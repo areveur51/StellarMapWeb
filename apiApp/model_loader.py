@@ -22,6 +22,7 @@ if USE_CASSANDRA:
         StellarCreatorAccountLineage,
         ManagementCronHealth,
         StellarAccountStageExecution,
+        HVAStandingChange,
         # Status constants
         PENDING,
         PROCESSING,
@@ -43,6 +44,7 @@ else:
         StellarCreatorAccountLineage,
         ManagementCronHealth,
         StellarAccountStageExecution,
+        HVAStandingChange,
         # Status constants
         PENDING,
         PROCESSING,
@@ -67,6 +69,7 @@ __all__ = [
     'StellarCreatorAccountLineage',
     'ManagementCronHealth',
     'StellarAccountStageExecution',
+    'HVAStandingChange',
     'BigQueryPipelineConfig',
     'PENDING',
     'PROCESSING',

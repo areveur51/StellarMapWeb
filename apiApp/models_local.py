@@ -157,3 +157,40 @@ class StellarAccountStageExecution(models.Model):
 
     def __str__(self):
         return f"{self.stellar_account} ({self.network_name}) - Stage {self.stage_number}: {self.status}"
+
+class HVAStandingChange(models.Model):
+    """
+    SQLite version of HVA Standing Change model for development.
+    Event log tracking High Value Account leaderboard position changes.
+    """
+    stellar_account = models.CharField(max_length=56)
+    change_time = models.DateTimeField()  # Manually set, no auto_now_add
+    
+    # Event metadata
+    event_type = models.CharField(max_length=32)  # ENTERED, EXITED, RANK_UP, etc.
+    
+    # Before/After state
+    old_rank = models.IntegerField(null=True, blank=True)
+    new_rank = models.IntegerField(null=True, blank=True)
+    old_balance = models.FloatField(default=0.0)
+    new_balance = models.FloatField(default=0.0)
+    
+    # Additional context
+    network_name = models.CharField(max_length=9)
+    home_domain = models.CharField(max_length=127, blank=True, default='')
+    
+    # Calculated metrics
+    rank_change = models.IntegerField(null=True, blank=True)
+    balance_change_pct = models.FloatField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-change_time']
+        indexes = [
+            models.Index(fields=['stellar_account', '-change_time']),
+            models.Index(fields=['event_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.stellar_account[:8]}... {self.event_type} at {self.created_at}"

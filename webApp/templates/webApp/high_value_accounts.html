@@ -185,6 +185,47 @@
         margin-bottom: 15px;
     }
     
+    /* Rank change indicators */
+    .rank-change-indicator {
+        display: inline-block;
+        margin-left: 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: 4px;
+        vertical-align: middle;
+    }
+    
+    .rank-up {
+        color: #0BE784; /* Cyberpunk green */
+        background: rgba(11, 231, 132, 0.15);
+        border: 1px solid #0BE784;
+    }
+    
+    .rank-down {
+        color: #ff6b6b; /* Red for down */
+        background: rgba(255, 107, 107, 0.15);
+        border: 1px solid #ff6b6b;
+    }
+    
+    .rank-new {
+        color: #FFD700; /* Gold for new */
+        background: rgba(255, 215, 0, 0.15);
+        border: 1px solid #FFD700;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+    
+    .balance-change {
+        display: inline-block;
+        margin-left: 5px;
+        font-weight: 600;
+    }
+    
     @media (max-width: 768px) {
         .hva-stats {
             flex-direction: column;
@@ -197,6 +238,12 @@
         
         .balance-highlight {
             font-size: 1rem;
+        }
+        
+        .rank-change-indicator {
+            display: block;
+            margin-left: 0;
+            margin-top: 4px;
         }
     }
   </style>
@@ -241,9 +288,29 @@
               <tr>
                 <td class="rank-cell {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% endif %}">
                   #{{ forloop.counter }}
+                  {% if account.rank_change > 0 %}
+                    <span class="rank-change-indicator rank-up" title="Moved up {{ account.rank_change }} positions">
+                      ↑{{ account.rank_change }}
+                    </span>
+                  {% elif account.rank_change < 0 %}
+                    <span class="rank-change-indicator rank-down" title="Moved down {{ account.rank_change|stringformat:'+d'|slice:'1:' }} positions">
+                      ↓{{ account.rank_change|stringformat:'+d'|slice:'1:' }}
+                    </span>
+                  {% elif account.event_type == 'ENTERED' %}
+                    <span class="rank-change-indicator rank-new" title="New to leaderboard">
+                      NEW
+                    </span>
+                  {% endif %}
                 </td>
                 <td class="account-address">{{ account.stellar_account }}</td>
-                <td class="balance-highlight">{{ account.xlm_balance|floatformat:2 }} XLM</td>
+                <td class="balance-highlight">
+                  {{ account.xlm_balance|floatformat:2 }} XLM
+                  {% if account.balance_change_pct != 0 %}
+                    <span class="balance-change" style="font-size: 0.75rem; {% if account.balance_change_pct > 0 %}color: #0BE784;{% else %}color: #ff6b6b;{% endif %}">
+                      ({% if account.balance_change_pct > 0 %}+{% endif %}{{ account.balance_change_pct|floatformat:1 }}%)
+                    </span>
+                  {% endif %}
+                </td>
                 <td class="timestamp-cell">
                   {% if account.updated_at %}
                     {{ account.updated_at|date:"M d, Y H:i" }}

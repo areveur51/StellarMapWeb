@@ -256,3 +256,82 @@ class StellarAccountStageExecution(DjangoCassandraModel):
 
     class Meta:
         get_pk_field = 'stellar_account'
+
+class HVAStandingChange(DjangoCassandraModel):
+    """
+    Event log tracking High Value Account (HVA) leaderboard position changes.
+    Records events ONLY when standings change (rank up/down, enter/exit top 1000).
+    
+    PRIMARY KEY ((stellar_account), change_time)
+    - Partition by stellar_account for efficient per-account history queries
+    - Cluster by change_time DESC (most recent changes first)
+    
+    Event Types:
+    - ENTERED: Account entered top 1000 HVA leaderboard
+    - EXITED: Account dropped below top 1000 or balance fell below 1M XLM
+    - RANK_UP: Account improved position in leaderboard
+    - RANK_DOWN: Account dropped position in leaderboard
+    - BALANCE_INCREASE: Significant balance increase (>5%) without rank change
+    - BALANCE_DECREASE: Significant balance decrease (>5%) without rank change
+    
+    Storage Efficiency: Only stores ~50 events/day vs 24,000 rows/day with snapshots.
+    """
+    __keyspace__ = settings.CASSANDRA_KEYSPACE
+    __table_name__ = 'hva_standing_changes'
+
+    stellar_account = cassandra_columns.Text(partition_key=True, max_length=56)
+    change_time = cassandra_columns.TimeUUID(primary_key=True, clustering_order="DESC")
+    
+    # Event metadata
+    event_type = cassandra_columns.Text(max_length=32)  # ENTERED, EXITED, RANK_UP, RANK_DOWN, etc.
+    
+    # Before/After state
+    old_rank = cassandra_columns.Integer()  # null if ENTERED
+    new_rank = cassandra_columns.Integer()  # null if EXITED
+    old_balance = cassandra_columns.Float()
+    new_balance = cassandra_columns.Float()
+    
+    # Additional context
+    network_name = cassandra_columns.Text(max_length=9)
+    home_domain = cassandra_columns.Text(max_length=127)
+    
+    # Calculated metrics
+    rank_change = cassandra_columns.Integer()  # Positive = moved up, Negative = moved down
+    balance_change_pct = cassandra_columns.Float()  # Percentage change
+    
+    created_at = cassandra_columns.DateTime()
+
+    def save(self, *args, **kwargs):
+        """Auto-set timestamps and calculate derived fields."""
+        from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+        from django.utils import timezone
+        
+        # Validate stellar_account
+        if not StellarMapValidatorHelpers.validate_stellar_account_address(self.stellar_account):
+            raise ValueError(f"Invalid stellar_account: '{self.stellar_account}'")
+        
+        # Validate network_name
+        if self.network_name not in ['public', 'testnet']:
+            raise ValueError(f"Invalid network_name: '{self.network_name}'")
+        
+        # Calculate rank_change
+        if self.old_rank and self.new_rank:
+            self.rank_change = self.old_rank - self.new_rank  # Positive = moved up
+        
+        # Calculate balance_change_pct (allow zero balances for EXITED events)
+        if self.old_balance is not None and self.new_balance is not None and self.old_balance > 0:
+            self.balance_change_pct = ((self.new_balance - self.old_balance) / self.old_balance) * 100
+        elif self.old_balance is not None and self.new_balance is not None and self.old_balance == 0 and self.new_balance > 0:
+            self.balance_change_pct = 100.0  # Started from zero
+        
+        if not self.created_at:
+            self.created_at = timezone.now()  # Use timezone-aware datetime
+        
+        return super().save(*args, **kwargs)
+
+    class Meta:
+        get_pk_field = 'stellar_account'
+    
+    def __str__(self):
+        """String representation for debugging."""
+        return f"{self.stellar_account[:8]}... {self.event_type} at {self.created_at}"

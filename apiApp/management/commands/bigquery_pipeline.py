@@ -624,12 +624,17 @@ class Command(BaseCommand):
             })
             
             # Store balance and home_domain in database fields (for querying and display)
+            # Track old balance for HVA change detection
+            old_balance = account_obj.xlm_balance if account_obj.xlm_balance else 0.0
+            
             if horizon_data:
                 account_obj.xlm_balance = horizon_data.get('balance', 0.0)
                 account_obj.home_domain = horizon_data.get('home_domain', '')
             else:
                 account_obj.xlm_balance = 0.0
                 account_obj.home_domain = ''
+            
+            new_balance = account_obj.xlm_balance
             
             # Calculate flags from Horizon data
             if horizon_data and 'flags' in horizon_data:
@@ -650,6 +655,18 @@ class Command(BaseCommand):
             account_obj.last_fetched_at = datetime.utcnow()
             account_obj.status = 'BIGQUERY_COMPLETE'
             account_obj.save()
+            
+            # Detect and record HVA standing changes
+            try:
+                from apiApp.helpers.hva_ranking import HVARankingHelper
+                HVARankingHelper.detect_and_record_change(
+                    account_obj=account_obj,
+                    old_balance=old_balance,
+                    new_balance=new_balance
+                )
+            except Exception as e:
+                # Don't fail the whole pipeline if HVA tracking fails
+                logger.warning(f"HVA change tracking failed for {account_obj.stellar_account}: {e}")
             
             # Queue creator account for processing
             if creator_info:
