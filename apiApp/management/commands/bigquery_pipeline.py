@@ -682,7 +682,13 @@ class Command(BaseCommand):
             raise
     
     def _queue_creator_account(self, creator_account, child_account):
-        """Add creator account to database for processing."""
+        """
+        Add creator account to database for processing (with age-based filtering).
+        
+        Prevents infinite queue loop by skipping very old accounts that exceed BigQuery limits.
+        Old accounts (>2 years) will be processed via API fallback when manually searched,
+        but won't auto-queue to prevent endless backlog.
+        """
         try:
             existing = StellarCreatorAccountLineage.objects.filter(
                 stellar_account=creator_account,
@@ -690,6 +696,34 @@ class Command(BaseCommand):
             ).first()
             
             if not existing:
+                # Check creator account age before queuing (prevent old account loop)
+                try:
+                    from apiApp.helpers.sm_horizon import StellarMapHorizonHelpers
+                    horizon = StellarMapHorizonHelpers(creator_account)
+                    creator_data = horizon.get_account()
+                    
+                    if creator_data and 'created_at' in creator_data:
+                        created_at = parse_datetime(creator_data['created_at'])
+                        age_days = (datetime.now(timezone.utc) - created_at).days
+                        
+                        # Skip queuing creators >730 days old (2 years) to prevent BigQuery limit loop
+                        # These will still be processed when manually searched via API fallback
+                        if age_days > 730:
+                            self.stdout.write(self.style.WARNING(
+                                f'    ⚠ Skipped queuing old creator {creator_account} ({age_days} days old) - prevents BigQuery limit loop'
+                            ))
+                            return
+                        
+                        self.stdout.write(f'    → Creator age: {age_days} days (within 2-year threshold)')
+                    
+                except Exception as age_check_error:
+                    # If age check fails, skip queuing to be safe (prevent potential loop)
+                    self.stdout.write(self.style.WARNING(
+                        f'    ⚠ Could not verify creator age for {creator_account} - skipping queue to prevent loop: {age_check_error}'
+                    ))
+                    return
+                
+                # Creator is recent enough - queue for processing
                 StellarCreatorAccountLineage.objects.create(
                     stellar_account=creator_account,
                     network_name='public',
