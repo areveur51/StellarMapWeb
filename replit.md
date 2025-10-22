@@ -35,14 +35,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Environment-Aware Model Loading**: `apiApp/model_loader.py` dynamically imports Cassandra or SQLite models based on the environment.
 - **Django Admin Integration**: Full integration of Cassandra models with workarounds for query constraints. Admin portal features clickable hyperlinks for stellar_account and stellar_creator_account fields that open search pages in new windows.
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production, including automatic migrations.
-- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, and `BigQueryCostGuard` for cost and size limits. An Admin Configuration Panel allows dynamic adjustment of pipeline settings. Includes an API fallback mechanism if BigQuery limits are exceeded. Pipeline automatically detects and records HVA ranking changes.
+- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, `BigQueryCostGuard` for cost and size limits, and singleton pattern for client caching to avoid expensive re-initialization. An Admin Configuration Panel allows dynamic adjustment of pipeline settings. Includes an API fallback mechanism if BigQuery limits are exceeded. Pipeline automatically detects and records HVA ranking changes.
 - **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility. `recalculate_hva_rankings` management command for initial backfill.
 - **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for educational purposes, providing comprehensive workflow tracking.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Two-Tier Creator Extraction**: BigQuery for `create_account` operations; API pipeline with Stellar Expert fallback.
 - **Comprehensive Child Account Discovery**: BigQuery pipeline discovers up to 100,000 child accounts with pagination and deduplication.
-- **Caching**: 12-hour caching for Stellar address searches.
+- **Caching**: 12-hour caching for Stellar address searches. Optimized API endpoint caching with 30s TTL for pending accounts.
 - **Frontend Interactivity**: Django templates enhanced with Vue.js components for real-time updates and JSON viewing.
+- **Performance Optimizations**: 30s polling intervals (reduced from 15s) with Page Visibility API to pause when tab is inactive. Account lineage API eliminates Cassandra full-table scans by building hierarchy from in-memory lineage sets. Proper cleanup of event listeners to prevent memory leaks.
 
 ## Security and Monitoring
 - **Comprehensive Testing**: 134+ tests cover security, functionality, visualization controls, and monitoring. Includes 12 spacing slider tests.
