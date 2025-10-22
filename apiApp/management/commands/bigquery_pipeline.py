@@ -75,10 +75,10 @@ class Command(BaseCommand):
                 bigquery_max_children=100000,
                 bigquery_child_page_size=10000,
                 batch_processing_enabled=True,
-                batch_size=100,
+                batch_size=6,
                 cache_ttl_hours=12,
                 updated_by='system',
-                notes='Auto-created default configuration'
+                notes='Auto-created default configuration (slow continuous retrieval: 6 accounts every 3 min)'
             )
             self.stdout.write(self.style.WARNING(
                 'No configuration found - created default configuration. '
@@ -100,7 +100,7 @@ class Command(BaseCommand):
                 bigquery_max_children = 100000
                 bigquery_child_page_size = 10000
                 batch_processing_enabled = True
-                batch_size = 100
+                batch_size = 6
                 cache_ttl_hours = 12
             return DefaultConfig()
 

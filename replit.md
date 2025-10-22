@@ -14,6 +14,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Age-Based Filtering**: Prevents infinite queue loop by skipping creator accounts >2 years old (prevents BigQuery limit violations)
 - **Clear Old Pending Command**: `python manage.py clear_old_pending` safely removes stuck PENDING accounts with --dry-run support
 - **Configuration Fix**: Fixed 'QuerySet' object has no attribute 'limit' error using .first() method
+- **Default Scheduler Settings**: Every 3 minutes, 6 accounts per batch (slow continuous retrieval)
 
 ## Comprehensive Testing Infrastructure
 - **Pytest Configuration**: Added 6 test markers (unit, integration, e2e, performance, regression, slow) with parallel execution support in `pyproject.toml`.

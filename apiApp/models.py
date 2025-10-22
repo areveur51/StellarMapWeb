@@ -60,7 +60,7 @@ class BigQueryPipelineConfig(django_models.Model):
 
     # Batch Processing
     batch_processing_enabled = django_models.BooleanField(default=True)
-    batch_size = django_models.IntegerField(default=100)  # Number of accounts to process per batch run
+    batch_size = django_models.IntegerField(default=6)  # Number of accounts to process per batch run (slow continuous retrieval)
 
     # Data Freshness
     cache_ttl_hours = django_models.IntegerField(default=12)  # How long before data is considered stale
@@ -104,14 +104,14 @@ class SchedulerConfig(django_models.Model):
     # Schedule Configuration
     cron_schedule = django_models.CharField(
         max_length=50,
-        default='0 */2 * * *',
-        help_text="Cron expression for schedule (e.g., '0 */2 * * *' = every 2 hours, '*/30 * * * *' = every 30 minutes)"
+        default='*/3 * * * *',
+        help_text="Cron expression for schedule (e.g., '*/3 * * * *' = every 3 minutes, '*/30 * * * *' = every 30 minutes)"
     )
     
     # Batch Processing
     batch_limit = django_models.IntegerField(
-        default=100,
-        help_text="Maximum number of PENDING accounts to process per scheduled run"
+        default=6,
+        help_text="Maximum number of PENDING accounts to process per scheduled run (slow continuous retrieval)"
     )
     
     # Execution Settings
