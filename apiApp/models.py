@@ -75,6 +75,20 @@ class BigQueryPipelineConfig(django_models.Model):
         default='10000,50000,100000,500000,750000,1000000',
         help_text="Comma-separated list of XLM thresholds for multi-threshold leaderboards (e.g., 10000,50000,100000,500000,750000,1000000). Each threshold creates a separate leaderboard."
     )
+    
+    # API Pipeline Settings
+    api_pipeline_enabled = django_models.BooleanField(
+        default=True,
+        help_text="Enable/disable the API-only pipeline for consistent PENDING record processing"
+    )
+    api_pipeline_batch_size = django_models.IntegerField(
+        default=3,
+        help_text="Number of accounts to process per API pipeline run (default: 3 for slow continuous retrieval)"
+    )
+    api_pipeline_interval_seconds = django_models.IntegerField(
+        default=120,
+        help_text="Time between API pipeline runs in seconds (default: 120 = 2 minutes)"
+    )
 
     # Metadata
     created_at = django_models.DateTimeField(auto_now_add=True)
