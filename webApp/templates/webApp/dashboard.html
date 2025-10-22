@@ -23,11 +23,18 @@
         background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
         border-radius: 4px;
-        padding: 8px;
-        margin-bottom: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        /* Make cards square */
+        aspect-ratio: 1 / 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
     }
     .stat-card::before {
         content: '';
@@ -48,41 +55,62 @@
         box-shadow: 0 4px 20px rgba(150, 221, 242, 0.3), 0 0 15px rgba(150, 221, 242, 0.1);
     }
     .stat-value {
-        font-size: 1.3rem;
+        font-size: 1.5rem;
         font-weight: bold;
         color: #96DDF2; /* Cyberpunk cyan for values */
         word-wrap: break-word;
         overflow-wrap: break-word;
-        margin: 2px 0;
+        margin: 4px 0;
         text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
         position: relative;
         z-index: 1;
+        line-height: 1.2;
     }
     .stat-label {
         color: #c4b5fd; /* Light purple for labels */
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 0.3px;
-        margin-bottom: 0;
+        margin-bottom: 4px;
+        line-height: 1.1;
     }
     .stat-card small {
         display: block;
         word-wrap: break-word;
         overflow-wrap: break-word;
         color: #a78bfa; /* Muted purple for small text */
-        font-size: 0.65rem;
-        margin-top: 1px;
+        font-size: 0.6rem;
+        margin-top: 4px;
+        line-height: 1.1;
     }
     .admin-link-btn {
-        margin-top: 4px;
-        font-size: 0.6rem;
-        padding: 2px 5px;
+        margin-top: 6px;
+        font-size: 0.55rem;
+        padding: 3px 8px;
         transition: all 0.3s ease;
         position: relative;
         z-index: 1;
+        white-space: nowrap;
     }
     .admin-link-btn:hover {
-        transform: translateX(3px);
+        transform: scale(1.05);
+    }
+    /* Responsive grid for square cards */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    @media (min-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        }
+    }
+    @media (min-width: 1200px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        }
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
     .btn-outline-info:hover,
@@ -209,14 +237,10 @@
         </h1>
         
         <!-- Alerts and Recommendations -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     Alerts & Recommendations
                 </h3>
-            </div>
-        </div>
-        <div class="row">
+        <div class="dashboard-grid">
             <div class="col-12">
                 {% if db_stats.stuck_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
@@ -257,15 +281,11 @@
         </div>
         
         <!-- API Health Monitoring -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
-                    API Health Monitoring
-                </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4">
+        <h3 class="section-title">
+            API Health Monitoring
+        </h3>
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Horizon API (Stellar)</div>
                     <div class="stat-value">
@@ -284,7 +304,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Stellar Expert API</div>
                     <div class="stat-value">
@@ -303,7 +323,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Rate Limiting Status</div>
                     <div class="stat-value">
@@ -327,36 +347,32 @@
         </div>
         
         <!-- BigQuery Cost Tracking -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
-                    BigQuery Cost Tracking
-                </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3">
+        <h3 class="section-title">
+            BigQuery Cost Tracking
+        </h3>
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Cost Limit</div>
                     <div class="stat-value">${{ bigquery_stats.cost_limit_usd }}</div>
                     <small>per query</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Size Limit</div>
                     <div class="stat-value">{{ bigquery_stats.size_limit_gb|floatformat:0 }} GB</div>
                     <small>max data scanned</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Est. Monthly Cost</div>
                     <div class="stat-value">${{ bigquery_stats.estimated_monthly_cost|floatformat:2 }}</div>
                     <small>based on 7-day avg</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Pipeline Mode</div>
                     <div class="stat-value" style="font-size: 1.2rem;">
@@ -372,15 +388,11 @@
         </div>
 
         <!-- Dual-Pipeline Metrics -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     Dual-Pipeline Metrics
                 </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">BigQuery Processed</div>
                     <div class="stat-value" style="color: #0BE784;">
@@ -389,7 +401,7 @@
                     <small>fast path (50-90s per account)</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">BigQuery + API Fallback</div>
                     <div class="stat-value" style="color: #ffc107;">
@@ -398,7 +410,7 @@
                     <small>cost guard blocked, used API</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">API-Only Processed</div>
                     <div class="stat-value" style="color: #96DDF2;">
@@ -407,7 +419,7 @@
                     <small>reliable fallback (180-300s)</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">
@@ -417,8 +429,8 @@
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-4">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Last 24h - BigQuery</div>
                     <div class="stat-value" style="color: #0BE784; font-size: 1.1rem;">
@@ -427,7 +439,7 @@
                     <small>accounts processed</small>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Last 24h - Fallback</div>
                     <div class="stat-value" style="color: #ffc107; font-size: 1.1rem;">
@@ -436,7 +448,7 @@
                     <small>accounts processed</small>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Last 24h - API Only</div>
                     <div class="stat-value" style="color: #96DDF2; font-size: 1.1rem;">
@@ -448,15 +460,11 @@
         </div>
 
         <!-- Database Health -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     Database Health
                 </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
@@ -466,7 +474,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Fresh Records</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.fresh_accounts }}</div>
@@ -476,7 +484,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Stale Records</div>
                     <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
@@ -486,7 +494,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Stuck Records</div>
                     <div class="stat-value" style="color: #E5526F;">{{ db_stats.stuck_accounts }}</div>
@@ -499,8 +507,11 @@
         </div>
 
         <!-- Processing Status -->
-        <div class="row">
-            <div class="col-md-3">
+        <h3 class="section-title">
+            Processing Status
+        </h3>
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ db_stats.pending_accounts }}</div>
@@ -509,7 +520,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">In Progress</div>
                     <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
@@ -518,7 +529,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Completed</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.completed_accounts }}</div>
@@ -527,7 +538,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Re-inquiry</div>
                     <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
@@ -539,15 +550,11 @@
         </div>
 
         <!-- Lineage Data Integrity -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     Lineage Data Integrity
                 </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Total Lineage Records</div>
                     <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
@@ -556,7 +563,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Accounts with Lineage</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.accounts_with_lineage }}</div>
@@ -565,7 +572,7 @@
                     </a>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Orphan Accounts</div>
                     <div class="stat-value" style="{% if db_stats.orphan_accounts > 0 %}color: #ffc107;{% endif %}">
@@ -580,22 +587,18 @@
         </div>
 
         <!-- Performance Metrics -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     Performance Metrics
                 </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Avg Processing Time</div>
                     <div class="stat-value">{{ performance_stats.avg_processing_time_minutes|floatformat:1 }}</div>
                     <small>minutes</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Fastest Account</div>
                     <div class="stat-value">
@@ -608,7 +611,7 @@
                     <small>minutes</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Slowest Account</div>
                     <div class="stat-value">
@@ -621,7 +624,7 @@
                     <small>minutes</small>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Processed (24h)</div>
                     <div class="stat-value">{{ performance_stats.total_accounts_processed_24h }}</div>
@@ -631,15 +634,11 @@
         </div>
 
         <!-- System Health -->
-        <div class="row">
-            <div class="col-12">
-                <h3 class="section-title">
+        <h3 class="section-title">
                     System Health
                 </h3>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4">
+        <div class="dashboard-grid">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Cron Status</div>
                     <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F;{% else %}color: #ffc107;{% endif %}">
@@ -655,14 +654,14 @@
                     <small>Last run: {% if cron_health.last_run %}{{ cron_health.last_run|slice:":19" }}{% else %}Never{% endif %}</small>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Stage Executions</div>
                     <div class="stat-value">{{ stage_health.total_stage_executions }}</div>
                     <small>total tracked</small>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div>
                 <div class="stat-card">
                     <div class="stat-label">Failed Stages</div>
                     <div class="stat-value" style="{% if stage_health.failed_stages > 0 %}color: #E5526F;{% endif %}">
