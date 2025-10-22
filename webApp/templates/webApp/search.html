@@ -1134,6 +1134,20 @@
               autoHideDelay: 3000
             });
           }
+        },
+        stopPolling() {
+          if (this.pendingAccountsInterval) {
+            clearInterval(this.pendingAccountsInterval);
+            this.pendingAccountsInterval = null;
+          }
+          if (this.stageExecutionsInterval) {
+            clearInterval(this.stageExecutionsInterval);
+            this.stageExecutionsInterval = null;
+          }
+          if (this.lineageInterval) {
+            clearInterval(this.lineageInterval);
+            this.lineageInterval = null;
+          }
         }
       },
       watch: {
@@ -1255,30 +1269,15 @@
         
         // JSON display is automatically updated by the watcher
       },
-      stopPolling() {
-        if (this.pendingAccountsInterval) {
-          clearInterval(this.pendingAccountsInterval);
-          this.pendingAccountsInterval = null;
-        }
-        if (this.stageExecutionsInterval) {
-          clearInterval(this.stageExecutionsInterval);
-          this.stageExecutionsInterval = null;
-        }
-        if (this.lineageInterval) {
-          clearInterval(this.lineageInterval);
-          this.lineageInterval = null;
+      beforeDestroy() {
+        // Clean up intervals when component is destroyed
+        this.stopPolling();
+        
+        // Clean up visibility change listener to prevent memory leaks
+        if (this._visibilityHandler) {
+          document.removeEventListener('visibilitychange', this._visibilityHandler);
         }
       }
-    },
-    beforeDestroy() {
-      // Clean up intervals when component is destroyed
-      this.stopPolling();
-      
-      // Clean up visibility change listener to prevent memory leaks
-      if (this._visibilityHandler) {
-        document.removeEventListener('visibilitychange', this._visibilityHandler);
-      }
-    }
     })
   </script>
 </body>
