@@ -637,11 +637,55 @@ All queries filter by `network_name` to prevent cross-network data leaks:
 | 3 | Failed Pipeline Stages | StellarAccountStageExecution | status=FAILED |
 | 4 | High XLM Balance | StellarCreatorAccountLineage | xlm_balance > 100 XLM |
 | 5 | Recent Cache Entries | StellarAccountSearchCache | created_at within 24h |
-| 6 | Pending Pipeline Jobs | StellarAccountSearchCache | status IN (PENDING, IN_PROGRESS) |
+| 6 | **Processing Accounts** | **Both Tables** | **Dual-table scan with stale detection** |
 | 7 | HVA Accounts | StellarCreatorAccountLineage | is_hva=True, multi-threshold |
 | 8 | Accounts by Domain | StellarCreatorAccountLineage | home_domain CONTAINS pattern |
 | 9 | Failed Lookups | StellarAccountSearchCache | status=FAILED |
 | 10 | Recent HVA Changes | HVAStandingChange | created_at within 24h |
+
+#### **Enhanced Processing Accounts Query**
+
+The **Processing Accounts** query (#6) has been enhanced with dual-table scanning and stale detection:
+
+**Features:**
+- Scans **both** Search Cache and Account Lineage tables
+- Detects **stale processing** (accounts stuck in PROCESSING status for >30 minutes)
+- Shows **table source** for each account (Search Cache vs Account Lineage)
+- Marks stale records with **[STALE]** tag for easy identification
+
+**Stale Detection Logic:**
+```python
+stale_threshold = datetime.utcnow() - timedelta(minutes=30)
+
+# For Account Lineage: Use processing_started_at if available
+if record.processing_started_at and record.processing_started_at < stale_threshold:
+    mark_as_stale()
+
+# For Search Cache: Use updated_at
+if record.updated_at and record.updated_at < stale_threshold:
+    mark_as_stale()
+```
+
+**Reset Stale Processing Data:**
+
+Use the management command to reset stale accounts:
+```bash
+# Dry run (preview what will be reset)
+python manage.py reset_stale_processing --minutes 30 --dry-run
+
+# Live reset (default: 30 minutes, network: public)
+python manage.py reset_stale_processing
+
+# Custom threshold (60 minutes) on testnet
+python manage.py reset_stale_processing --minutes 60 --network testnet
+```
+
+The command:
+- Scans both Search Cache and Account Lineage tables
+- Identifies accounts in PROCESSING status older than threshold
+- Resets status to ERROR with descriptive message
+- Clears `processing_started_at` field in Account Lineage
+- Provides detailed summary of reset operations
 
 #### **Custom Filter Builder**
 

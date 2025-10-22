@@ -23,7 +23,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **DRY Template Architecture**: Shared components like `search_container_include.html` ensure no code duplication.
 - **Icon-Free Navigation**: Clean, cyberpunk-styled navigation buttons.
 - **High Value Account (HVA) Leaderboard**: Identifies and ranks accounts based on admin-configurable XLM thresholds, displayed on a dedicated page with efficient filtering and event-based change tracking for storage efficiency.
-- **Query Builder**: Comprehensive Cassandra database explorer at `/web/query-builder/` with 10 pre-defined queries and a custom multi-filter builder supporting AND logic. Features network-aware filtering, adaptive `max_scan` limits, sortable results, and clickable account links.
+- **Query Builder**: Comprehensive Cassandra database explorer at `/web/query-builder/` with 10 pre-defined queries and a custom multi-filter builder supporting AND logic. Features network-aware filtering, adaptive `max_scan` limits, sortable results, and clickable account links. **Processing Accounts** query enhanced with dual-table scanning (Search Cache + Account Lineage) and stale detection (>30 min) with `[STALE]` tags. Management command `reset_stale_processing` available to reset stuck accounts.
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements.
 - **Dashboard Layout**: Alerts & Recommendations are prioritized at the top.
 - **Architecture Diagrams**: 8 PlantUML diagrams document the system, including System Overview, Data Pipeline, Database Schema, Frontend & API Layer, Monitoring System, Hybrid Architecture, HVA Ranking System, and Query Builder Architecture.

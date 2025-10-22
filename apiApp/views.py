@@ -1262,6 +1262,8 @@ def cassandra_query_api(request):
             if 'updated_at' in include_fields:
                 updated = getattr(record, 'updated_at', None)
                 data['updated_at'] = updated.isoformat() if updated else None
+            if 'table_source' in include_fields:
+                data['table_source'] = getattr(record, '_table_source', 'Unknown')
             
             return data
         
@@ -1455,26 +1457,83 @@ def cassandra_query_api(request):
             results = [format_record(r, visible_columns) for r in pending]
         
         elif query_name == 'processing_accounts':
-            description = 'Processing Accounts'
-            visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
+            description = 'Processing Accounts (from both Search Cache & Account Lineage)'
+            visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at', 'table_source']
+            
+            from datetime import datetime, timedelta
+            stale_threshold = datetime.utcnow() - timedelta(minutes=30)  # Processing older than 30 min is stale
+            
+            processing = []
             
             if USE_CASSANDRA:
-                # Cassandra limitation: status not in PK
-                # Strategy: Early exit with max scan limit
-                processing = []
-                count = 0
-                max_scan = limit * 10
+                # Check Search Cache table for processing accounts
+                search_cache_count = 0
+                search_cache_max_scan = limit * 5
                 
-                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
-                    count += 1
-                    if count > max_scan:
+                for record in StellarAccountSearchCache.objects.filter(network_name=network):
+                    search_cache_count += 1
+                    if search_cache_count > search_cache_max_scan:
                         break
                     if record.status and 'PROGRESS' in record.status:
+                        # Mark as stale if no updates for 30+ minutes
+                        is_stale = record.updated_at and record.updated_at < stale_threshold
+                        record._table_source = 'Search Cache' + (' [STALE]' if is_stale else '')
                         processing.append(record)
                         if len(processing) >= limit:
                             break
+                
+                # Check Account Lineage table for processing accounts
+                if len(processing) < limit:
+                    lineage_count = 0
+                    lineage_max_scan = limit * 10
+                    
+                    for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
+                        lineage_count += 1
+                        if lineage_count > lineage_max_scan:
+                            break
+                        if record.status and 'PROGRESS' in record.status:
+                            # Check if processing_started_at indicates stale processing
+                            is_stale = False
+                            if hasattr(record, 'processing_started_at') and record.processing_started_at:
+                                is_stale = record.processing_started_at < stale_threshold
+                            elif record.updated_at and record.updated_at < stale_threshold:
+                                is_stale = True
+                            
+                            record._table_source = 'Account Lineage' + (' [STALE]' if is_stale else '')
+                            processing.append(record)
+                            if len(processing) >= limit:
+                                break
             else:
-                processing = StellarCreatorAccountLineage.objects.filter(network_name=network, status__contains='PROGRESS')[:limit]
+                from django.db.models import Q
+                
+                # Check Search Cache
+                search_cache_processing = StellarAccountSearchCache.objects.filter(
+                    network_name=network,
+                    status__contains='PROGRESS'
+                )[:limit]
+                
+                for record in search_cache_processing:
+                    is_stale = record.updated_at and record.updated_at < stale_threshold
+                    record._table_source = 'Search Cache' + (' [STALE]' if is_stale else '')
+                    processing.append(record)
+                
+                # Check Account Lineage if we need more records
+                if len(processing) < limit:
+                    remaining = limit - len(processing)
+                    lineage_processing = StellarCreatorAccountLineage.objects.filter(
+                        network_name=network,
+                        status__contains='PROGRESS'
+                    )[:remaining]
+                    
+                    for record in lineage_processing:
+                        is_stale = False
+                        if hasattr(record, 'processing_started_at') and record.processing_started_at:
+                            is_stale = record.processing_started_at < stale_threshold
+                        elif record.updated_at and record.updated_at < stale_threshold:
+                            is_stale = True
+                        
+                        record._table_source = 'Account Lineage' + (' [STALE]' if is_stale else '')
+                        processing.append(record)
             
             results = [format_record(r, visible_columns) for r in processing]
         
