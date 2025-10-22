@@ -234,6 +234,8 @@ class Command(BaseCommand):
         
         try:
             account_obj.status = 'PROCESSING'
+            account_obj.processing_started_at = start_time
+            account_obj.last_pipeline_attempt = start_time
             account_obj.save()
             
             # Step 1: Get account creation date from Horizon API (free, no BigQuery cost)
@@ -655,9 +657,14 @@ class Command(BaseCommand):
                     account_obj.stellar_flag_auth_immutable = bool(flags & 4)
                     account_obj.stellar_flag_auth_clawback_enabled = bool(flags & 8)
             
+            # Track whether API fallback was used
+            used_api_fallback = (not creator_info) or (not children)
+            
             # Update timestamps and status
             account_obj.last_fetched_at = datetime.utcnow()
             account_obj.status = 'BIGQUERY_COMPLETE'
+            account_obj.pipeline_source = 'BIGQUERY_WITH_API_FALLBACK' if used_api_fallback else 'BIGQUERY'
+            account_obj.processing_started_at = None
             account_obj.save()
             
             # Detect and record HVA standing changes for ALL supported thresholds
