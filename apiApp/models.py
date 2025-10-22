@@ -81,3 +81,80 @@ class BigQueryPipelineConfig(django_models.Model):
 
     def __str__(self):
         return f"BigQuery Pipeline Config (Cost Limit: ${self.cost_limit_usd}, Mode: {self.pipeline_mode})"
+
+
+class SchedulerConfig(django_models.Model):
+    """
+    Configuration settings for the background scheduler that processes PENDING records.
+    
+    Singleton model - only one configuration record should exist.
+    Controls schedule frequency, batch sizes, and execution behavior.
+    
+    Stored in SQLite/default database for easy admin access.
+    """
+    # Singleton primary key
+    config_id = django_models.CharField(max_length=50, primary_key=True, default='default')
+    
+    # Scheduler Status
+    scheduler_enabled = django_models.BooleanField(
+        default=True,
+        help_text="Enable/disable the background scheduler. When disabled, PENDING records won't be processed automatically."
+    )
+    
+    # Schedule Configuration
+    cron_schedule = django_models.CharField(
+        max_length=50,
+        default='0 */2 * * *',
+        help_text="Cron expression for schedule (e.g., '0 */2 * * *' = every 2 hours, '*/30 * * * *' = every 30 minutes)"
+    )
+    
+    # Batch Processing
+    batch_limit = django_models.IntegerField(
+        default=100,
+        help_text="Maximum number of PENDING accounts to process per scheduled run"
+    )
+    
+    # Execution Settings
+    run_on_startup = django_models.BooleanField(
+        default=True,
+        help_text="Run the pipeline immediately when the scheduler starts (in addition to scheduled runs)"
+    )
+    
+    # Monitoring
+    last_run_at = django_models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the last successful pipeline run"
+    )
+    last_run_status = django_models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Status of the last run (SUCCESS, FAILED, etc.)"
+    )
+    last_run_processed = django_models.IntegerField(
+        default=0,
+        help_text="Number of accounts processed in the last run"
+    )
+    last_run_failed = django_models.IntegerField(
+        default=0,
+        help_text="Number of accounts that failed in the last run"
+    )
+    
+    # Metadata
+    created_at = django_models.DateTimeField(auto_now_add=True)
+    updated_at = django_models.DateTimeField(auto_now=True)
+    updated_by = django_models.CharField(max_length=255, blank=True, help_text="Admin username who last updated")
+    notes = django_models.TextField(blank=True, help_text="Admin notes about configuration changes")
+    
+    class Meta:
+        verbose_name = "Scheduler Configuration"
+        verbose_name_plural = "Scheduler Configuration"
+        db_table = 'scheduler_config'
+        app_label = 'apiApp'
+        # Force this model to use default database (SQLite), not Cassandra
+        # This is a Django admin config model
+        managed = True
+    
+    def __str__(self):
+        status = "Enabled" if self.scheduler_enabled else "Disabled"
+        return f"Scheduler Config ({status}, Schedule: {self.cron_schedule}, Batch: {self.batch_limit})"
