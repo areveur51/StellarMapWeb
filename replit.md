@@ -33,6 +33,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development, with a custom `DatabaseAppsRouter`. Cassandra models use composite primary keys.
 - **Environment-Aware Model Loading**: `apiApp/model_loader.py` dynamically imports Cassandra or SQLite models based on the environment.
 - **Django Admin Integration**: Full integration of Cassandra models with clickable hyperlinks for account fields.
+- **Dual-Pipeline Tracking**: Cassandra migration completed (2025-10-22) adding `pipeline_source`, `last_pipeline_attempt`, and `processing_started_at` fields for tracking data origin and processing timestamps.
 - **Query Optimizations**: HVA leaderboard uses network-aware filtering and smart threshold-based query strategies.
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production.
 - **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset, with age restrictions, cost optimization strategies (`BigQueryCostGuard`), and an API fallback. Includes dynamic adjustment of pipeline settings via an Admin Configuration Panel.

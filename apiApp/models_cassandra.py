@@ -138,13 +138,10 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     # High Value Account flag for efficient querying (configurable threshold, default >=100K XLM)
     is_hva = cassandra_columns.Boolean(default=False)
 
-    # Dual-pipeline tracking fields
-    # IMPORTANT: These fields are temporarily commented out until cassandra_migration_dual_pipeline.cql is run
-    # The column does not exist in production Cassandra schema yet, causing ALL queries to fail
-    # Uncomment these fields AFTER running the Cassandra migration script
-    # pipeline_source = cassandra_columns.Text(max_length=64, default='')  # BIGQUERY, API, BIGQUERY_WITH_API_FALLBACK
-    # last_pipeline_attempt = cassandra_columns.DateTime(default=None)  # Last time either pipeline attempted processing
-    # processing_started_at = cassandra_columns.DateTime(default=None)  # When current processing started
+    # Dual-pipeline tracking fields (migration completed successfully on 2025-10-22)
+    pipeline_source = cassandra_columns.Text(max_length=64, default='')  # BIGQUERY, API, BIGQUERY_WITH_API_FALLBACK
+    last_pipeline_attempt = cassandra_columns.DateTime(default=None)  # Last time either pipeline attempted processing
+    processing_started_at = cassandra_columns.DateTime(default=None)  # When current processing started
 
     status = cassandra_columns.Text(max_length=127)
     retry_count = cassandra_columns.Integer(default=0)
