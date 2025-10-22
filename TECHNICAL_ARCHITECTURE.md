@@ -16,9 +16,10 @@
 6. [Hybrid Production Architecture](#6-hybrid-production-architecture)
 7. [HVA Ranking System](#7-hva-ranking-system)
 8. [Query Builder Architecture](#8-query-builder-architecture)
-9. [Technology Stack](#technology-stack)
-10. [Performance Optimizations](#performance-optimizations)
-11. [Security Implementation](#security-implementation)
+9. [Dual-Pipeline Architecture](#9-dual-pipeline-architecture)
+10. [Technology Stack](#technology-stack)
+11. [Performance Optimizations](#performance-optimizations)
+12. [Security Implementation](#security-implementation)
 
 ---
 
@@ -744,6 +745,166 @@ accounts = StellarCreatorAccountLineage.objects.filter(
 - **Operator Selection**: =, >, <, >=, <=, CONTAINS, etc.
 - **Value Input**: Text/number input with validation
 - **Add/Remove Filters**: Plus/minus buttons
+
+---
+
+## 9. Dual-Pipeline Architecture
+
+### BigQuery + API Fallback System
+
+![Dual-Pipeline Architecture](./diagrams/09_dual_pipeline_architecture.png)
+
+#### **Overview**
+
+**Migration Completed:** October 22, 2025
+
+The dual-pipeline architecture combines the speed of BigQuery with the reliability of the API pipeline, providing an intelligent fallback system that tracks data origin and processing timestamps.
+
+#### **Pipeline Components**
+
+##### **BigQuery Pipeline (Fast Path)**
+
+**Performance:**
+- Processing Time: 50-90 seconds per account
+- Child Account Discovery: Up to 100,000 children
+- Cost: ~$0.35 per account
+- Primary limitation: Budget constraints
+
+**Features:**
+- Singleton BigQuery client for efficiency
+- Cost Guard enforces $0.71/query limit
+- Comprehensive child account discovery
+- Age-based filtering (<2 years for fast queries)
+
+**Data Flow:**
+1. Check Cost Guard budget → within limit?
+2. Query Stellar Hubble dataset (BigQuery)
+3. Discover child accounts (paginated)
+4. Mark record with `pipeline_source='BIGQUERY'`
+5. Store in Cassandra with timestamps
+
+##### **API Pipeline (Reliable Fallback)**
+
+**Performance:**
+- Processing Time: 180-300 seconds per account
+- Rate Limited: 71% of max (85 req/min Horizon, 35 req/min Expert)
+- Cost: FREE (no direct costs)
+- Primary use: Cost guard blocks or stuck records
+
+**Features:**
+- 8-stage processing workflow
+- Tenacity retry logic with exponential backoff
+- Stellar Expert fallback for creator discovery
+- Percentage-based rate limiting
+
+**Data Flow:**
+1. Cost Guard blocks OR manual API processing
+2. Fetch account data from Horizon API
+3. Discover creator (Horizon → Stellar Expert fallback)
+4. Mark record with `pipeline_source='API'` or `'BIGQUERY_WITH_API_FALLBACK'`
+5. Store in Cassandra with timestamps
+
+#### **Cassandra Schema Changes**
+
+**Migration:** `cassandra_migration_dual_pipeline.cql` (Completed 2025-10-22)
+
+**New Fields:**
+```sql
+ALTER TABLE stellar_creator_account_lineage 
+ADD pipeline_source text;  -- BIGQUERY | API | BIGQUERY_WITH_API_FALLBACK
+
+ALTER TABLE stellar_creator_account_lineage 
+ADD last_pipeline_attempt timestamp;  -- Retry tracking
+
+ALTER TABLE stellar_creator_account_lineage 
+ADD processing_started_at timestamp;  -- Stuck detection
+```
+
+**Field Descriptions:**
+
+| Field | Type | Purpose | Example Values |
+|-------|------|---------|----------------|
+| `pipeline_source` | TEXT | Tracks data origin | `BIGQUERY`, `API`, `BIGQUERY_WITH_API_FALLBACK` |
+| `last_pipeline_attempt` | TIMESTAMP | Last processing attempt | `2025-10-22 22:30:15` |
+| `processing_started_at` | TIMESTAMP | Detects stuck processing | `2025-10-22 22:25:00` |
+
+#### **Pipeline Selection Logic**
+
+**Hybrid Orchestrator Decision Tree:**
+
+```
+1. New account requested
+2. Check BigQuery Cost Guard
+   ├─ ✓ Within budget → Use BigQuery Pipeline
+   │  └─ Mark: pipeline_source='BIGQUERY'
+   │
+   └─ ✗ Cost limit exceeded → Use API Pipeline
+      └─ Mark: pipeline_source='BIGQUERY_WITH_API_FALLBACK'
+
+3. Stuck/Failed Record Processing
+   └─ Use API Pipeline (reliable fallback)
+      └─ Mark: pipeline_source='API'
+```
+
+#### **Admin Configuration**
+
+**BigQuery Pipeline Config** (`BigQueryPipelineConfig`)
+- `pipeline_mode`: BIGQUERY_ONLY | API_ONLY | BIGQUERY_WITH_API_FALLBACK
+- `cost_limit_usd`: Maximum cost per query (default: $0.71)
+- `bigquery_enabled`: Enable/disable BigQuery pipeline
+
+**API Rate Limiter Config** (`APIRateLimiterConfig`)
+- `horizon_percentage`: % of max rate (default: 71% = 85 req/min)
+- `expert_percentage`: % of max rate (default: 71% = 35 req/min)
+
+#### **Dashboard Metrics**
+
+**Dual-Pipeline Metrics Section:**
+
+Displays breakdown by data source:
+- **BigQuery Processed**: Total accounts via BigQuery
+- **BigQuery + API Fallback**: Cost guard triggered, used API
+- **API-Only Processed**: Direct API pipeline usage
+- **Total Accounts**: Combined count
+- **Last 24h Stats**: Recent processing by source
+
+**Query Example:**
+```python
+# Get accounts by pipeline source
+bigquery_accounts = StellarCreatorAccountLineage.objects.filter(
+    pipeline_source='BIGQUERY'
+).count()
+
+api_accounts = StellarCreatorAccountLineage.objects.filter(
+    pipeline_source='API'
+).count()
+
+fallback_accounts = StellarCreatorAccountLineage.objects.filter(
+    pipeline_source='BIGQUERY_WITH_API_FALLBACK'
+).count()
+```
+
+#### **Benefits**
+
+**Cost Optimization:**
+- BigQuery usage automatically throttled by Cost Guard
+- Free API fallback when budget exceeded
+- No data loss when switching pipelines
+
+**Reliability:**
+- Stuck BigQuery records can be reprocessed via API
+- Dual tracking prevents duplicate processing
+- Timestamp monitoring detects hung processes
+
+**Performance:**
+- Fast path (BigQuery) for most accounts
+- Reliable fallback (API) for edge cases
+- Source tracking enables performance analysis
+
+**Operational Visibility:**
+- Dashboard shows pipeline efficiency
+- Compare BigQuery vs API performance
+- Identify cost vs speed tradeoffs
 
 ---
 

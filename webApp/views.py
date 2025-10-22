@@ -627,11 +627,13 @@ def dashboard_view(request):
             unique_accounts.add(record.stellar_account)
         db_stats['accounts_with_lineage'] = len(unique_accounts)
         
-        # Find orphan accounts (in cache but no lineage)
+        # Find orphan accounts (in cache but no lineage) - OPTIMIZED: use values_list
         try:
-            cache_accounts = set()
-            for record in StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all():
-                cache_accounts.add(record.stellar_account)
+            cache_accounts = set(
+                StellarAccountSearchCache.objects
+                .filter(status=DONE_MAKE_PARENT_LINEAGE)
+                .values_list('stellar_account', flat=True)
+            )
             
             orphans = cache_accounts - unique_accounts
             db_stats['orphan_accounts'] = len(orphans)
@@ -651,23 +653,28 @@ def dashboard_view(request):
     }
     
     try:
-        # Calculate average processing time from completed accounts
+        # Calculate average processing time from completed accounts - OPTIMIZED: only load needed fields
         now = datetime.utcnow()
         processing_times = []
         
-        completed_records = StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all()
+        # Only fetch created_at and updated_at fields instead of full objects
+        completed_records = (
+            StellarAccountSearchCache.objects
+            .filter(status=DONE_MAKE_PARENT_LINEAGE)
+            .only('created_at', 'updated_at')
+        )
+        
         for record in completed_records:
-            if hasattr(record, 'created_at') and hasattr(record, 'updated_at'):
-                if record.created_at and record.updated_at:
-                    delta = record.updated_at - record.created_at
-                    minutes = delta.total_seconds() / 60
-                    processing_times.append(minutes)
-                    
-                    # Count accounts processed in last 24h and 7d
-                    if record.updated_at > now - timedelta(hours=24):
-                        performance_stats['total_accounts_processed_24h'] += 1
-                    if record.updated_at > now - timedelta(days=7):
-                        performance_stats['total_accounts_processed_7d'] += 1
+            if record.created_at and record.updated_at:
+                delta = record.updated_at - record.created_at
+                minutes = delta.total_seconds() / 60
+                processing_times.append(minutes)
+                
+                # Count accounts processed in last 24h and 7d
+                if record.updated_at > now - timedelta(hours=24):
+                    performance_stats['total_accounts_processed_24h'] += 1
+                if record.updated_at > now - timedelta(days=7):
+                    performance_stats['total_accounts_processed_7d'] += 1
         
         if processing_times:
             performance_stats['avg_processing_time_minutes'] = sum(processing_times) / len(processing_times)
