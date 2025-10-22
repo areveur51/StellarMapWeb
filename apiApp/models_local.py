@@ -178,6 +178,7 @@ class HVAStandingChange(models.Model):
     # Additional context
     network_name = models.CharField(max_length=9)
     home_domain = models.CharField(max_length=127, blank=True, default='')
+    xlm_threshold = models.FloatField(default=100000.0)  # Threshold used for this leaderboard
     
     # Calculated metrics
     rank_change = models.IntegerField(null=True, blank=True)

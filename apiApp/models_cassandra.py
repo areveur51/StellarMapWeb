@@ -302,6 +302,7 @@ class HVAStandingChange(DjangoCassandraModel):
     # Additional context
     network_name = cassandra_columns.Text(max_length=9)
     home_domain = cassandra_columns.Text(max_length=127)
+    xlm_threshold = cassandra_columns.Float(default=100000.0)  # Threshold used for this leaderboard
     
     # Calculated metrics
     rank_change = cassandra_columns.Integer()  # Positive = moved up, Negative = moved down
