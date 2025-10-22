@@ -568,6 +568,28 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
             )
         }),
         
+        ('💎 High Value Account (HVA) Settings', {
+            'fields': ('hva_threshold_xlm',),
+            'description': format_html(
+                '<div style="background:#d4edda;border-left:4px solid #28a745;padding:12px;margin:10px 0;color:#333;">'
+                '<strong>💰 HVA THRESHOLD CONFIGURATION:</strong><br><br>'
+                '<strong>hva_threshold_xlm (Default: 100,000 XLM)</strong><br>'
+                '• Minimum XLM balance for an account to be considered "High Value"<br>'
+                '• Accounts meeting this threshold are automatically tagged as HVA<br>'
+                '• Used for: HVA Leaderboard, Query Builder filters, ranking system<br><br>'
+                '<strong>💡 Examples:</strong><br>'
+                '• <code>100000</code> → 100K XLM (CURRENT DEFAULT)<br>'
+                '• <code>500000</code> → 500K XLM (more selective)<br>'
+                '• <code>1000000</code> → 1M XLM (previous hardcoded value)<br>'
+                '• <code>50000</code> → 50K XLM (less selective)<br><br>'
+                '<strong>🎯 Impact:</strong><br>'
+                '• Changes take effect immediately across all queries<br>'
+                '• Query Builder descriptions auto-update<br>'
+                '• Existing accounts re-evaluated on next pipeline run<br>'
+                '</div>'
+            )
+        }),
+        
         ('📝 Metadata', {
             'fields': ('updated_by', 'notes', 'created_at', 'updated_at'),
             'description': format_html(
