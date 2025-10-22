@@ -15,10 +15,11 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Clear Old Pending Command**: `python manage.py clear_old_pending` safely removes stuck PENDING accounts with --dry-run support
 - **Configuration Fix**: Fixed 'QuerySet' object has no attribute 'limit' error using .first() method
 - **Default Scheduler Settings**: Every 3 minutes, 6 accounts per batch (slow continuous retrieval)
+- **Query Builder Fix**: Fixed "Stuck Accounts" pre-defined query to use StellarAccountSearchCache table (was incorrectly querying StellarCreatorAccountLineage)
 
 ## Comprehensive Testing Infrastructure
 - **Pytest Configuration**: Added 6 test markers (unit, integration, e2e, performance, regression, slow) with parallel execution support in `pyproject.toml`.
-- **New Test Files**: Created 5 comprehensive test suites covering BigQuery caching, API endpoint optimizations, Query Builder column parity, Vue component initialization, and database integration.
+- **New Test Files**: Created 5+ comprehensive test suites covering BigQuery caching, API endpoint optimizations, Query Builder column parity, Query Builder stuck accounts accuracy, Vue component initialization, and database integration.
 - **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/test.yml`) with 5 parallel jobs for unit, integration, performance, coverage, and all-tests.
 - **Documentation**: Enhanced `TESTING.md` with pytest usage examples, best practices, and debugging tips.
 

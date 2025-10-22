@@ -1202,7 +1202,9 @@ def cassandra_query_api(request):
         StellarCreatorAccountLineage,
         HVAStandingChange,
         StellarAccountStageExecution,
-        USE_CASSANDRA
+        USE_CASSANDRA,
+        STUCK_THRESHOLD_MINUTES,
+        STUCK_STATUSES
     )
     from datetime import datetime, timedelta
     from django.utils import timezone
@@ -1263,36 +1265,39 @@ def cassandra_query_api(request):
         
         # Execute query based on query_name
         if query_name == 'stuck_accounts':
-            description = 'Stuck Accounts (Processing > 60 minutes)'
+            description = f'Stuck Accounts (PENDING/PROCESSING > {STUCK_THRESHOLD_MINUTES} min)'
             visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
             
-            cutoff_time = datetime.utcnow() - timedelta(minutes=60)
+            # Use model-defined threshold (5 minutes for PENDING/PROCESSING statuses)
+            cutoff_time = datetime.utcnow() - timedelta(minutes=STUCK_THRESHOLD_MINUTES)
             
             if USE_CASSANDRA:
                 # Cassandra limitation: Cannot filter by updated_at/status (non-PK fields)
-                # Strategy: Collect matches with early exit, then sort by updated_at DESC
+                # Strategy: Collect matches with early exit on StellarAccountSearchCache
                 all_records = []
                 count = 0
                 max_scan = limit * 10  # Safety limit: scan at most 10x the result limit
                 
-                for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
+                for record in StellarAccountSearchCache.objects.filter(network_name=network):
                     count += 1
                     if count > max_scan:
                         break  # Safety exit to prevent excessive scanning
                     
+                    # Check if stuck: status in STUCK_STATUSES and age > threshold
                     if record.updated_at and record.updated_at < cutoff_time:
-                        if record.status and 'PROGRESS' in record.status:
+                        if record.status in STUCK_STATUSES:
                             all_records.append(record)
                             if len(all_records) >= limit:
                                 break
                 
-                # Sort by updated_at descending (oldest stuck records first)
+                # Sort by updated_at ascending (oldest stuck records first)
                 all_records.sort(key=lambda r: r.updated_at or datetime.min)
             else:
-                all_records = StellarCreatorAccountLineage.objects.filter(
+                # SQLite can filter efficiently
+                all_records = StellarAccountSearchCache.objects.filter(
                     network_name=network,
                     updated_at__lt=cutoff_time,
-                    status__contains='PROGRESS'
+                    status__in=STUCK_STATUSES
                 ).order_by('updated_at')[:limit]
             
             results = [format_record(r, visible_columns) for r in all_records]
