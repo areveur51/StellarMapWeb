@@ -166,7 +166,7 @@
                         <span v-else class="text-muted">-</span>
                       </template>
                       <template #cell(xlm_balance)="data">
-                        {% verbatim %}{{ data.value ? data.value.toFixed(3) : '0.000' }} XLM{% endverbatim %}
+                        {% verbatim %}{{ data.value ? data.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00' }} XLM{% endverbatim %}
                       </template>
                       <template #cell(assets)="row">
                         {% verbatim %}<span v-if="row.item.assets && row.item.assets.length > 0">
