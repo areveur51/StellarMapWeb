@@ -20,6 +20,10 @@ build = ["python", "manage.py", "collectstatic", "--noinput"]
 localPort = 3000
 externalPort = 80
 
+[[ports]]
+localPort = 5000
+externalPort = 80
+
 [agent]
 expertMode = true
 
@@ -33,11 +37,22 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Django Server"
+args = "BigQuery Pipeline"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "BigQuery Pipeline"
+args = "Django Server"
+
+[[workflows.workflow]]
+name = "BigQuery Pipeline"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python manage.py bigquery_pipeline --limit 100"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[workflows.workflow]]
 name = "Django Server"
@@ -50,14 +65,3 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
-
-[[workflows.workflow]]
-name = "BigQuery Pipeline"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python manage.py bigquery_pipeline --limit 100"
-
-[workflows.workflow.metadata]
-outputType = "console"
