@@ -666,15 +666,16 @@
             <div>
                 <div class="stat-card">
                     <div class="stat-label">Cron Status</div>
-                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 2.4rem;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 2.4rem;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.25; padding: 0 8px;{% else %}color: #ffc107; font-size: 2.4rem;{% endif %} margin: 8px 0;">
+                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.25; padding: 0 8px; text-align: left;{% else %}color: #ffc107; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% endif %} margin: 8px 0;">
                         {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
-                            <span class="health-indicator health-good"></span>
+                            <span class="health-indicator health-good"></span> {{ cron_health.status }}
                         {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
-                            <span class="health-indicator health-danger"></span>
+                            <span class="health-indicator health-danger"></span> {{ cron_health.status }}
+                        {% elif cron_health.status|length > 15 %}
+                            <span class="health-indicator health-warning" style="float: left; margin-right: 5px; margin-top: 3px;"></span>{{ cron_health.status|slice:":60"|wordwrap:18 }}
                         {% else %}
-                            <span class="health-indicator health-warning"></span>
+                            <span class="health-indicator health-warning"></span> {{ cron_health.status }}
                         {% endif %}
-                        {{ cron_health.status|slice:":60"|wordwrap:18 }}
                     </div>
                     <small style="margin-top: 6px; font-size: 0.65rem;">Last run:<br>{% if cron_health.last_run %}{{ cron_health.last_run|slice:":19" }}{% else %}Never{% endif %}</small>
                 </div>
