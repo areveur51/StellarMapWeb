@@ -129,10 +129,14 @@ api -[#01C176]-> api: Format numbers:\nxlm_balance with commas
 api -[#01C176]-> ui: Filtered & formatted results
 deactivate api
 
-ui -[#01C176]-> user: Display results with:\n<color:#96DDF2>• Sortable columns
-<color:#96DDF2>• Clickable account links
-<color:#96DDF2>• Comma-formatted balances
-<color:#96DDF2>• Network badge
+ui -[#01C176]-> user: Display results
+note right #231B3D
+    <color:#0BE784>Display Features:
+    <color:#96DDF2>• Sortable columns
+    <color:#96DDF2>• Clickable account links
+    <color:#96DDF2>• Comma-formatted balances
+    <color:#96DDF2>• Network badge
+end note
 deactivate ui
 
 == <color:#0BE784>10 Pre-Defined Queries ==

@@ -34,6 +34,8 @@ package "Monitoring Components" #231B3D {
   component "Health\nMonitor" as HealthMonitor
   component "Stuck Record\nRecovery" as Recovery
   component "Progress\nTracker" as ProgressTracker
+  component "API Rate\nLimiter" as RateLimiter
+  component "Dashboard\nMetrics" as Dashboard
 }
 
 component "BigQuery Pipeline\n(Primary)" as BQPipeline
@@ -42,6 +44,7 @@ component "API Pipeline\n(Educational)" as APIPipeline
 database "ManagementCronHealth\nTable" as HealthDB
 database "Progress Tracking\nTable" as ProgressDB
 database "Cache & Lineage\nTables" as DataDB
+database "Django Cache\n(rate metrics)" as CacheDB
 
 BQPipeline -[#0BE784]-> ProgressTracker : "Tracks processing"
 APIPipeline -[#96DDF2,dashed]-> ProgressTracker : "(If enabled)"
@@ -55,19 +58,28 @@ HealthMonitor -[#96DDF2,dashed]-> APIPipeline : "(If enabled)"
 Recovery -[#01C176]-> DataDB : "Finds stuck records"
 Recovery -[#01C176]-> DataDB : "Resets to PENDING"
 
+RateLimiter -[#01C176]-> CacheDB : "Stores API metrics"
+RateLimiter -[#01C176]-> APIPipeline : "Controls API calls"
+RateLimiter -[#01C176]-> BQPipeline : "Applies age filter"
+
+Dashboard -[#01C176]-> HealthDB : "Reads health data"
+Dashboard -[#01C176]-> CacheDB : "Reads rate metrics"
+Dashboard -[#01C176]-> DataDB : "Counts records"
+
 note right of BQPipeline #231B3D
   <color:#0BE784>BigQuery Pipeline:
   <color:#96DDF2>• 50-90 second processing
   <color:#96DDF2>• No rate limits
-  <color:#96DDF2>• Continuous operation
+  <color:#96DDF2>• Age-based filtering (<2 years)
   <color:#96DDF2>• Up to 100 accounts/batch
+  <color:#0BE784>• Comma-formatted metrics
 end note
 
 note right of APIPipeline #231B3D
   <color:#96DDF2>API Pipeline (Reference):
   <color:#96DDF2>• 8 sequential stages
   <color:#96DDF2>• Educational purposes
-  <color:#96DDF2>• Not enabled by default
+  <color:#96DDF2>• Rate limited: 0.5s Horizon, 1.0s Expert
 end note
 
 note right of HealthMonitor #231B3D
@@ -76,14 +88,14 @@ note right of HealthMonitor #231B3D
   <color:#E5526F>• UNHEALTHY_RATE_LIMITED
   
   <color:#0BE784>Recovery:
-  <color:#96DDF2>Manual cleanup required
-  via .allow_filtering()
+  <color:#96DDF2>Manual cleanup via
+  clear_old_pending command
 end note
 
 note right of Recovery #231B3D
   <color:#0BE784>Stuck Thresholds:
   <color:#96DDF2>Detects records stuck in:
-  • PENDING
+  • PENDING (>2 hours)
   • IN_PROGRESS
   
   <color:#0BE784>Terminal Statuses:
@@ -92,13 +104,27 @@ note right of Recovery #231B3D
   • INVALID_HORIZON_STELLAR_ADDRESS
 end note
 
-note right of ProgressTracker #231B3D
-  <color:#0BE784>Tracking Features:
-  <color:#96DDF2>1. Real-time status updates
-  2. Execution time logging
-  3. Error tracking
-  4. UI display
-  5. JSON viewer support
+note right of RateLimiter #231B3D
+  <color:#0BE784>API Rate Limiting:
+  <color:#96DDF2>• Horizon: 0.5s delay
+  <color:#96DDF2>• Stellar Expert: 1.0s delay
+  <color:#96DDF2>• Shared metrics via cache
+  <color:#96DDF2>• Cross-process awareness
+  <color:#0BE784>• Prevents infinite queue loops
+end note
+
+note right of Dashboard #231B3D
+  <color:#0BE784>Dashboard Sections:
+  <color:#96DDF2>1. Alerts & Recommendations (top)
+  <color:#96DDF2>2. API Health Monitoring
+  <color:#96DDF2>   • Call counts
+  <color:#96DDF2>   • Burst limits
+  <color:#96DDF2>   • Rate delays
+  <color:#96DDF2>   • Last call timestamps
+  <color:#96DDF2>3. BigQuery Costs
+  <color:#96DDF2>4. Database Health
+  <color:#96DDF2>5. Performance Metrics
+  <color:#0BE784>All numbers comma-formatted
 end note
 
 @enduml
