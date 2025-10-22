@@ -660,14 +660,18 @@ class Command(BaseCommand):
             account_obj.status = 'BIGQUERY_COMPLETE'
             account_obj.save()
             
-            # Detect and record HVA standing changes
+            # Detect and record HVA standing changes for ALL supported thresholds
             try:
                 from apiApp.helpers.hva_ranking import HVARankingHelper
-                HVARankingHelper.detect_and_record_change(
-                    account_obj=account_obj,
-                    old_balance=old_balance,
-                    new_balance=new_balance
-                )
+                
+                # Track ranking changes for each threshold independently
+                for threshold in HVARankingHelper.SUPPORTED_THRESHOLDS:
+                    HVARankingHelper.detect_and_record_change(
+                        account_obj=account_obj,
+                        old_balance=old_balance,
+                        new_balance=new_balance,
+                        xlm_threshold=threshold
+                    )
             except Exception as e:
                 # Don't fail the whole pipeline if HVA tracking fails
                 logger.warning(f"HVA change tracking failed for {account_obj.stellar_account}: {e}")
