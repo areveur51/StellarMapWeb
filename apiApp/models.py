@@ -183,3 +183,77 @@ class SchedulerConfig(django_models.Model):
     def __str__(self):
         status = "Enabled" if self.scheduler_enabled else "Disabled"
         return f"Scheduler Config ({status}, Schedule: {self.cron_schedule}, Batch: {self.batch_limit})"
+
+
+class APIRateLimiterConfig(django_models.Model):
+    """
+    Configuration settings for API Rate Limiter - control rate limits as percentages.
+    
+    Singleton model - only one configuration record should exist.
+    Allows admins to set API rate limits as percentages of maximum allowed rates.
+    
+    Maximum Rates:
+    - Horizon API: 120 requests/minute
+    - Stellar Expert API: 50 requests/minute
+    
+    Example: Setting horizon_percentage to 85% means 102 requests/minute (85% of 120).
+    
+    Stored in SQLite/default database for easy admin access.
+    """
+    # Singleton primary key
+    config_id = django_models.CharField(max_length=50, primary_key=True, default='default')
+    
+    # Rate Limit Percentages (0-100%)
+    horizon_percentage = django_models.IntegerField(
+        default=100,
+        help_text="Horizon API rate limit as percentage of max (100% = 120 req/min). Example: 85% = 102 req/min"
+    )
+    stellar_expert_percentage = django_models.IntegerField(
+        default=83,
+        help_text="Stellar Expert API rate limit as percentage of max (100% = 50 req/min). Example: 85% = 42 req/min"
+    )
+    
+    # Calculated read-only values (auto-computed from percentages)
+    @property
+    def horizon_calls_per_minute(self):
+        """Calculate actual Horizon calls/minute based on percentage."""
+        max_calls = 120
+        return int((self.horizon_percentage / 100.0) * max_calls)
+    
+    @property
+    def stellar_expert_calls_per_minute(self):
+        """Calculate actual Stellar Expert calls/minute based on percentage."""
+        max_calls = 50
+        return int((self.stellar_expert_percentage / 100.0) * max_calls)
+    
+    @property
+    def horizon_delay_seconds(self):
+        """Calculate delay between Horizon API calls."""
+        calls_per_min = self.horizon_calls_per_minute
+        if calls_per_min == 0:
+            return 999999  # Effectively disabled
+        return 60.0 / calls_per_min
+    
+    @property
+    def stellar_expert_delay_seconds(self):
+        """Calculate delay between Stellar Expert API calls."""
+        calls_per_min = self.stellar_expert_calls_per_minute
+        if calls_per_min == 0:
+            return 999999  # Effectively disabled
+        return 60.0 / calls_per_min
+    
+    # Metadata
+    created_at = django_models.DateTimeField(auto_now_add=True)
+    updated_at = django_models.DateTimeField(auto_now=True)
+    updated_by = django_models.CharField(max_length=255, blank=True, help_text="Admin username who last updated")
+    notes = django_models.TextField(blank=True, help_text="Admin notes about configuration changes")
+    
+    class Meta:
+        verbose_name = "API Rate Limiter Configuration"
+        verbose_name_plural = "API Rate Limiter Configuration"
+        db_table = 'api_rate_limiter_config'
+        app_label = 'apiApp'
+        managed = True
+    
+    def __str__(self):
+        return f"API Rate Limiter Config (Horizon: {self.horizon_percentage}% = {self.horizon_calls_per_minute} req/min, Expert: {self.stellar_expert_percentage}% = {self.stellar_expert_calls_per_minute} req/min)"

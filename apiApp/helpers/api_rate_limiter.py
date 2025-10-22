@@ -25,6 +25,33 @@ from django.core.cache import cache
 logger = logging.getLogger(__name__)
 
 
+def get_rate_limiter_config():
+    """
+    Get the current rate limiter configuration from database.
+    Returns default values if config doesn't exist.
+    """
+    try:
+        from apiApp.models import APIRateLimiterConfig
+        config = APIRateLimiterConfig.objects.filter(config_id='default').first()
+        if config:
+            return {
+                'horizon_delay': config.horizon_delay_seconds,
+                'stellar_expert_delay': config.stellar_expert_delay_seconds,
+                'horizon_burst_limit': config.horizon_calls_per_minute,
+                'stellar_expert_burst_limit': config.stellar_expert_calls_per_minute,
+            }
+    except Exception as e:
+        logger.debug(f"Could not load rate limiter config: {e}")
+    
+    # Return defaults if config doesn't exist or can't be loaded
+    return {
+        'horizon_delay': 0.5,
+        'stellar_expert_delay': 1.0,
+        'horizon_burst_limit': 120,
+        'stellar_expert_burst_limit': 50,
+    }
+
+
 class APIRateLimiter:
     """
     Smart rate limiter that ensures continuous slow retrieval without hitting API limits.
@@ -44,23 +71,26 @@ class APIRateLimiter:
     CACHE_PREFIX_RESET_TIME = 'api_limiter_reset_time_'
     CACHE_TTL = 120  # 2 minutes (must be longer than reset window)
     
-    # Rate limit configurations (seconds between calls)
-    RATE_LIMITS = {
-        'horizon': 0.5,          # 120 requests/minute (Horizon limit is 3600/hour)
-        'stellar_expert': 1.0,   # 60 requests/minute (conservative for free tier)
-        'bigquery': 0.0,         # No delay (cost-based controls elsewhere)
-    }
-    
-    # Burst allowances (requests per minute)
-    BURST_LIMITS = {
-        'horizon': 120,
-        'stellar_expert': 50,
-        'bigquery': 1000,
-    }
-    
     def __init__(self, enable_logging: bool = False):
         """Initialize rate limiter with optional logging."""
         self.enable_logging = enable_logging
+        
+        # Load configuration from database (or use defaults)
+        config = get_rate_limiter_config()
+        
+        # Rate limit configurations (seconds between calls)
+        self.RATE_LIMITS = {
+            'horizon': config['horizon_delay'],
+            'stellar_expert': config['stellar_expert_delay'],
+            'bigquery': 0.0,  # No delay (cost-based controls elsewhere)
+        }
+        
+        # Burst allowances (requests per minute)
+        self.BURST_LIMITS = {
+            'horizon': config['horizon_burst_limit'],
+            'stellar_expert': config['stellar_expert_burst_limit'],
+            'bigquery': 1000,
+        }
     
     def wait_for_horizon(self) -> float:
         """

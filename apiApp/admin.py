@@ -11,6 +11,7 @@ from .models import (
     StellarAccountStageExecution,
     BigQueryPipelineConfig,
     SchedulerConfig,
+    APIRateLimiterConfig,
 )
 from .helpers.sm_conn import CassandraConnectionsHelpers
 from .helpers.sm_enrichment import StellarMapEnrichmentHelper
@@ -656,6 +657,133 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
                 from django.shortcuts import redirect
                 from django.urls import reverse
                 return redirect(reverse('admin:apiApp_bigquerypipelineconfig_add'))
+        except:
+            pass
+        
+        return super().changelist_view(request, extra_context=extra_context)
+
+
+@admin.register(APIRateLimiterConfig)
+class APIRateLimiterConfigAdmin(admin.ModelAdmin):
+    """
+    Admin interface for API Rate Limiter Configuration.
+    
+    Allows admins to set API rate limits as percentages of maximum allowed rates.
+    The actual calls/minute and delay values are calculated automatically.
+    """
+    
+    # Allow editing for this model (singleton)
+    def has_add_permission(self, request):
+        # Only allow adding if no configuration exists
+        try:
+            return not APIRateLimiterConfig.objects.all().count()
+        except Exception:
+            return True
+    
+    def has_delete_permission(self, request, obj=None):
+        return False  # Never allow deleting the configuration
+    
+    def has_change_permission(self, request, obj=None):
+        return True  # Allow editing
+    
+    # Organize fields into logical sections
+    fieldsets = (
+        ('🎚️ Rate Limit Percentages', {
+            'fields': ('horizon_percentage', 'stellar_expert_percentage'),
+            'description': format_html(
+                '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;color:#333;">'
+                '<strong>🚀 CONFIGURE API RATE LIMITS AS PERCENTAGES:</strong><br><br>'
+                '<strong>Maximum Rates:</strong><br>'
+                '• Horizon API: 120 requests/minute (3600/hour safe limit)<br>'
+                '• Stellar Expert API: 50 requests/minute (conservative free tier)<br><br>'
+                '<strong>💡 Examples:</strong><br>'
+                '• <strong>100%</strong>: Horizon = 120 req/min (0.50s delay), Expert = 50 req/min (1.20s delay)<br>'
+                '• <strong>85%</strong>: Horizon = 102 req/min (0.59s delay), Expert = 42 req/min (1.43s delay)<br>'
+                '• <strong>50%</strong>: Horizon = 60 req/min (1.00s delay), Expert = 25 req/min (2.40s delay)<br><br>'
+                '<strong>📊 Current Dashboard Display:</strong><br>'
+                '• Values update live in the "API Health Monitoring" section<br>'
+                '• Shows actual calls/minute based on your percentage settings<br>'
+                '</div>'
+            )
+        }),
+        
+        ('📝 Notes & Metadata', {
+            'fields': ('notes', 'updated_by', 'updated_at', 'created_at'),
+            'classes': ('collapse',),
+        }),
+    )
+    
+    # List display
+    list_display = [
+        'config_id',
+        'horizon_percentage_display',
+        'stellar_expert_percentage_display',
+        'updated_at',
+        'updated_by',
+    ]
+    
+    # Read-only fields
+    readonly_fields = ['config_id', 'created_at', 'updated_at', 'updated_by']
+    
+    def horizon_percentage_display(self, obj):
+        """Display Horizon percentage with calculated calls/min and delay."""
+        calls_min = obj.horizon_calls_per_minute
+        delay = obj.horizon_delay_seconds
+        
+        # Color based on percentage
+        if obj.horizon_percentage >= 90:
+            color = '#E5526F'  # Red - high rate
+        elif obj.horizon_percentage >= 70:
+            color = '#ffc107'  # Yellow - medium rate
+        else:
+            color = '#0BE784'  # Green - low rate
+        
+        return format_html(
+            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({:.2f}s delay)',
+            color,
+            obj.horizon_percentage,
+            calls_min,
+            delay
+        )
+    horizon_percentage_display.short_description = 'Horizon API'
+    
+    def stellar_expert_percentage_display(self, obj):
+        """Display Stellar Expert percentage with calculated calls/min and delay."""
+        calls_min = obj.stellar_expert_calls_per_minute
+        delay = obj.stellar_expert_delay_seconds
+        
+        # Color based on percentage
+        if obj.stellar_expert_percentage >= 90:
+            color = '#E5526F'  # Red - high rate
+        elif obj.stellar_expert_percentage >= 70:
+            color = '#ffc107'  # Yellow - medium rate
+        else:
+            color = '#0BE784'  # Green - low rate
+        
+        return format_html(
+            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({:.2f}s delay)',
+            color,
+            obj.stellar_expert_percentage,
+            calls_min,
+            delay
+        )
+    stellar_expert_percentage_display.short_description = 'Stellar Expert API'
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-populate updated_by field with current user."""
+        obj.updated_by = request.user.username
+        super().save_model(request, obj, form, change)
+    
+    def changelist_view(self, request, extra_context=None):
+        """Override to show single config or creation form."""
+        try:
+            config_exists = APIRateLimiterConfig.objects.filter(config_id='default').exists()
+            
+            if not config_exists:
+                # Redirect to add form if no config exists
+                from django.shortcuts import redirect
+                from django.urls import reverse
+                return redirect(reverse('admin:apiApp_apiratelimiterconfig_add'))
         except:
             pass
         
