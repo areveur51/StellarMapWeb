@@ -1,88 +1,120 @@
-@startuml Dual-Pipeline Architecture
-!theme vibrant
-skinparam backgroundColor #1a1625
-skinparam defaultFontColor #96DDF2
-skinparam defaultFontSize 12
-skinparam arrowColor #0BE784
-skinparam rectangleBorderColor #96DDF2
-skinparam databaseBorderColor #FF6AC1
-skinparam cloudBorderColor #ffc107
+@startuml 09_dual_pipeline_architecture
 
-title Dual-Pipeline Architecture\n(BigQuery + API Fallback System)
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
+
+skinparam component {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
+}
+
+skinparam cloud {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam rectangle {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam card {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+title <color:#0BE784>Dual-Pipeline Architecture (BigQuery + API Fallback)
 
 ' Define components
-cloud "Google BigQuery\n(Stellar Hubble Dataset)" as BigQuery #ffc107
-cloud "Horizon API\n(Stellar.org)" as Horizon #96DDF2
-cloud "Stellar Expert API\n(stellar.expert)" as Expert #96DDF2
+cloud "Google BigQuery\n(Stellar Hubble Dataset)" as BigQuery
+cloud "Horizon API\n(Stellar.org)" as Horizon
+cloud "Stellar Expert API\n(stellar.expert)" as Expert
 
-rectangle "Django Backend" {
-  rectangle "BigQuery Pipeline\n(Fast Path)" as BQPipeline #0BE784 {
+component "Django Backend" as Backend {
+  rectangle "BigQuery Pipeline\n(Fast Path)" as BQPipeline {
     card "Cost Guard\n($0.71/query limit)" as CostGuard
     card "BigQuery Client\n(50-90s per account)" as BQClient
     card "Child Account Discovery\n(up to 100K children)" as ChildDiscovery
   }
   
-  rectangle "API Pipeline\n(Reliable Fallback)" as APIPipeline #96DDF2 {
+  rectangle "API Pipeline\n(Reliable Fallback)" as APIPipeline {
     card "8-Stage Processor\n(180-300s per account)" as Processor
     card "Rate Limiter\n(71% of max)" as RateLimiter
     card "Tenacity Retry Logic" as Retry
   }
   
-  rectangle "Hybrid Orchestrator" as Orchestrator #ffc107 {
+  rectangle "Hybrid Orchestrator" as Orchestrator {
     card "Pipeline Router" as Router
     card "Source Tracker\n(pipeline_source field)" as Tracker
     card "Processing Monitor\n(timestamps)" as Monitor
   }
 }
 
-database "Astra DB (Cassandra)\nstellar_creator_account_lineage" as Cassandra #FF6AC1 {
-  card "pipeline_source: TEXT\n(BIGQUERY | API | BIGQUERY_WITH_API_FALLBACK)" as Field1
+database "Astra DB (Cassandra)\nstellar_creator_account_lineage" as Cassandra {
+  card "pipeline_source: TEXT" as Field1
   card "last_pipeline_attempt: TIMESTAMP" as Field2
   card "processing_started_at: TIMESTAMP" as Field3
 }
 
-rectangle "Admin Configuration\n(SQLite)" as Admin #a78bfa {
+component "Admin Configuration\n(SQLite)" as Admin {
   card "BigQueryPipelineConfig\n(cost_limit, pipeline_mode)" as BQConfig
   card "APIRateLimiterConfig\n(percentage-based limits)" as APIConfig
 }
 
-rectangle "Dashboard UI" as Dashboard #96DDF2 {
+component "Dashboard UI" as Dashboard {
   card "Dual-Pipeline Metrics\n(source breakdown)" as Metrics
   card "API Health Monitoring" as Health
   card "BigQuery Cost Tracking" as CostTrack
 }
 
 ' Main flow paths
-BigQuery --> CostGuard : "Check budget"
-CostGuard --> BQClient : "✓ Within limit"
-CostGuard -[#FF6AC1]-> Router : "✗ Cost limit exceeded\n(Fallback to API)"
-BQClient --> ChildDiscovery : "Query Hubble dataset"
-ChildDiscovery --> Tracker : "Mark: BIGQUERY"
+BigQuery --> CostGuard : Check budget
+CostGuard --> BQClient : <color:#0BE784>✓ Within limit
+CostGuard -[#FF6AC1]-> Router : <color:#FF6AC1>✗ Cost limit exceeded\n(Fallback to API)
+BQClient --> ChildDiscovery : Query Hubble dataset
+ChildDiscovery --> Tracker : Mark: BIGQUERY
 
-Router --> Processor : "Route to API pipeline"
-Horizon --> Processor : "Account data"
-Expert --> Processor : "Creator + assets"
-RateLimiter --> Processor : "85 req/min (Horizon)\n35 req/min (Expert)"
-Retry --> Processor : "Handle failures"
-Processor --> Tracker : "Mark: API or\nBIGQUERY_WITH_API_FALLBACK"
+Router --> Processor : Route to API pipeline
+Horizon --> Processor : Account data
+Expert --> Processor : Creator + assets
+RateLimiter --> Processor : 85 req/min (Horizon)\n35 req/min (Expert)
+Retry --> Processor : Handle failures
+Processor --> Tracker : Mark: API or\nBIGQUERY_WITH_API_FALLBACK
 
 ' Configuration flows
-Admin --> CostGuard : "cost_limit_usd"
-Admin --> Router : "pipeline_mode"
-Admin --> RateLimiter : "horizon_percentage\nexpert_percentage"
+Admin --> CostGuard : cost_limit_usd
+Admin --> Router : pipeline_mode
+Admin --> RateLimiter : horizon_percentage\nexpert_percentage
 
 ' Data persistence
-Tracker --> Cassandra : "Save with source tag"
-Monitor --> Cassandra : "Track timestamps"
+Tracker --> Cassandra : Save with source tag
+Monitor --> Cassandra : Track timestamps
 
 ' Dashboard display
-Cassandra --> Metrics : "Query by pipeline_source"
-Cassandra --> Health : "API usage stats"
-BQConfig --> CostTrack : "Cost limits & mode"
+Cassandra --> Metrics : Query by pipeline_source
+Cassandra --> Health : API usage stats
+BQConfig --> CostTrack : Cost limits & mode
 
 ' Performance annotations
 note right of BQClient
-  **Fast Path Performance:**
+  <color:#0BE784><b>Fast Path Performance:</b></color>
   • 50-90 seconds per account
   • Processes up to 100K children
   • Cost: ~$0.35 per account
@@ -90,7 +122,7 @@ note right of BQClient
 end note
 
 note right of Processor
-  **Fallback Path Performance:**
+  <color:#0BE784><b>Fallback Path Performance:</b></color>
   • 180-300 seconds per account
   • Rate-limited (71% of max)
   • No direct cost (free APIs)
@@ -98,16 +130,16 @@ note right of Processor
 end note
 
 note bottom of Cassandra
-  **Dual-Pipeline Tracking Fields:**
+  <color:#0BE784><b>Dual-Pipeline Tracking Fields:</b></color>
   • pipeline_source: Identifies data origin
   • last_pipeline_attempt: Retry tracking
   • processing_started_at: Stuck detection
   
-  **Migration completed:** 2025-10-22
+  <color:#96DDF2><b>Migration completed:</b> 2025-10-22</color>
 end note
 
 note top of Router
-  **Pipeline Selection Logic:**
+  <color:#0BE784><b>Pipeline Selection Logic:</b></color>
   1. Check BigQuery cost guard
   2. If blocked → Use API pipeline
   3. If API fails → Mark for retry
