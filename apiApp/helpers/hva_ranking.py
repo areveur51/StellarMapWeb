@@ -19,14 +19,38 @@ logger = logging.getLogger(__name__)
 class HVARankingHelper:
     """Helper class for HVA leaderboard ranking calculations and change tracking."""
     
-    # Supported HVA thresholds (in XLM)
-    SUPPORTED_THRESHOLDS = [10000, 50000, 100000, 500000, 750000, 1000000]
+    # Default supported HVA thresholds (in XLM) - can be overridden in admin config
+    DEFAULT_SUPPORTED_THRESHOLDS = [10000, 50000, 100000, 500000, 750000, 1000000]
     
     # Significant balance change threshold (percentage)
     SIGNIFICANT_BALANCE_CHANGE_PCT = 5.0  # 5%
     
     # Minimum rank change to trigger event
     MIN_RANK_CHANGE = 1  # Any rank change is significant
+    
+    @classmethod
+    def get_supported_thresholds(cls):
+        """Get list of supported HVA thresholds from admin config."""
+        try:
+            from apiApp.models import BigQueryPipelineConfig
+            config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
+            if config and hasattr(config, 'hva_supported_thresholds') and config.hva_supported_thresholds:
+                # Parse comma-separated string into list of floats
+                threshold_strings = config.hva_supported_thresholds.split(',')
+                thresholds = []
+                for t in threshold_strings:
+                    try:
+                        thresholds.append(float(t.strip()))
+                    except (ValueError, AttributeError):
+                        pass
+                
+                if thresholds:
+                    return sorted(thresholds)  # Return sorted list
+            
+            # Fall back to default if config doesn't exist or parsing fails
+            return cls.DEFAULT_SUPPORTED_THRESHOLDS
+        except Exception:
+            return cls.DEFAULT_SUPPORTED_THRESHOLDS
     
     @classmethod
     def get_hva_threshold(cls):

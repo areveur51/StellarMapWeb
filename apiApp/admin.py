@@ -569,21 +569,27 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
         }),
         
         ('💎 High Value Account (HVA) Settings', {
-            'fields': ('hva_threshold_xlm',),
+            'fields': ('hva_threshold_xlm', 'hva_supported_thresholds'),
             'description': format_html(
                 '<div style="background:#d4edda;border-left:4px solid #28a745;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>💰 HVA THRESHOLD CONFIGURATION:</strong><br><br>'
                 '<strong>hva_threshold_xlm (Default: 100,000 XLM)</strong><br>'
                 '• Minimum XLM balance for an account to be considered "High Value"<br>'
                 '• Accounts meeting this threshold are automatically tagged as HVA<br>'
-                '• Used for: HVA Leaderboard, Query Builder filters, ranking system<br><br>'
+                '• Used for: HVA Leaderboard default view, Query Builder filters, ranking system<br><br>'
+                '<strong>hva_supported_thresholds (Comma-separated list)</strong><br>'
+                '• List of thresholds available in the leaderboard dropdown<br>'
+                '• Each threshold creates a separate leaderboard with independent rankings<br>'
+                '• Default: <code>10000,50000,100000,500000,750000,1000000</code><br>'
+                '• Each threshold will track: ENTERED, EXITED, RANK_UP, RANK_DOWN events<br><br>'
                 '<strong>💡 Examples:</strong><br>'
                 '• <code>100000</code> → 100K XLM (CURRENT DEFAULT)<br>'
-                '• <code>500000</code> → 500K XLM (more selective)<br>'
-                '• <code>1000000</code> → 1M XLM (previous hardcoded value)<br>'
-                '• <code>50000</code> → 50K XLM (less selective)<br><br>'
+                '• <code>10000,50000,100000,500000,750000,1000000</code> → 6 leaderboards (DEFAULT)<br>'
+                '• <code>50000,100000,500000</code> → 3 simplified leaderboards<br>'
+                '• <code>25000,50000,100000,250000,500000,1000000,5000000</code> → 7 custom thresholds<br><br>'
                 '<strong>🎯 Impact:</strong><br>'
-                '• Changes take effect immediately across all queries<br>'
+                '• hva_threshold_xlm changes take effect immediately across all queries<br>'
+                '• hva_supported_thresholds controls dropdown options on HVA leaderboard page<br>'
                 '• Query Builder descriptions auto-update<br>'
                 '• Existing accounts re-evaluated on next pipeline run<br>'
                 '</div>'

@@ -846,10 +846,11 @@ def high_value_accounts_view(request):
         selected_threshold = HVARankingHelper.get_hva_threshold()
     
     # Validate threshold is supported
-    if selected_threshold not in HVARankingHelper.SUPPORTED_THRESHOLDS:
+    supported_thresholds = HVARankingHelper.get_supported_thresholds()
+    if selected_threshold not in supported_thresholds:
         # Find closest supported threshold
         selected_threshold = min(
-            HVARankingHelper.SUPPORTED_THRESHOLDS,
+            supported_thresholds,
             key=lambda x: abs(x - selected_threshold)
         )
     
@@ -938,7 +939,7 @@ def high_value_accounts_view(request):
         'total_hva_count': len(hva_accounts),
         'total_hva_balance': total_hva_balance,
         'selected_threshold': selected_threshold,
-        'supported_thresholds': HVARankingHelper.SUPPORTED_THRESHOLDS,
+        'supported_thresholds': HVARankingHelper.get_supported_thresholds(),
         'admin_default_threshold': HVARankingHelper.get_hva_threshold(),
     }
     

@@ -665,7 +665,7 @@ class Command(BaseCommand):
                 from apiApp.helpers.hva_ranking import HVARankingHelper
                 
                 # Track ranking changes for each threshold independently
-                for threshold in HVARankingHelper.SUPPORTED_THRESHOLDS:
+                for threshold in HVARankingHelper.get_supported_thresholds():
                     HVARankingHelper.detect_and_record_change(
                         account_obj=account_obj,
                         old_balance=old_balance,

@@ -70,6 +70,11 @@ class BigQueryPipelineConfig(django_models.Model):
         default=100000.0,
         help_text="Minimum XLM balance to be considered a High Value Account (default: 100,000 XLM)"
     )
+    
+    hva_supported_thresholds = django_models.TextField(
+        default='10000,50000,100000,500000,750000,1000000',
+        help_text="Comma-separated list of XLM thresholds for multi-threshold leaderboards (e.g., 10000,50000,100000,500000,750000,1000000). Each threshold creates a separate leaderboard."
+    )
 
     # Metadata
     created_at = django_models.DateTimeField(auto_now_add=True)

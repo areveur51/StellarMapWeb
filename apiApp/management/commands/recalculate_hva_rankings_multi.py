@@ -57,7 +57,7 @@ class Command(BaseCommand):
         custom_thresholds = options['thresholds']
         
         # Use custom thresholds or default to all supported
-        thresholds = custom_thresholds if custom_thresholds else HVARankingHelper.SUPPORTED_THRESHOLDS
+        thresholds = custom_thresholds if custom_thresholds else HVARankingHelper.get_supported_thresholds()
         
         self.stdout.write(self.style.SUCCESS(
             f"\n{'='*60}\n"
