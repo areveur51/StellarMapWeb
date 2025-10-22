@@ -76,6 +76,8 @@ Data is fetched from multiple sources:
 
 ### 🏠 Home Page (`/`)
 
+![Home Page](docs/screenshots/home-page.png)
+
 **What You See:**
 - Application overview and description
 - Quick navigation cards to main features
@@ -94,6 +96,8 @@ Data is fetched from multiple sources:
 ---
 
 ### 📊 Dashboard (`/dashboard`)
+
+![System Dashboard](docs/screenshots/dashboard.png)
 
 **What You See:**
 - **Alerts & Recommendations** section (top priority)
@@ -131,6 +135,8 @@ Data is fetched from multiple sources:
 ---
 
 ### 🔍 Account Search & Lineage (`/search`)
+
+![Account Search Page](docs/screenshots/account-search.png)
 
 **What You See:**
 - Search input field for Stellar account address
@@ -194,6 +200,9 @@ If the account is being processed, you'll see:
 
 ### 🌳 Tree Visualization (`/tree/`)
 
+![Tree Visualization - Radial Mode](docs/screenshots/tree-radial.png)
+![Tree Visualization - Tidy Mode](docs/screenshots/tree-tidy.png)
+
 **Dedicated Visualization Page**
 
 **What You See:**
@@ -216,6 +225,8 @@ If the account is being processed, you'll see:
 ---
 
 ### 🏆 High Value Accounts Leaderboard (`/web/high-value-accounts/`)
+
+![HVA Leaderboard](docs/screenshots/hva-leaderboard.png)
 
 **What You See:**
 - Total HVA count and combined XLM balance
@@ -254,6 +265,8 @@ If the account is being processed, you'll see:
 ---
 
 ### 🔍 Query Builder (`/web/query-builder/`)
+
+![Query Builder](docs/screenshots/query-builder.png)
 
 **What You See:**
 - Pre-defined query dropdown
@@ -362,6 +375,8 @@ Network: public
 
 ### 📦 Bulk Account Search (`/web/bulk-search/`)
 
+![Bulk Search Page](docs/screenshots/bulk-search.png)
+
 **What You See:**
 - Large text area for multiple account addresses
 - "How to Use" instructions
@@ -428,6 +443,8 @@ All queued accounts are processed through the pipeline:
 
 ### Radial Tree Layout
 
+![Radial Tree Example](docs/screenshots/visualization-radial-example.png)
+
 **Appearance:**
 - Circular design emanating from center
 - Target account in the middle
@@ -453,6 +470,8 @@ Fixed spacing optimized for circular layout
 ---
 
 ### Tidy Tree Layout
+
+![Tidy Tree Example](docs/screenshots/visualization-tidy-example.png)
 
 **Appearance:**
 - Traditional hierarchical tree
