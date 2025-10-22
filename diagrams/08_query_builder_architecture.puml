@@ -1,0 +1,197 @@
+@startuml Query Builder Architecture
+
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
+
+skinparam participant {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam actor {
+  BackgroundColor #0BE784
+  BorderColor #0BE784
+  FontColor #100D23
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam sequence {
+  ArrowColor #01C176
+  LifeLineBorderColor #0BE784
+  LifeLineBackgroundColor #100D23
+  DividerBackgroundColor #100D23
+  DividerBorderColor #0BE784
+  DividerFontColor #0BE784
+  DividerFontSize 14
+  DividerFontStyle bold
+  GroupBackgroundColor #100D23
+  GroupBorderColor #0BE784
+  GroupBorderThickness 2
+  GroupHeaderFontColor #0BE784
+  GroupHeaderFontSize 12
+  GroupHeaderFontStyle bold
+}
+
+title <color:#0BE784>Query Builder: Cassandra Database Explorer
+
+actor User as user #0BE784
+participant "Query Builder\nVue.js UI" as ui
+participant "Query Builder\nAPI Endpoint" as api
+database "Astra DB\n(Cassandra)" as cassandra
+participant "Network Filter" as network
+
+== <color:#0BE784>Pre-Defined Query Execution ==
+
+user -[#01C176]-> ui: Select "Stuck Accounts"
+activate ui
+
+ui -[#01C176]-> ui: Load query definition:\nTable: cache\nFilters: status=PENDING,\nupdated_at < 2 hours ago
+
+ui -[#01C176]-> api: POST /web/query-builder/\nquery_type="stuck_accounts"\nnetwork="public"\nlimit=100
+activate api
+
+api -[#01C176]-> network: Apply network filter
+activate network
+network -[#01C176]-> cassandra: Query StellarAccountSearchCache\nWHERE network_name='public'
+note right #231B3D
+    <color:#0BE784>Network-Aware:
+    <color:#96DDF2>All queries filter by
+    <color:#96DDF2>network_name to prevent
+    <color:#96DDF2>cross-network leaks
+end note
+cassandra -[#01C176]-> network: All public network records
+deactivate network
+
+api -[#01C176]-> api: Apply filters:\nstatus = 'PENDING'\nupdated_at < cutoff_time
+
+api -[#01C176]-> api: Apply adaptive max_scan:\nDense data: limit * 10\nSparse data (HVA): limit * 100
+note right #231B3D
+    <color:#0BE784>Performance Safeguards:
+    <color:#96DDF2>• Prevents unbounded scans
+    <color:#96DDF2>• 10x for cache/lineage
+    <color:#96DDF2>• 100x for HVA queries
+    <color:#96DDF2>• Early exit when limit reached
+end note
+
+api -[#01C176]-> api: Sort by updated_at DESC
+
+api -[#01C176]-> api: Format numbers with commas:\n1000000 → 1,000,000
+
+api -[#01C176]-> ui: JSON response:\n[\n  {account, network, status,\n   xlm_balance: "1,234,567.89"}\n]
+deactivate api
+
+ui -[#01C176]-> ui: Render sortable table\nwith clickable account links
+
+ui -[#01C176]-> user: Display results
+deactivate ui
+
+== <color:#0BE784>Custom Filter Builder ==
+
+user -[#01C176]-> ui: Build custom query:
+activate ui
+
+user -[#01C176]-> ui: 1. Select table: "lineage"
+ui -[#01C176]-> ui: Load table schema:\nColumns: account, balance,\nhome_domain, creator, etc.
+
+user -[#01C176]-> ui: 2. Add Filter 1:\nxlm_balance > 10000
+user -[#01C176]-> ui: 3. Add Filter 2:\nhome_domain contains "stellar"
+user -[#01C176]-> ui: 4. Set limit: 100
+
+ui -[#01C176]-> ui: Build query with AND logic:\nFilter 1 AND Filter 2
+
+ui -[#01C176]-> api: POST /web/query-builder/\ntable="lineage"\nfilters=[...]\nnetwork="public"\nlimit=100
+activate api
+
+api -[#01C176]-> network: Apply network filter first
+activate network
+network -[#01C176]-> cassandra: Query StellarCreatorAccountLineage\nWHERE network_name='public'
+cassandra -[#01C176]-> network: All public records
+deactivate network
+
+api -[#01C176]-> api: Apply custom filters (AND logic):\nxlm_balance > 10000\nAND home_domain CONTAINS 'stellar'
+
+api -[#01C176]-> api: Apply adaptive max_scan limit:\n100 * 10 = 1000 max records
+
+api -[#01C176]-> api: Format numbers:\nxlm_balance with commas
+
+api -[#01C176]-> ui: Filtered & formatted results
+deactivate api
+
+ui -[#01C176]-> user: Display results with:\n<color:#96DDF2>• Sortable columns
+<color:#96DDF2>• Clickable account links
+<color:#96DDF2>• Comma-formatted balances
+<color:#96DDF2>• Network badge
+deactivate ui
+
+== <color:#0BE784>10 Pre-Defined Queries ==
+
+note over ui #231B3D
+    <color:#0BE784>**Built-In Queries:**
+    
+    <color:#96DDF2>1. Stuck Accounts
+    <color:#96DDF2>   (status=PENDING, old updates)
+    
+    <color:#96DDF2>2. Orphan Accounts
+    <color:#96DDF2>   (no creator found)
+    
+    <color:#96DDF2>3. Failed Pipeline Stages
+    <color:#96DDF2>   (stage status=FAILED)
+    
+    <color:#96DDF2>4. High XLM Balance Accounts
+    <color:#96DDF2>   (balance > 100 XLM)
+    
+    <color:#96DDF2>5. Recent Cache Entries
+    <color:#96DDF2>   (created last 24h)
+    
+    <color:#96DDF2>6. Pending Pipeline Jobs
+    <color:#96DDF2>   (status IN pending states)
+    
+    <color:#96DDF2>7. HVA Accounts
+    <color:#96DDF2>   (is_hva=True, multi-threshold)
+    
+    <color:#96DDF2>8. Accounts by Home Domain
+    <color:#96DDF2>   (filter by domain)
+    
+    <color:#96DDF2>9. Failed Account Lookups
+    <color:#96DDF2>   (status=FAILED)
+    
+    <color:#96DDF2>10. Recent HVA Changes
+    <color:#96DDF2>    (ranking events last 24h)
+end note
+
+== <color:#0BE784>Performance Features ==
+
+note over api, cassandra #231B3D
+    <color:#0BE784>**Adaptive Max Scan Limits:**
+    
+    <color:#96DDF2>Dense Tables (cache, lineage):
+    <color:#96DDF2>• max_scan = result_limit * 10
+    <color:#96DDF2>• Prevents excessive scanning
+    
+    <color:#0BE784>Sparse Tables (HVA):
+    <color:#96DDF2>• max_scan = result_limit * 100
+    <color:#96DDF2>• Ensures complete results
+    
+    <color:#0BE784>Network Filtering:
+    <color:#96DDF2>• Always filters by network first
+    <color:#96DDF2>• Reduces dataset size
+    <color:#96DDF2>• Prevents cross-network contamination
+    
+    <color:#0BE784>Early Exit:
+    <color:#96DDF2>• Stops scanning when limit reached
+    <color:#96DDF2>• Avoids unnecessary Cassandra reads
+end note
+
+@enduml

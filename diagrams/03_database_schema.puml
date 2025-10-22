@@ -40,10 +40,13 @@ class StellarCreatorAccountLineage {
   + stellar_account_created_at
   + home_domain
   + xlm_balance
+  + is_hva
+  + tags
   + status
   + retry_count
+  + num_child_accounts
   --
-  <color:#01C176>Lineage data
+  <color:#01C176>Lineage data with HVA flag
 }
 
 class StellarAccountStageExecution {
@@ -72,6 +75,39 @@ class ManagementCronHealth {
   <color:#01C176>Health monitoring
 }
 
+class HVAStandingChange {
+  <color:#0BE784>+ stellar_account (PK)
+  <color:#0BE784>+ change_time (CK)
+  <color:#96DDF2>+ event_type
+  + old_rank
+  + new_rank
+  + old_balance
+  + new_balance
+  + rank_change
+  + balance_change_pct
+  + network_name
+  + xlm_threshold
+  + created_at
+  --
+  <color:#01C176>Multi-threshold ranking history
+}
+
+class BigQueryPipelineConfig {
+  <color:#0BE784>+ config_id (PK)
+  <color:#96DDF2>+ bigquery_enabled
+  + cost_limit_usd
+  + size_limit_mb
+  + pipeline_mode
+  + hva_threshold
+  + hva_supported_thresholds
+  + batch_size
+  + cache_ttl_hours
+  + created_at
+  + updated_at
+  --
+  <color:#01C176>Admin-configurable settings
+}
+
 note right of StellarAccountSearchCache #231B3D
   <color:#0BE784>Optimized Queries:
   <color:#96DDF2>filter(status__in=[
@@ -84,20 +120,32 @@ end note
 note right of StellarCreatorAccountLineage #231B3D
   <color:#0BE784>Data Source:
   <color:#96DDF2>Primary: <color:#0BE784>BigQuery Pipeline
-  <color:#96DDF2>• Account data
+  <color:#96DDF2>• Account data (comma-formatted)
   <color:#96DDF2>• Assets
   <color:#96DDF2>• Creator info
   <color:#96DDF2>• Child accounts
+  <color:#96DDF2>• HVA tagging
   
   <color:#96DDF2>Educational: API Pipeline
 end note
 
-note right of ManagementCronHealth #231B3D
-  <color:#0BE784>Health Statuses:
-  <color:#96DDF2>• HEALTHY
-  <color:#E5526F>• UNHEALTHY_RATE_LIMITED
+note right of HVAStandingChange #231B3D
+  <color:#0BE784>Multi-Threshold Tracking:
+  <color:#96DDF2>• Tracks ranking per threshold
+  <color:#96DDF2>• xlm_threshold column
+  <color:#96DDF2>• Network-aware filtering
+  <color:#96DDF2>• Event types: ENTERED, EXITED,
+  <color:#96DDF2>  RANK_UP, RANK_DOWN
   
-  <color:#96DDF2>Monitors both pipelines
+  <color:#0BE784>480x storage efficiency
+end note
+
+note right of BigQueryPipelineConfig #231B3D
+  <color:#0BE784>Dynamic Configuration:
+  <color:#96DDF2>• Default HVA threshold: 100K XLM
+  <color:#96DDF2>• Supported thresholds:
+  <color:#96DDF2>  10K, 50K, 100K, 500K, 750K, 1M
+  <color:#96DDF2>• Admins can customize list
 end note
 
 @enduml
