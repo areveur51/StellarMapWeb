@@ -6,6 +6,13 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Keep Replit usage anonymous - do not mention Replit in public documentation
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
+# Recent Changes (December 2025)
+## Comprehensive Testing Infrastructure
+- **Pytest Configuration**: Added 6 test markers (unit, integration, e2e, performance, regression, slow) with parallel execution support in `pyproject.toml`.
+- **New Test Files**: Created 5 comprehensive test suites covering BigQuery caching, API endpoint optimizations, Query Builder column parity, Vue component initialization, and database integration.
+- **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/test.yml`) with 5 parallel jobs for unit, integration, performance, coverage, and all-tests.
+- **Documentation**: Enhanced `TESTING.md` with pytest usage examples, best practices, and debugging tips.
+
 # System Architecture
 
 ## System Design and UI/UX
@@ -46,7 +53,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Performance Optimizations**: 30s polling intervals (reduced from 15s) with Page Visibility API to pause when tab is inactive. Account lineage API eliminates Cassandra full-table scans by building hierarchy from in-memory lineage sets. Proper cleanup of event listeners to prevent memory leaks.
 
 ## Security and Monitoring
-- **Comprehensive Testing**: 134+ tests cover security, functionality, visualization controls, and monitoring. Includes 12 spacing slider tests.
+- **Comprehensive Testing**: 180+ tests across 45+ test files using pytest with markers. Includes performance, regression, integration, and unit tests. Tests cover security, functionality, visualization controls, monitoring, BigQuery caching, API optimizations, Query Builder schema parity, Vue component initialization, and database integration.
 - **Input Validation**: Multi-layer validation for Stellar addresses.
 - **Injection Prevention**: Robust measures against various injection types.
 - **API Security**: CSRF protection, Content-Type validation, query parameter security, and HTTP security headers.
