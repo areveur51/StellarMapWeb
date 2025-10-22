@@ -18,6 +18,8 @@
         background: #261D45; /* Main cyberpunk purple background */
         min-height: 100vh;
         color: #96DDF2; /* Cyberpunk cyan text */
+        max-width: 100%;
+        width: 100%;
     }
     .stat-card {
         background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
@@ -98,18 +100,23 @@
     /* Responsive grid for square cards */
     .dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 10px;
         margin-bottom: 15px;
     }
     @media (min-width: 768px) {
         .dashboard-grid {
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         }
     }
     @media (min-width: 1200px) {
         .dashboard-grid {
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+    }
+    @media (min-width: 1600px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
         }
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
