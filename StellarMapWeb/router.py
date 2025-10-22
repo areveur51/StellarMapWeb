@@ -42,7 +42,7 @@ class DatabaseAppsRouter:
     def _should_use_default_db(self, model):
         """Check if model should use default database regardless of app_label."""
         # Admin configuration models should always use default SQLite database
-        admin_config_models = ['BigQueryPipelineConfig', 'SchedulerConfig']
+        admin_config_models = ['BigQueryPipelineConfig', 'SchedulerConfig', 'APIRateLimiterConfig']
         if model.__name__ in admin_config_models:
             return True
         return False
@@ -61,7 +61,7 @@ class DatabaseAppsRouter:
         Security: Restricts migrations to intended DBs.
         """
         # Admin configuration models should always migrate on 'default' database
-        admin_config_models = ['bigquerypipelineconfig', 'schedulerconfig']
+        admin_config_models = ['bigquerypipelineconfig', 'schedulerconfig', 'apiratelimiterconfig']
         if model_name and model_name.lower() in admin_config_models:
             return db == 'default'
         
