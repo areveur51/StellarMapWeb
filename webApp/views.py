@@ -834,6 +834,11 @@ def high_value_accounts_view(request):
     from django.utils import timezone
     import sentry_sdk
     
+    # Get network from query parameter (default: public)
+    network_name = request.GET.get('network', 'public')
+    if network_name not in ['public', 'testnet']:
+        network_name = 'public'
+    
     # Get threshold from query parameter or use admin-configured default
     try:
         threshold_param = request.GET.get('threshold')
@@ -867,14 +872,19 @@ def high_value_accounts_view(request):
             # Need broader query - get all accounts and filter in-memory
             # This is necessary because is_hva flag is based on admin_threshold
             # Note: This will do a table scan, but necessary for lower thresholds
-            all_records = StellarCreatorAccountLineage.objects.all()
+            # OPTIMIZATION: Filter by network to reduce scan size
+            all_records = StellarCreatorAccountLineage.objects.filter(network_name=network_name).all()
             hva_records = [
                 rec for rec in all_records
                 if rec.xlm_balance and rec.xlm_balance >= selected_threshold
             ]
         else:
             # Can use is_hva filter safely since selected_threshold > admin_threshold
-            hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
+            # OPTIMIZATION: Filter by network and is_hva flag
+            hva_records = StellarCreatorAccountLineage.objects.filter(
+                is_hva=True,
+                network_name=network_name
+            ).all()
             hva_records = [
                 rec for rec in hva_records
                 if rec.xlm_balance and rec.xlm_balance >= selected_threshold
@@ -889,6 +899,8 @@ def high_value_accounts_view(request):
         )
         
         # Enrich with rank change data (last 24 hours)
+        # NOTE: This uses N queries but each is efficient (partition-key lookup on stellar_account)
+        # Batch fetching would require full table scan which is worse for Cassandra
         cutoff_time = timezone.now() - timedelta(hours=24)
         
         for rank, record in enumerate(sorted_records, start=1):
@@ -902,7 +914,8 @@ def high_value_accounts_view(request):
             balance_change_pct = 0.0
             
             try:
-                # Get recent changes for this specific threshold and network
+                # OPTIMIZATION: Query by partition key (stellar_account) for efficient lookup
+                # Filter by threshold AND network in-memory for Cassandra compatibility
                 all_changes = HVAStandingChange.objects.filter(
                     stellar_account=record.stellar_account
                 ).all()
@@ -911,7 +924,7 @@ def high_value_accounts_view(request):
                 threshold_changes = [
                     c for c in all_changes 
                     if (hasattr(c, 'xlm_threshold') and abs(c.xlm_threshold - selected_threshold) < 1.0
-                        and c.network_name == record.network_name)
+                        and c.network_name == network_name)
                 ]
                 
                 if threshold_changes:
