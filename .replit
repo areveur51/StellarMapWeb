@@ -43,6 +43,10 @@ args = "BigQuery Pipeline"
 task = "workflow.run"
 args = "Django Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Pipeline"
+
 [[workflows.workflow]]
 name = "BigQuery Pipeline"
 author = "agent"
@@ -65,3 +69,14 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow]]
+name = "API Pipeline"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "while true; do python manage.py api_pipeline --limit 3; sleep 120; done"
+
+[workflows.workflow.metadata]
+outputType = "console"
