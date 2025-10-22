@@ -406,6 +406,7 @@
                             <th @click="sortBy('status')" v-if="showColumn('status')">Status</th>
                             <th @click="sortBy('xlm_balance')" v-if="showColumn('xlm_balance')">XLM Balance</th>
                             <th @click="sortBy('creator_account')" v-if="showColumn('creator_account')">Creator</th>
+                            <th @click="sortBy('home_domain')" v-if="showColumn('home_domain')">Home Domain</th>
                             <th @click="sortBy('age_minutes')" v-if="showColumn('age_minutes')">Age (min)</th>
                             <th @click="sortBy('retry_count')" v-if="showColumn('retry_count')">Retries</th>
                             <th @click="sortBy('updated_at')" v-if="showColumn('updated_at')">Updated</th>
@@ -434,6 +435,7 @@
                                 </a>
                                 <span v-else>-</span>
                             </td>
+                            <td v-if="showColumn('home_domain')">{{ row.home_domain || '-' }}</td>
                             <td v-if="showColumn('age_minutes')">{{ row.age_minutes || '-' }}</td>
                             <td v-if="showColumn('retry_count')">{{ row.retry_count || 0 }}</td>
                             <td v-if="showColumn('updated_at')">{{ formatDate(row.updated_at) }}</td>

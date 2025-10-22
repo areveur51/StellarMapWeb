@@ -1253,6 +1253,8 @@ def cassandra_query_api(request):
                 data['xlm_balance'] = getattr(record, 'xlm_balance', 0)
             if 'creator_account' in include_fields:
                 data['creator_account'] = getattr(record, 'stellar_creator_account', '')
+            if 'home_domain' in include_fields:
+                data['home_domain'] = getattr(record, 'home_domain', '')
             if 'age_minutes' in include_fields:
                 data['age_minutes'] = calculate_age_minutes(getattr(record, 'updated_at', None))
             if 'retry_count' in include_fields:
@@ -1612,7 +1614,25 @@ def cassandra_query_api(request):
                 return JsonResponse({'error': 'Invalid table name'}, status=400)
             
             description = f'Custom Query on {table_name.title()}'
+            
+            # Start with base visible columns
             visible_columns = ['status', 'creator_account', 'xlm_balance', 'age_minutes', 'retry_count', 'updated_at']
+            
+            # Dynamically add any columns being filtered to visible columns
+            for filter_obj in filters:
+                column = filter_obj.get('column')
+                if column and column not in visible_columns:
+                    # Map column names to their display equivalents
+                    column_map = {
+                        'stellar_creator_account': 'creator_account',
+                        'home_domain': 'home_domain',
+                        'xlm_balance': 'xlm_balance',
+                        'status': 'status',
+                        'retry_count': 'retry_count'
+                    }
+                    display_column = column_map.get(column, column)
+                    if display_column not in visible_columns:
+                        visible_columns.append(display_column)
             
             # Helper to apply filter
             def matches_filter(record, filter_obj):
