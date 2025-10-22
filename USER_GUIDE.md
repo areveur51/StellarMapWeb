@@ -231,10 +231,27 @@ If the account is being processed, you'll see:
 
 ### 🏆 High Value Accounts Leaderboard (`/web/high-value-accounts/`)
 
-![HVA Leaderboard](docs/screenshots/hva-leaderboard.png)
+The HVA Leaderboard offers multiple threshold views to explore accounts at different wealth levels.
+
+#### Default View (100K XLM)
+![HVA Leaderboard - Default 100K](docs/screenshots/hva-leaderboard-default.png)
+*Default threshold showing accounts with ≥100K XLM balance*
+
+#### 10K XLM Threshold
+![HVA Leaderboard - 10K](docs/screenshots/hva-leaderboard-10k.png)
+*Lower threshold view showing accounts with ≥10K XLM*
+
+#### 50K XLM Threshold
+![HVA Leaderboard - 50K](docs/screenshots/hva-leaderboard-50k.png)
+*Mid-tier threshold showing accounts with ≥50K XLM*
+
+#### 1M XLM Threshold
+![HVA Leaderboard - 1M](docs/screenshots/hva-leaderboard-1M.png)
+*Premium threshold showing accounts with ≥1M XLM (ultra high-value accounts)*
 
 **What You See:**
-- Total HVA count and combined XLM balance
+- **Threshold Selector** - Dropdown to switch between different XLM thresholds
+- Total HVA count and combined XLM balance for selected threshold
 - Sortable table with ranked accounts
 - 24-hour ranking change indicators
 - Account details and tags
@@ -255,7 +272,20 @@ If the account is being processed, you'll see:
 - **Percentage** - Shows magnitude of change
 
 **How to Use:**
-1. View the leaderboard to see richest accounts
+
+#### Step 1: Select Threshold
+Use the dropdown selector at the top to choose your wealth threshold:
+- **10K XLM** - Entry-level significant accounts
+- **50K XLM** - Mid-tier holders
+- **100K XLM** - Default view (high-value accounts)
+- **500K XLM** - Very wealthy accounts
+- **750K XLM** - Ultra-wealthy accounts
+- **1M XLM** - Premium whale accounts
+
+The threshold list is fully configurable by administrators through the admin portal.
+
+#### Step 2: Explore Rankings
+1. View the leaderboard to see richest accounts at your selected threshold
 2. Click any account address to see its lineage
 3. Sort by clicking column headers
 4. Monitor 24h changes to see market movements
