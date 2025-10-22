@@ -475,29 +475,60 @@
           availableColumns: [],
           tableColumns: {
               lineage: [
-                  {value: 'status', label: 'Status'},
                   {value: 'stellar_creator_account', label: 'Creator Account'},
+                  {value: 'stellar_account_created_at', label: 'Account Created'},
+                  {value: 'home_domain', label: 'Home Domain'},
+                  {value: 'xlm_balance', label: 'XLM Balance'},
+                  {value: 'tags', label: 'Tags'},
+                  {value: 'is_hva', label: 'Is HVA'},
+                  {value: 'status', label: 'Status'},
                   {value: 'retry_count', label: 'Retry Count'},
+                  {value: 'last_error', label: 'Last Error'},
+                  {value: 'created_at', label: 'Created At'},
+                  {value: 'updated_at', label: 'Updated At'},
                   {value: 'network_name', label: 'Network'}
               ],
               cache: [
                   {value: 'status', label: 'Status'},
+                  {value: 'last_fetched_at', label: 'Last Fetched'},
+                  {value: 'retry_count', label: 'Retry Count'},
+                  {value: 'last_error', label: 'Last Error'},
+                  {value: 'created_at', label: 'Created At'},
+                  {value: 'updated_at', label: 'Updated At'},
                   {value: 'network_name', label: 'Network'}
               ],
               hva: [
                   {value: 'xlm_balance', label: 'XLM Balance'},
                   {value: 'stellar_creator_account', label: 'Creator Account'},
+                  {value: 'home_domain', label: 'Home Domain'},
                   {value: 'tags', label: 'Tags'},
+                  {value: 'is_hva', label: 'Is HVA'},
+                  {value: 'stellar_account_created_at', label: 'Account Created'},
+                  {value: 'status', label: 'Status'},
+                  {value: 'created_at', label: 'Created At'},
+                  {value: 'updated_at', label: 'Updated At'},
                   {value: 'network_name', label: 'Network'}
               ],
               stages: [
+                  {value: 'stage_number', label: 'Stage Number'},
+                  {value: 'cron_name', label: 'Cron Name'},
                   {value: 'status', label: 'Status'},
-                  {value: 'stage_name', label: 'Stage Name'},
+                  {value: 'execution_time_ms', label: 'Execution Time (ms)'},
+                  {value: 'error_message', label: 'Error Message'},
+                  {value: 'created_at', label: 'Created At'},
+                  {value: 'updated_at', label: 'Updated At'},
                   {value: 'network_name', label: 'Network'}
               ],
               hva_changes: [
                   {value: 'event_type', label: 'Event Type'},
+                  {value: 'old_rank', label: 'Old Rank'},
+                  {value: 'new_rank', label: 'New Rank'},
+                  {value: 'old_balance', label: 'Old Balance'},
+                  {value: 'new_balance', label: 'New Balance'},
                   {value: 'rank_change', label: 'Rank Change'},
+                  {value: 'balance_change_pct', label: 'Balance Change %'},
+                  {value: 'home_domain', label: 'Home Domain'},
+                  {value: 'created_at', label: 'Created At'},
                   {value: 'network_name', label: 'Network'}
               ]
           }
