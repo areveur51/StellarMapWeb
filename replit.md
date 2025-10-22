@@ -12,7 +12,9 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Dynamic Threshold Loading**: HVARankingHelper.get_supported_thresholds() reads from admin config with safe fallback to defaults
 - **Threshold Dropdown Selector**: Interactive dropdown on HVA page to switch between different threshold leaderboards
 - **Threshold-Specific Ranking**: HVAStandingChange model tracks rankings per threshold with xlm_threshold column
-- **Management Command**: `recalculate_hva_rankings_multi` backfills rankings for all thresholds
+- **Management Commands**: 
+  - `recalculate_hva_rankings_multi` backfills rankings for all thresholds
+  - `backfill_hva_flags` updates is_hva flags and HVA tags based on admin-configured threshold
 - **Custom Template Filter**: format_xlm_threshold filter for clean threshold display (10K, 100K, 1.0M)
 - **Network-Aware Filtering**: Rank change tracking filters by both threshold AND network to prevent cross-network leaks
 - **Performance Optimized**: Maintains is_hva filter to avoid Cassandra full-table scans, then applies threshold filtering in-memory
