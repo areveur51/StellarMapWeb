@@ -31,6 +31,7 @@ if USE_CASSANDRA:
         FAILED,
         INVALID,
         STUCK_THRESHOLD_MINUTES,
+        STUCK_STATUSES,
         MAX_RETRY_ATTEMPTS,
         # Network constants
         TESTNET,
@@ -53,6 +54,7 @@ else:
         FAILED,
         INVALID,
         STUCK_THRESHOLD_MINUTES,
+        STUCK_STATUSES,
         MAX_RETRY_ATTEMPTS,
         # Network constants
         TESTNET,
@@ -78,6 +80,7 @@ __all__ = [
     'FAILED',
     'INVALID',
     'STUCK_THRESHOLD_MINUTES',
+    'STUCK_STATUSES',
     'MAX_RETRY_ATTEMPTS',
     'TESTNET',
     'PUBLIC',

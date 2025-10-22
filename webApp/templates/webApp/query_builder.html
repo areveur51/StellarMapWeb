@@ -398,18 +398,48 @@
                     <div class="results-count">{{ results.length }} records</div>
                 </div>
                 
+                <!-- Column Visibility Controls -->
+                <div style="background: rgba(38, 29, 69, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #3f2c70;">
+                    <div style="margin-bottom: 10px; font-weight: 600; color: #96DDF2;">
+                        <i class="fas fa-columns"></i> Column Visibility
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.status" style="margin-right: 5px; cursor: pointer;"> Status
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.xlm_balance" style="margin-right: 5px; cursor: pointer;"> XLM Balance
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.creator_account" style="margin-right: 5px; cursor: pointer;"> Creator
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.home_domain" style="margin-right: 5px; cursor: pointer;"> Home Domain
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.age_minutes" style="margin-right: 5px; cursor: pointer;"> Age (min)
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.retry_count" style="margin-right: 5px; cursor: pointer;"> Retries
+                        </label>
+                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility.updated_at" style="margin-right: 5px; cursor: pointer;"> Updated
+                        </label>
+                    </div>
+                </div>
+                
                 <table class="results-table">
                     <thead>
                         <tr>
                             <th @click="sortBy('stellar_account')">Account</th>
                             <th @click="sortBy('network_name')">Network</th>
-                            <th @click="sortBy('status')" v-if="showColumn('status')">Status</th>
-                            <th @click="sortBy('xlm_balance')" v-if="showColumn('xlm_balance')">XLM Balance</th>
-                            <th @click="sortBy('creator_account')" v-if="showColumn('creator_account')">Creator</th>
-                            <th @click="sortBy('home_domain')" v-if="showColumn('home_domain')">Home Domain</th>
-                            <th @click="sortBy('age_minutes')" v-if="showColumn('age_minutes')">Age (min)</th>
-                            <th @click="sortBy('retry_count')" v-if="showColumn('retry_count')">Retries</th>
-                            <th @click="sortBy('updated_at')" v-if="showColumn('updated_at')">Updated</th>
+                            <th @click="sortBy('status')" v-if="isColumnVisible('status')">Status</th>
+                            <th @click="sortBy('xlm_balance')" v-if="isColumnVisible('xlm_balance')">XLM Balance</th>
+                            <th @click="sortBy('creator_account')" v-if="isColumnVisible('creator_account')">Creator</th>
+                            <th @click="sortBy('home_domain')" v-if="isColumnVisible('home_domain')">Home Domain</th>
+                            <th @click="sortBy('age_minutes')" v-if="isColumnVisible('age_minutes')">Age (min)</th>
+                            <th @click="sortBy('retry_count')" v-if="isColumnVisible('retry_count')">Retries</th>
+                            <th @click="sortBy('updated_at')" v-if="isColumnVisible('updated_at')">Updated</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -421,13 +451,13 @@
                                 </a>
                             </td>
                             <td>{{ row.network_name }}</td>
-                            <td v-if="showColumn('status')">
+                            <td v-if="isColumnVisible('status')">
                                 <span :class="getStatusClass(row.status)" class="status-badge">
                                     {{ row.status }}
                                 </span>
                             </td>
-                            <td v-if="showColumn('xlm_balance')">{{ formatNumber(row.xlm_balance) }}</td>
-                            <td v-if="showColumn('creator_account')">
+                            <td v-if="isColumnVisible('xlm_balance')">{{ formatNumber(row.xlm_balance) }}</td>
+                            <td v-if="isColumnVisible('creator_account')">
                                 <a v-if="row.creator_account" 
                                    :href="'/search/?account=' + row.creator_account + '&network=' + row.network_name" 
                                    class="account-link" target="_blank">
@@ -435,10 +465,10 @@
                                 </a>
                                 <span v-else>-</span>
                             </td>
-                            <td v-if="showColumn('home_domain')">{{ row.home_domain || '-' }}</td>
-                            <td v-if="showColumn('age_minutes')">{{ row.age_minutes || '-' }}</td>
-                            <td v-if="showColumn('retry_count')">{{ row.retry_count || 0 }}</td>
-                            <td v-if="showColumn('updated_at')">{{ formatDate(row.updated_at) }}</td>
+                            <td v-if="isColumnVisible('home_domain')">{{ row.home_domain || '-' }}</td>
+                            <td v-if="isColumnVisible('age_minutes')">{{ row.age_minutes || '-' }}</td>
+                            <td v-if="isColumnVisible('retry_count')">{{ row.retry_count || 0 }}</td>
+                            <td v-if="isColumnVisible('updated_at')">{{ formatDate(row.updated_at) }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -472,6 +502,15 @@
           sortColumn: null,
           sortDirection: 'asc',
           visibleColumns: [],
+          columnVisibility: {
+              status: true,
+              xlm_balance: true,
+              creator_account: true,
+              home_domain: true,
+              age_minutes: true,
+              retry_count: true,
+              updated_at: true
+          },
           customTable: '',
           customFilters: [],
           availableColumns: [],
@@ -654,6 +693,14 @@
           showColumn(column) {
               if (this.visibleColumns.length === 0) return true;
               return this.visibleColumns.includes(column);
+          },
+          
+          isColumnVisible(column) {
+              // First check if the column is in the API response's visible columns
+              const inApiResponse = this.showColumn(column);
+              // Then check user's checkbox preference
+              const userPreference = this.columnVisibility[column] !== false;
+              return inApiResponse && userPreference;
           },
           
           getStatusClass(status) {
