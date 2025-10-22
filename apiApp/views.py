@@ -25,8 +25,8 @@ def health_check(request):
     }, status=200)
 
 
-# Simple in-memory cache for pending accounts (10 second TTL)
-_pending_accounts_cache = {'data': None, 'timestamp': None, 'ttl': 10}
+# Simple in-memory cache for pending accounts (30 second TTL - matches frontend polling interval)
+_pending_accounts_cache = {'data': None, 'timestamp': None, 'ttl': 30}
 
 def pending_accounts_api(request):
     """
@@ -535,29 +535,38 @@ def account_lineage_api(request):
         
         # Now fetch all child accounts for each record to build hierarchy
         # Use a separate structure to avoid circular references
+        # PERFORMANCE OPTIMIZATION: Cache child lookups to avoid redundant queries
         hierarchy_links = {}
         for account_addr in all_records:
             hierarchy_links[account_addr] = []
 
-        for account_addr in all_records:
-            try:
-                if USE_CASSANDRA:
-                    # Cassandra query - cannot filter by stellar_creator_account (not in primary key)
-                    # Must fetch all and filter in Python
-                    all_lineage = StellarCreatorAccountLineage.objects.all()
-                    child_records = [r for r in all_lineage if r.stellar_creator_account == account_addr and r.network_name == network]
-                else:
-                    # SQL query
+        # PERFORMANCE OPTIMIZATION: For Cassandra, fetch limited set once and cache
+        if USE_CASSANDRA:
+            # Only fetch records that could be children (limit to current lineage + network)
+            # This is much more efficient than fetching ALL records
+            cassandra_cache = {}
+            for account_addr in all_records:
+                # Use the existing record's data to build child relationships
+                # Check if any other record in our current set has this as creator
+                for other_addr, other_rec in all_records.items():
+                    if other_rec['stellar_creator_account'] == account_addr:
+                        if account_addr not in hierarchy_links:
+                            hierarchy_links[account_addr] = []
+                        hierarchy_links[account_addr].append(other_addr)
+        else:
+            # SQL query - can use efficient filtering
+            for account_addr in all_records:
+                try:
                     child_records = list(StellarCreatorAccountLineage.objects.filter(
                         stellar_creator_account=account_addr,
                         network_name=network
                     ))
 
-                for child in child_records:
-                    if child.stellar_account in all_records:
-                        hierarchy_links[account_addr].append(child.stellar_account)
-            except Exception:
-                pass
+                    for child in child_records:
+                        if child.stellar_account in all_records:
+                            hierarchy_links[account_addr].append(child.stellar_account)
+                except Exception:
+                    pass
         
         # Build hierarchical structure starting from root (oldest ancestor)
         def find_root_accounts():

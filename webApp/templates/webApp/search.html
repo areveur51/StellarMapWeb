@@ -1198,43 +1198,87 @@
         // Fetch server logs immediately on mount
         this.fetchServerLogs();
         
-        // Set up auto-refresh for pending accounts every 15 seconds (optimized from 5s)
-        this.pendingAccountsInterval = setInterval(() => {
-          this.fetchPendingAccounts();
-        }, 15000);
-        
-        // Fetch stage executions immediately if account is available
-        if (this.query_account && this.network_selected) {
-          this.fetchStageExecutions();
+        // Performance optimization: Pause polling when tab is not visible
+        const startPolling = () => {
+          // Clear any existing intervals first
+          this.stopPolling();
           
-          // Set up auto-refresh for stage executions every 15 seconds (optimized from 5s)
-          this.stageExecutionsInterval = setInterval(() => {
+          // Set up auto-refresh for pending accounts every 30 seconds (optimized from 15s for performance)
+          this.pendingAccountsInterval = setInterval(() => {
+            if (!document.hidden) {
+              this.fetchPendingAccounts();
+            }
+          }, 30000);
+          
+          // Fetch stage executions immediately if account is available
+          if (this.query_account && this.network_selected) {
             this.fetchStageExecutions();
-          }, 15000);
-          
-          // Fetch account lineage immediately on mount
-          this.fetchAccountLineage();
-          
-          // Set up auto-refresh for account lineage every 15 seconds (optimized from 5s)
-          this.lineageInterval = setInterval(() => {
+            
+            // Set up auto-refresh for stage executions every 30 seconds (optimized from 15s for performance)
+            this.stageExecutionsInterval = setInterval(() => {
+              if (!document.hidden) {
+                this.fetchStageExecutions();
+              }
+            }, 30000);
+            
+            // Fetch account lineage immediately on mount
             this.fetchAccountLineage();
-          }, 15000);
-        }
+            
+            // Set up auto-refresh for account lineage every 30 seconds (optimized from 15s for performance)
+            this.lineageInterval = setInterval(() => {
+              if (!document.hidden) {
+                this.fetchAccountLineage();
+              }
+            }, 30000);
+          }
+        };
+        
+        // Start polling
+        startPolling();
+        
+        // Add visibility change handler to refresh when tab becomes active
+        const visibilityHandler = () => {
+          if (!document.hidden) {
+            // Tab is now visible - refresh data immediately
+            this.fetchPendingAccounts();
+            if (this.query_account && this.network_selected) {
+              this.fetchStageExecutions();
+              this.fetchAccountLineage();
+            }
+          }
+        };
+        document.addEventListener('visibilitychange', visibilityHandler);
+        
+        // Store handlers for cleanup
+        this._startPolling = startPolling;
+        this._visibilityHandler = visibilityHandler;
         
         // JSON display is automatically updated by the watcher
       },
-      beforeDestroy() {
-        // Clean up intervals when component is destroyed
+      stopPolling() {
         if (this.pendingAccountsInterval) {
           clearInterval(this.pendingAccountsInterval);
+          this.pendingAccountsInterval = null;
         }
         if (this.stageExecutionsInterval) {
           clearInterval(this.stageExecutionsInterval);
+          this.stageExecutionsInterval = null;
         }
         if (this.lineageInterval) {
           clearInterval(this.lineageInterval);
+          this.lineageInterval = null;
         }
       }
+    },
+    beforeDestroy() {
+      // Clean up intervals when component is destroyed
+      this.stopPolling();
+      
+      // Clean up visibility change listener to prevent memory leaks
+      if (this._visibilityHandler) {
+        document.removeEventListener('visibilitychange', this._visibilityHandler);
+      }
+    }
     })
   </script>
 </body>

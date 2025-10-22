@@ -110,12 +110,18 @@ class BigQueryCostGuard:
 class StellarBigQueryHelper:
     """
     Helper class for querying Stellar's BigQuery/Hubble dataset.
+    Uses singleton pattern to cache BigQuery client for performance optimization.
     """
+    
+    # Class-level cache for BigQuery client (singleton pattern)
+    _cached_client = None
+    _cached_credentials_hash = None
     
     def __init__(self, cost_limit_usd=0.71, size_limit_mb=148900.0):
         """
         Initialize BigQuery client with service account credentials.
         Credentials should be stored in GOOGLE_APPLICATION_CREDENTIALS_JSON secret.
+        Uses cached client if credentials haven't changed for performance optimization.
 
         Args:
             cost_limit_usd: Maximum cost per query in USD (default: 0.71)
@@ -132,6 +138,7 @@ class StellarBigQueryHelper:
     def _initialize_client(self):
         """
         Initialize the BigQuery client with authentication.
+        Uses cached client if credentials haven't changed (performance optimization).
         """
         try:
             credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON')
@@ -140,21 +147,36 @@ class StellarBigQueryHelper:
                 logger.warning("GOOGLE_APPLICATION_CREDENTIALS_JSON not found. BigQuery integration disabled.")
                 return
             
-            credentials_dict = json.loads(credentials_json)
-            credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+            # Calculate hash of credentials to detect changes
+            import hashlib
+            credentials_hash = hashlib.md5(credentials_json.encode()).hexdigest()
             
-            self.client = bigquery.Client(
-                credentials=credentials,
-                project=credentials_dict.get('project_id')
-            )
+            # Use cached client if credentials haven't changed (performance optimization)
+            if (StellarBigQueryHelper._cached_client is not None and 
+                StellarBigQueryHelper._cached_credentials_hash == credentials_hash):
+                self.client = StellarBigQueryHelper._cached_client
+                logger.debug("Using cached BigQuery client (performance optimization)")
+            else:
+                # Create new client if cache is empty or credentials changed
+                credentials_dict = json.loads(credentials_json)
+                credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+                
+                self.client = bigquery.Client(
+                    credentials=credentials,
+                    project=credentials_dict.get('project_id')
+                )
+                
+                # Cache the client for future requests
+                StellarBigQueryHelper._cached_client = self.client
+                StellarBigQueryHelper._cached_credentials_hash = credentials_hash
+                
+                logger.info(f"BigQuery client initialized and cached (Cost Limit: ${self.cost_limit_usd}, Size Limit: {self.size_limit_mb/1024:.0f}GB)")
             
-            # Initialize cost guard with configured limits
+            # Initialize cost guard with configured limits (always create new guard with current limits)
             self.cost_guard = BigQueryCostGuard(self.client)
             self.cost_guard.MAX_COST_USD = self.cost_limit_usd  # Set cost limit
             self.cost_guard.MAX_QUERY_SIZE_MB = self.size_limit_mb  # Set size limit
             self.cost_guard.MAX_QUERY_SIZE_BYTES = int(self.size_limit_mb * 1024 * 1024)
-            
-            logger.info(f"BigQuery client and cost guard initialized successfully (Cost Limit: ${self.cost_limit_usd}, Size Limit: {self.size_limit_mb/1024:.0f}GB)")
             
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
