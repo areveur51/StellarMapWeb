@@ -818,27 +818,57 @@ def theme_test_view(request):
 
 def high_value_accounts_view(request):
     """
-    High Value Accounts (HVA) view - displays accounts with >1M XLM balance.
+    High Value Accounts (HVA) view - displays accounts above a configurable XLM threshold.
+    Supports multiple threshold leaderboards (10K, 50K, 100K, 500K, 750K, 1M XLM).
     Now includes rank change tracking from HVAStandingChange events.
+    
+    Query Parameters:
+        threshold: XLM threshold to use (default: admin-configured threshold)
     
     Returns:
         HttpResponse: Rendered HVA page with list of high value accounts.
     """
-    from apiApp.models import StellarCreatorAccountLineage, HVAStandingChange
+    from apiApp.models import StellarCreatorAccountLineage, HVAStandingChange, BigQueryPipelineConfig
+    from apiApp.helpers.hva_ranking import HVARankingHelper
     from datetime import timedelta
     from django.utils import timezone
     import sentry_sdk
+    
+    # Get threshold from query parameter or use admin-configured default
+    try:
+        threshold_param = request.GET.get('threshold')
+        if threshold_param:
+            selected_threshold = float(threshold_param)
+        else:
+            # Use admin-configured default
+            selected_threshold = HVARankingHelper.get_hva_threshold()
+    except (ValueError, TypeError):
+        selected_threshold = HVARankingHelper.get_hva_threshold()
+    
+    # Validate threshold is supported
+    if selected_threshold not in HVARankingHelper.SUPPORTED_THRESHOLDS:
+        # Find closest supported threshold
+        selected_threshold = min(
+            HVARankingHelper.SUPPORTED_THRESHOLDS,
+            key=lambda x: abs(x - selected_threshold)
+        )
     
     hva_accounts = []
     total_hva_balance = 0
     
     try:
-        # Query HVA accounts using is_hva boolean filter
+        # Query HVA accounts to avoid full table scan
+        # Start with is_hva=True filter, then do in-memory threshold filtering
         hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
         
-        # Sort by balance descending
+        # Filter by specific threshold and sort by balance descending
+        qualifying_records = [
+            rec for rec in hva_records
+            if rec.xlm_balance and rec.xlm_balance >= selected_threshold
+        ]
+        
         sorted_records = sorted(
-            hva_records,
+            qualifying_records,
             key=lambda x: x.xlm_balance if x.xlm_balance else 0,
             reverse=True
         )
@@ -857,15 +887,27 @@ def high_value_accounts_view(request):
             balance_change_pct = 0.0
             
             try:
-                recent_change = HVAStandingChange.objects.filter(
+                # Get recent changes for this specific threshold and network
+                all_changes = HVAStandingChange.objects.filter(
                     stellar_account=record.stellar_account
-                ).first()
+                ).all()
                 
-                if recent_change and recent_change.created_at and recent_change.created_at >= cutoff_time:
-                    rank_change = recent_change.rank_change or 0
-                    event_type = recent_change.event_type
-                    previous_rank = recent_change.old_rank
-                    balance_change_pct = recent_change.balance_change_pct or 0.0
+                # Filter by threshold AND network (in-memory for Cassandra compatibility)
+                threshold_changes = [
+                    c for c in all_changes 
+                    if (hasattr(c, 'xlm_threshold') and abs(c.xlm_threshold - selected_threshold) < 1.0
+                        and c.network_name == record.network_name)
+                ]
+                
+                if threshold_changes:
+                    # Get most recent change for this threshold
+                    recent_change = sorted(threshold_changes, key=lambda x: x.created_at, reverse=True)[0]
+                    
+                    if recent_change.created_at and recent_change.created_at >= cutoff_time:
+                        rank_change = recent_change.rank_change or 0
+                        event_type = recent_change.event_type
+                        previous_rank = recent_change.old_rank
+                        balance_change_pct = recent_change.balance_change_pct or 0.0
             except Exception:
                 pass  # Silently ignore change tracking errors
             
@@ -895,6 +937,9 @@ def high_value_accounts_view(request):
         'hva_accounts': hva_accounts,
         'total_hva_count': len(hva_accounts),
         'total_hva_balance': total_hva_balance,
+        'selected_threshold': selected_threshold,
+        'supported_thresholds': HVARankingHelper.SUPPORTED_THRESHOLDS,
+        'admin_default_threshold': HVARankingHelper.get_hva_threshold(),
     }
     
     return render(request, 'webApp/high_value_accounts.html', context)

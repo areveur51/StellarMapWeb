@@ -1,4 +1,5 @@
 {% load static %}
+{% load hva_filters %}
 
 <!DOCTYPE html>
 <html>
@@ -226,6 +227,37 @@
         font-weight: 600;
     }
     
+    /* Threshold dropdown styling */
+    .threshold-dropdown {
+        background: #231B3D;
+        color: #96DDF2;
+        border: 2px solid #96DDF2;
+        border-radius: 6px;
+        padding: 8px 15px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 15px rgba(150, 221, 242, 0.2);
+    }
+    
+    .threshold-dropdown:hover {
+        background: #2a2049;
+        box-shadow: 0 0 20px rgba(150, 221, 242, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    .threshold-dropdown:focus {
+        outline: none;
+        box-shadow: 0 0 25px rgba(150, 221, 242, 0.6);
+    }
+    
+    .threshold-dropdown option {
+        background: #231B3D;
+        color: #96DDF2;
+        padding: 8px;
+    }
+    
     @media (max-width: 768px) {
         .hva-stats {
             flex-direction: column;
@@ -245,6 +277,11 @@
             margin-left: 0;
             margin-top: 4px;
         }
+        
+        .threshold-dropdown {
+            width: 100%;
+            max-width: 300px;
+        }
     }
   </style>
 </head>
@@ -256,12 +293,24 @@
     <div class="hva-content">
       <div class="hva-header">
         <h1 class="hva-title">🏆 High Value Accounts Leaderboard</h1>
-        <p class="hva-subtitle">Top Stellar accounts ranked by XLM balance (>1,000,000 XLM)</p>
+        <p class="hva-subtitle">Top Stellar accounts ranked by XLM balance (≥{{ selected_threshold|floatformat:0 }} XLM)</p>
+        
+        <!-- Threshold Selector -->
+        <div style="text-align: center; margin: 20px 0;">
+          <label for="threshold-selector" style="color: #c4b5fd; margin-right: 10px; font-weight: 600;">Select Threshold:</label>
+          <select id="threshold-selector" class="threshold-dropdown" onchange="changeThreshold(this.value)">
+            {% for threshold in supported_thresholds %}
+              <option value="{{ threshold }}" {% if threshold == selected_threshold %}selected{% endif %}>
+                {{ threshold|format_xlm_threshold }}{% if threshold == admin_default_threshold %} (Default){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
         
         <div class="hva-stats">
           <div class="hva-stat">
             <div class="hva-stat-value">{{ total_hva_count }}</div>
-            <div class="hva-stat-label">Total HVA Accounts</div>
+            <div class="hva-stat-label">Qualifying Accounts</div>
           </div>
           <div class="hva-stat">
             <div class="hva-stat-value">{{ total_hva_balance|floatformat:0 }}</div>
@@ -335,9 +384,9 @@
         {% else %}
           <div class="empty-state">
             <i class="fas fa-trophy"></i>
-            <h3>No High Value Accounts Found</h3>
-            <p>Search for accounts to discover high value holders with >1M XLM balance.</p>
-            <p>The leaderboard will automatically populate as HVA accounts are discovered.</p>
+            <h3>No Accounts Found for This Threshold</h3>
+            <p>No accounts found with ≥{{ selected_threshold|floatformat:0 }} XLM balance.</p>
+            <p>Try selecting a lower threshold or search for more accounts to populate the leaderboard.</p>
           </div>
         {% endif %}
       </div>
@@ -351,6 +400,16 @@
   <!-- Include Vue.js and BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  
+  <!-- Threshold change handler -->
+  <script>
+    function changeThreshold(threshold) {
+      // Reload page with new threshold parameter
+      const url = new URL(window.location.href);
+      url.searchParams.set('threshold', threshold);
+      window.location.href = url.toString();
+    }
+  </script>
   
   <!-- Vue.js app instance for search functionality -->
   <script>

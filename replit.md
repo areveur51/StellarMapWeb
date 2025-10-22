@@ -7,7 +7,16 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
 # Recent Changes (October 2025)
-## Enhanced Dashboard & API Rate Limiting (Latest)
+## Multi-Threshold HVA Leaderboard System (Latest)
+- **Multiple Threshold Support**: HVA leaderboard now supports 6 configurable thresholds (10K, 50K, 100K, 500K, 750K, 1M XLM)
+- **Threshold Dropdown Selector**: Interactive dropdown on HVA page to switch between different threshold leaderboards
+- **Threshold-Specific Ranking**: HVAStandingChange model tracks rankings per threshold with xlm_threshold column
+- **Management Command**: `recalculate_hva_rankings_multi` backfills rankings for all thresholds
+- **Custom Template Filter**: format_xlm_threshold filter for clean threshold display (10K, 100K, 1.0M)
+- **Network-Aware Filtering**: Rank change tracking filters by both threshold AND network to prevent cross-network leaks
+- **Performance Optimized**: Maintains is_hva filter to avoid Cassandra full-table scans, then applies threshold filtering in-memory
+
+## Enhanced Dashboard & API Rate Limiting
 - **API Rate Limiter**: Implements slow continuous retrieval (0.5s Horizon, 1.0s Stellar Expert) using Django cache for cross-process metrics sharing
 - **Enhanced Dashboard**: New "API Health Monitoring" section displays real-time API call counts, burst limits, rate delays, and last call timestamps
 - **Dashboard Organization**: Reorganized into clear sections - Alerts & Recommendations, API Health, BigQuery Costs, Database Health, Performance Metrics
