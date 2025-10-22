@@ -760,6 +760,88 @@ def fetch_toml_api(request):
         }, status=500)
 
 
+def refresh_enrichment_api(request):
+    """
+    API endpoint to refresh enrichment data by setting account status to PENDING.
+    This triggers the pipeline to re-fetch balance, home_domain, flags, and assets.
+    
+    Query Parameters:
+        account (str): Stellar account address
+        network (str): Network name (public or testnet)
+    
+    Returns:
+        JsonResponse: Success or error message
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'error': 'Method not allowed. Use POST.'
+        }, status=405)
+    
+    account = request.POST.get('account') or request.GET.get('account')
+    network = request.POST.get('network') or request.GET.get('network')
+    
+    if not account or not network:
+        return JsonResponse({
+            'error': 'Missing required parameters: account and network'
+        }, status=400)
+    
+    try:
+        from apiApp.model_loader import StellarCreatorAccountLineage, PENDING, USE_CASSANDRA
+        
+        # Find the account record
+        try:
+            if USE_CASSANDRA:
+                # Cassandra query - fetch by account and network
+                record = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network
+                ).first()
+            else:
+                # SQL query
+                record = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=account,
+                    network_name=network
+                ).first()
+            
+            if not record:
+                return JsonResponse({
+                    'error': 'No record found for this account',
+                    'account': account,
+                    'network': network
+                }, status=404)
+            
+            # Update status to PENDING to trigger enrichment refresh
+            record.status = PENDING
+            try:
+                # Django ORM syntax
+                record.save()
+            except TypeError:
+                # Cassandra syntax
+                record.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Account queued for enrichment refresh',
+                'account': account,
+                'network': network,
+                'new_status': PENDING
+            })
+            
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            return JsonResponse({
+                'error': 'Failed to update account status',
+                'message': str(e)
+            }, status=500)
+            
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)
+
+
 def retry_failed_account_api(request):
     """
     API endpoint to retry a failed account by changing its status from FAILED to RE_INQUIRY.

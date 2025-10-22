@@ -217,6 +217,17 @@
                           @click="row.item.status === 'FAILED' ? retryFailedAccount(row.item) : null"
                         >{{ row.item.status }}</b-badge>{% endverbatim %}
                       </template>
+                      <template #cell(refresh)="row">
+                        <b-button 
+                          size="sm" 
+                          variant="warning" 
+                          @click="refreshAccountEnrichment(row.item)" 
+                          title="Refresh enrichment data (balance, home_domain, flags, assets)"
+                          :disabled="row.item.status === 'PENDING' || row.item.status === 'PROCESSING'"
+                        >
+                          <i class="fas fa-sync-alt"></i>
+                        </b-button>
+                      </template>
                       <template #cell(actions)="row">
                         <b-button size="sm" variant="info" @click="showLineageJson(row.item)" title="View JSON">
                           <i class="fas fa-code"></i>
@@ -505,6 +516,7 @@
             { key: 'status', label: 'Status', sortable: true },
             { key: 'created_at', label: 'Pipeline Created', sortable: true },
             { key: 'updated_at', label: 'Pipeline Updated', sortable: true },
+            { key: 'refresh', label: 'Refresh', sortable: false },
             { key: 'actions', label: 'JSON', sortable: false }
           ],
           showStageJsonModal: false,
@@ -1072,6 +1084,56 @@
             }
           }
           return cookieValue;
+        },
+        async refreshAccountEnrichment(accountData) {
+          if (!accountData || !accountData.stellar_account || !accountData.network_name) {
+            console.error('Invalid account data for refresh');
+            return;
+          }
+          
+          try {
+            const url = '/api/refresh-enrichment/';
+            const formData = new FormData();
+            formData.append('account', accountData.stellar_account);
+            formData.append('network', accountData.network_name);
+            
+            const response = await fetch(url, {
+              method: 'POST',
+              body: formData,
+              headers: {
+                'X-CSRFToken': this.getCSRFToken()
+              }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+              this.$bvToast.toast(`Account ${accountData.stellar_account.slice(-7)} queued for enrichment refresh`, {
+                title: 'Refresh Queued',
+                variant: 'success',
+                solid: true,
+                autoHideDelay: 3000
+              });
+              
+              // Update the status in the UI immediately
+              accountData.status = 'PENDING';
+              
+              // Refresh lineage data after a short delay
+              setTimeout(() => {
+                this.fetchAccountLineage();
+              }, 1000);
+            } else {
+              throw new Error(data.error || 'Failed to queue enrichment refresh');
+            }
+          } catch (error) {
+            console.error('Error refreshing account enrichment:', error);
+            this.$bvToast.toast(error.message || 'Failed to queue enrichment refresh', {
+              title: 'Refresh Failed',
+              variant: 'danger',
+              solid: true,
+              autoHideDelay: 3000
+            });
+          }
         }
       },
       watch: {
