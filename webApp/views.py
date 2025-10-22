@@ -753,6 +753,46 @@ def dashboard_view(request):
     except Exception as e:
         sentry_sdk.capture_exception(e)
     
+    # API Health Monitoring (rate limiter stats)
+    api_health = {
+        'horizon_calls_this_minute': 0,
+        'horizon_burst_limit': 120,
+        'horizon_rate_delay': 0.5,
+        'horizon_last_call': None,
+        'stellar_expert_calls_this_minute': 0,
+        'stellar_expert_burst_limit': 50,
+        'stellar_expert_rate_delay': 1.0,
+        'stellar_expert_last_call': None,
+        'bigquery_calls_this_minute': 0,
+        'bigquery_burst_limit': 1000,
+        'rate_limiting_enabled': True,
+    }
+    
+    try:
+        from apiApp.helpers.api_rate_limiter import APIRateLimiter
+        limiter = APIRateLimiter()
+        stats = limiter.get_stats()
+        
+        # Horizon API stats
+        api_health['horizon_calls_this_minute'] = stats['horizon']['calls_this_minute']
+        api_health['horizon_burst_limit'] = stats['horizon']['burst_limit']
+        api_health['horizon_rate_delay'] = stats['horizon']['rate_limit_delay']
+        api_health['horizon_last_call'] = stats['horizon']['last_call']
+        
+        # Stellar Expert API stats
+        api_health['stellar_expert_calls_this_minute'] = stats['stellar_expert']['calls_this_minute']
+        api_health['stellar_expert_burst_limit'] = stats['stellar_expert']['burst_limit']
+        api_health['stellar_expert_rate_delay'] = stats['stellar_expert']['rate_limit_delay']
+        api_health['stellar_expert_last_call'] = stats['stellar_expert']['last_call']
+        
+        # BigQuery stats
+        api_health['bigquery_calls_this_minute'] = stats['bigquery']['calls_this_minute']
+        api_health['bigquery_burst_limit'] = stats['bigquery']['burst_limit']
+        
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        api_health['rate_limiting_enabled'] = False
+    
     context = {
         'db_stats': db_stats,
         'performance_stats': performance_stats,
@@ -760,6 +800,7 @@ def dashboard_view(request):
         'cron_health': cron_health,
         'stage_health': stage_health,
         'bigquery_config': bigquery_config,
+        'api_health': api_health,
     }
     
     return render(request, 'webApp/dashboard.html', context)

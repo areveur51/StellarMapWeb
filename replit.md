@@ -6,7 +6,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Keep Replit usage anonymous - do not mention Replit in public documentation
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
-# Recent Changes (December 2025)
+# Recent Changes (October 2025)
+## Enhanced Dashboard & API Rate Limiting (Latest)
+- **API Rate Limiter**: Implements slow continuous retrieval (0.5s Horizon, 1.0s Stellar Expert) using Django cache for cross-process metrics sharing
+- **Enhanced Dashboard**: New "API Health Monitoring" section displays real-time API call counts, burst limits, rate delays, and last call timestamps
+- **Dashboard Organization**: Reorganized into clear sections - Alerts & Recommendations, API Health, BigQuery Costs, Database Health, Performance Metrics
+- **Age-Based Filtering**: Prevents infinite queue loop by skipping creator accounts >2 years old (prevents BigQuery limit violations)
+- **Clear Old Pending Command**: `python manage.py clear_old_pending` safely removes stuck PENDING accounts with --dry-run support
+- **Configuration Fix**: Fixed 'QuerySet' object has no attribute 'limit' error using .first() method
+
 ## Comprehensive Testing Infrastructure
 - **Pytest Configuration**: Added 6 test markers (unit, integration, e2e, performance, regression, slow) with parallel execution support in `pyproject.toml`.
 - **New Test Files**: Created 5 comprehensive test suites covering BigQuery caching, API endpoint optimizations, Query Builder column parity, Vue component initialization, and database integration.

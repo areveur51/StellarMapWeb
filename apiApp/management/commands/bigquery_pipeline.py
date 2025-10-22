@@ -22,6 +22,7 @@ from django.core.management.base import BaseCommand
 from apiApp.model_loader import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
 from apiApp.helpers.env import EnvHelpers
+from apiApp.helpers.api_rate_limiter import APIRateLimiter
 import sentry_sdk
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class Command(BaseCommand):
         super().__init__(*args, **kwargs)
         self.env_helpers = EnvHelpers()
         self.env_helpers.set_public_network()
+        self.rate_limiter = APIRateLimiter(enable_logging=True)
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -236,6 +238,7 @@ class Command(BaseCommand):
             
             # Step 1: Get account creation date from Horizon API (free, no BigQuery cost)
             self.stdout.write('  → Fetching account creation date from Horizon API...')
+            self.rate_limiter.wait_for_horizon()  # Rate limit protection (slow continuous retrieval)
             horizon_data = self._fetch_horizon_account_data(account)
             
             if not horizon_data:
@@ -343,6 +346,7 @@ class Command(BaseCommand):
             
             # Step 5: Get assets from Stellar Expert API
             self.stdout.write('  → Fetching assets from Stellar Expert API...')
+            self.rate_limiter.wait_for_stellar_expert()  # Rate limit protection (slow continuous retrieval)
             assets = self._fetch_stellar_expert_assets(account)
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Found {len(assets)} assets'
@@ -699,6 +703,7 @@ class Command(BaseCommand):
                 # Check creator account age before queuing (prevent old account loop)
                 try:
                     from apiApp.helpers.sm_horizon import StellarMapHorizonHelpers
+                    self.rate_limiter.wait_for_horizon()  # Rate limit protection
                     horizon = StellarMapHorizonHelpers(creator_account)
                     creator_data = horizon.get_account()
                     

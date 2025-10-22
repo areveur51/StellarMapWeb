@@ -106,7 +106,12 @@ DATABASE_ROUTERS = ['StellarMapWeb.router.DatabaseAppsRouter']
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'stellarmap_cache_table',
+        'OPTIONS': {
+            'MAX_ENTRIES': 10000,
+            'CULL_FREQUENCY': 4,  # Cull 1/4 of entries when MAX_ENTRIES reached
+        }
     }
 }
 

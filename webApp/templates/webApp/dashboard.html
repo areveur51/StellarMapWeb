@@ -256,6 +256,76 @@
             </div>
         </div>
         
+        <!-- API Health Monitoring -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title">
+                    API Health Monitoring
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Horizon API (Stellar)</div>
+                    <div class="stat-value">
+                        {% if api_health.horizon_calls_this_minute >= api_health.horizon_burst_limit %}
+                            <span class="health-indicator health-danger"></span>
+                        {% elif api_health.horizon_calls_this_minute >= api_health.horizon_burst_limit|add:"-10" %}
+                            <span class="health-indicator health-warning"></span>
+                        {% else %}
+                            <span class="health-indicator health-good"></span>
+                        {% endif %}
+                        {{ api_health.horizon_calls_this_minute }}/{{ api_health.horizon_burst_limit }}
+                    </div>
+                    <small>calls/min ({{ api_health.horizon_rate_delay }}s delay)</small>
+                    {% if api_health.horizon_last_call %}
+                    <small style="display: block; margin-top: 4px;">Last: {{ api_health.horizon_last_call|slice:":19" }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Stellar Expert API</div>
+                    <div class="stat-value">
+                        {% if api_health.stellar_expert_calls_this_minute >= api_health.stellar_expert_burst_limit %}
+                            <span class="health-indicator health-danger"></span>
+                        {% elif api_health.stellar_expert_calls_this_minute >= api_health.stellar_expert_burst_limit|add:"-5" %}
+                            <span class="health-indicator health-warning"></span>
+                        {% else %}
+                            <span class="health-indicator health-good"></span>
+                        {% endif %}
+                        {{ api_health.stellar_expert_calls_this_minute }}/{{ api_health.stellar_expert_burst_limit }}
+                    </div>
+                    <small>calls/min ({{ api_health.stellar_expert_rate_delay }}s delay)</small>
+                    {% if api_health.stellar_expert_last_call %}
+                    <small style="display: block; margin-top: 4px;">Last: {{ api_health.stellar_expert_last_call|slice:":19" }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Rate Limiting Status</div>
+                    <div class="stat-value">
+                        {% if api_health.rate_limiting_enabled %}
+                            <span class="health-indicator health-good"></span>
+                            ACTIVE
+                        {% else %}
+                            <span class="health-indicator health-danger"></span>
+                            DISABLED
+                        {% endif %}
+                    </div>
+                    <small>
+                        {% if api_health.rate_limiting_enabled %}
+                        Slow continuous retrieval enabled
+                        {% else %}
+                        ⚠️ No rate limiting protection
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
         <!-- BigQuery Cost Tracking -->
         <div class="row">
             <div class="col-12">
