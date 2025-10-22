@@ -738,12 +738,15 @@ class APIRateLimiterConfigAdmin(admin.ModelAdmin):
         else:
             color = '#0BE784'  # Green - low rate
         
+        # Format delay separately (format_html doesn't support format codes)
+        delay_formatted = f"{delay:.2f}"
+        
         return format_html(
-            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({:.2f}s delay)',
+            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({}s delay)',
             color,
             obj.horizon_percentage,
             calls_min,
-            delay
+            delay_formatted
         )
     horizon_percentage_display.short_description = 'Horizon API'
     
@@ -760,12 +763,15 @@ class APIRateLimiterConfigAdmin(admin.ModelAdmin):
         else:
             color = '#0BE784'  # Green - low rate
         
+        # Format delay separately (format_html doesn't support format codes)
+        delay_formatted = f"{delay:.2f}"
+        
         return format_html(
-            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({:.2f}s delay)',
+            '<span style="color:{}"><strong>{}%</strong></span> = {} req/min ({}s delay)',
             color,
             obj.stellar_expert_percentage,
             calls_min,
-            delay
+            delay_formatted
         )
     stellar_expert_percentage_display.short_description = 'Stellar Expert API'
     
