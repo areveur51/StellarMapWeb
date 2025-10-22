@@ -88,6 +88,11 @@ class StellarCreatorAccountLineage(models.Model):
     # High Value Account flag
     is_hva = models.BooleanField(default=False)
 
+    # Dual-pipeline tracking fields
+    pipeline_source = models.CharField(max_length=64, blank=True)  # BIGQUERY, API, BIGQUERY_WITH_API_FALLBACK
+    last_pipeline_attempt = models.DateTimeField(null=True, blank=True)  # Last time either pipeline attempted processing
+    processing_started_at = models.DateTimeField(null=True, blank=True)  # When current processing started
+
     status = models.CharField(max_length=127, choices=STATUS_CHOICES)
     retry_count = models.IntegerField(default=0)
     last_error = models.TextField(blank=True)

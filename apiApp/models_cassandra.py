@@ -138,6 +138,11 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     # High Value Account flag for efficient querying (configurable threshold, default >=100K XLM)
     is_hva = cassandra_columns.Boolean(default=False)
 
+    # Dual-pipeline tracking fields
+    pipeline_source = cassandra_columns.Text(max_length=64)  # BIGQUERY, API, BIGQUERY_WITH_API_FALLBACK
+    last_pipeline_attempt = cassandra_columns.DateTime()  # Last time either pipeline attempted processing
+    processing_started_at = cassandra_columns.DateTime()  # When current processing started
+
     status = cassandra_columns.Text(max_length=127)
     retry_count = cassandra_columns.Integer(default=0)
     last_error = cassandra_columns.Text()
