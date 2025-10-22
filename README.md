@@ -177,8 +177,13 @@ python manage.py test
 *Interactive D3.js radial tree visualization showing account lineage with spacing controls and zoom/pan*
 
 ### High Value Accounts Leaderboard
-![HVA Leaderboard](docs/screenshots/hva-leaderboard.png)
-*Track accounts with >1M XLM balance, ranked by holdings with 24h change indicators*
+![HVA Leaderboard - Default](docs/screenshots/hva-leaderboard-default.png)
+*Multi-threshold leaderboard system with configurable wealth tiers (10K, 50K, 100K, 500K, 750K, 1M XLM). Tracks accounts by balance with 24h rank change indicators and threshold-specific ranking history.*
+
+**Additional Threshold Views:**
+- [10K XLM View](docs/screenshots/hva-leaderboard-10k.png) - Entry-level significant accounts
+- [50K XLM View](docs/screenshots/hva-leaderboard-50k.png) - Mid-tier holders
+- [1M XLM View](docs/screenshots/hva-leaderboard-1M.png) - Premium whale accounts
 
 ### Query Builder
 ![Query Builder](docs/screenshots/query-builder.png)
