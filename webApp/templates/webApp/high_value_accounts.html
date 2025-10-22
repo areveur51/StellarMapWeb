@@ -293,7 +293,7 @@
     <div class="hva-content">
       <div class="hva-header">
         <h1 class="hva-title">🏆 High Value Accounts Leaderboard</h1>
-        <p class="hva-subtitle">Top Stellar accounts ranked by XLM balance (≥{{ selected_threshold|floatformat:0 }} XLM)</p>
+        <p class="hva-subtitle">Top Stellar accounts ranked by XLM balance (≥{{ selected_threshold|intcomma }} XLM)</p>
         
         <!-- Threshold Selector -->
         <div style="text-align: center; margin: 20px 0;">
@@ -313,7 +313,7 @@
             <div class="hva-stat-label">Qualifying Accounts</div>
           </div>
           <div class="hva-stat">
-            <div class="hva-stat-value">{{ total_hva_balance|floatformat:0 }}</div>
+            <div class="hva-stat-value">{{ total_hva_balance|intcomma }}</div>
             <div class="hva-stat-label">Total XLM Balance</div>
           </div>
         </div>
@@ -353,7 +353,7 @@
                 </td>
                 <td class="account-address">{{ account.stellar_account }}</td>
                 <td class="balance-highlight">
-                  {{ account.xlm_balance|floatformat:2 }} XLM
+                  {{ account.xlm_balance|intcomma }} XLM
                   {% if account.balance_change_pct != 0 %}
                     <span class="balance-change" style="font-size: 0.75rem; {% if account.balance_change_pct > 0 %}color: #0BE784;{% else %}color: #ff6b6b;{% endif %}">
                       ({% if account.balance_change_pct > 0 %}+{% endif %}{{ account.balance_change_pct|floatformat:1 }}%)
@@ -385,7 +385,7 @@
           <div class="empty-state">
             <i class="fas fa-trophy"></i>
             <h3>No Accounts Found for This Threshold</h3>
-            <p>No accounts found with ≥{{ selected_threshold|floatformat:0 }} XLM balance.</p>
+            <p>No accounts found with ≥{{ selected_threshold|intcomma }} XLM balance.</p>
             <p>Try selecting a lower threshold or search for more accounts to populate the leaderboard.</p>
           </div>
         {% endif %}

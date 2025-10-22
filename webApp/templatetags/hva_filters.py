@@ -37,3 +37,28 @@ def format_xlm_threshold(value):
             return f"{int(num)} XLM"
     except (ValueError, TypeError):
         return str(value)
+
+
+@register.filter(name='intcomma')
+def intcomma(value):
+    """
+    Convert an integer to a string containing commas every three digits.
+    
+    Examples:
+        1000 -> "1,000"
+        1000000 -> "1,000,000"
+        123456789.12 -> "123,456,789.12"
+    """
+    try:
+        # Convert to float first to handle both int and float
+        num = float(value)
+        
+        # Check if it's a whole number
+        if num == int(num):
+            # Format as integer with commas
+            return f"{int(num):,}"
+        else:
+            # Format as float with commas and 2 decimal places
+            return f"{num:,.2f}"
+    except (ValueError, TypeError):
+        return str(value)
