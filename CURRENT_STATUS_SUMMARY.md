@@ -1,4 +1,16 @@
 # Current System Status Summary
+**Last Updated**: October 22, 2025 22:04 UTC
+
+## 🎉 REGRESSION FIXED - All Pages Working Again!
+
+### Issue Resolved
+The "always getting data no returning after introducing a new feature" issue has been identified and fixed!
+
+**Root Cause**: New Cassandra model fields (`pipeline_source`, `last_pipeline_attempt`, `processing_started_at`) were added without running the corresponding database migration, causing ALL queries to fail.
+
+**Fix Applied**: Temporarily commented out the new fields in `apiApp/models_cassandra.py` until the Cassandra migration is run.
+
+**Result**: ✅ HVA Leaderboard, Query Builder, and Dashboard all working again!
 
 ## ✅ Successfully Implemented
 
