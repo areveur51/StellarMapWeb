@@ -371,6 +371,82 @@
             </div>
         </div>
 
+        <!-- Dual-Pipeline Metrics -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title">
+                    Dual-Pipeline Metrics
+                </h3>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">BigQuery Processed</div>
+                    <div class="stat-value" style="color: #0BE784;">
+                        <span id="bigquery-total">--</span>
+                    </div>
+                    <small>fast path (50-90s per account)</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">BigQuery + API Fallback</div>
+                    <div class="stat-value" style="color: #ffc107;">
+                        <span id="bigquery-fallback-total">--</span>
+                    </div>
+                    <small>cost guard blocked, used API</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">API-Only Processed</div>
+                    <div class="stat-value" style="color: #96DDF2;">
+                        <span id="api-total">--</span>
+                    </div>
+                    <small>reliable fallback (180-300s)</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <div class="stat-label">Total Accounts</div>
+                    <div class="stat-value">
+                        <span id="total-accounts">--</span>
+                    </div>
+                    <small>all pipelines combined</small>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Last 24h - BigQuery</div>
+                    <div class="stat-value" style="color: #0BE784; font-size: 1.1rem;">
+                        <span id="last-24h-bigquery">--</span>
+                    </div>
+                    <small>accounts processed</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Last 24h - Fallback</div>
+                    <div class="stat-value" style="color: #ffc107; font-size: 1.1rem;">
+                        <span id="last-24h-fallback">--</span>
+                    </div>
+                    <small>accounts processed</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Last 24h - API Only</div>
+                    <div class="stat-value" style="color: #96DDF2; font-size: 1.1rem;">
+                        <span id="last-24h-api">--</span>
+                    </div>
+                    <small>accounts processed</small>
+                </div>
+            </div>
+        </div>
+
         <!-- Database Health -->
         <div class="row">
             <div class="col-12">
@@ -631,7 +707,39 @@
           },
           toggleNetwork() {
             this.network_selected = this.network_toggle ? 'public' : 'testnet'
+          },
+          async fetchPipelineStats() {
+            try {
+              const response = await fetch('/api/pipeline-stats/');
+              if (!response.ok) {
+                console.error('Failed to fetch pipeline stats:', response.status);
+                return;
+              }
+              
+              const data = await response.json();
+              
+              // Update DOM with pipeline statistics
+              document.getElementById('bigquery-total').textContent = data.bigquery_total.toLocaleString();
+              document.getElementById('bigquery-fallback-total').textContent = data.bigquery_with_fallback_total.toLocaleString();
+              document.getElementById('api-total').textContent = data.api_total.toLocaleString();
+              document.getElementById('total-accounts').textContent = data.total_accounts.toLocaleString();
+              
+              // Update last 24h stats
+              document.getElementById('last-24h-bigquery').textContent = data.last_24h.bigquery.toLocaleString();
+              document.getElementById('last-24h-fallback').textContent = data.last_24h.bigquery_with_fallback.toLocaleString();
+              document.getElementById('last-24h-api').textContent = data.last_24h.api.toLocaleString();
+            } catch (error) {
+              console.error('Error fetching pipeline stats:', error);
+            }
           }
+        },
+        mounted() {
+          // Fetch dual-pipeline statistics on load
+          this.fetchPipelineStats();
+          // Auto-refresh every 30 seconds
+          setInterval(() => {
+            this.fetchPipelineStats();
+          }, 30000);
         }
     });
   </script>
