@@ -4,10 +4,18 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 ## 📚 Documentation
 
-- 📖 **[User Guide](USER_GUIDE.md)** - Complete guide with examples and screenshots for all features
-- 🏗️ **[Technical Architecture](TECHNICAL_ARCHITECTURE.md)** - Developer documentation with 8 PlantUML diagrams, database schemas, API specs, and performance optimizations
-- 🏆 **[HVA Ranking System](HVA_RANKING_SYSTEM.md)** - Detailed explanation of multi-threshold ranking system
-- 🧪 **[Testing Guide](TESTING.md)** - pytest usage, best practices, and CI/CD pipeline
+### Core Documentation
+- 🏗️ **[Technical Architecture](TECHNICAL_ARCHITECTURE.md)** - Complete technical documentation with 9 PlantUML diagrams covering system architecture, data pipelines, database schema, and deployment
+- 📖 **[User Guide](USER_GUIDE.md)** - End-user documentation with screenshots, feature walkthroughs, and usage examples
+- 🧪 **[Testing Guide](TESTING.md)** - Comprehensive testing guide with pytest markers, admin portal regression tests, and CI/CD configuration
+
+### Feature Documentation
+- ⚡ **[Dual-Pipeline Implementation](DUAL_PIPELINE_IMPLEMENTATION.md)** - Dual-pipeline architecture (BigQuery + API fallback) with cost optimization and performance details
+- 🏆 **[HVA Ranking System](HVA_RANKING_SYSTEM.md)** - Multi-threshold High-Value Account ranking system with admin configuration and change tracking
+
+### Additional Resources
+- 🔒 **[Security](SECURITY.md)** - Security practices, vulnerability reporting, and secure configuration guidelines
+- 🤝 **[Contributing](CONTRIBUTING.md)** - Contribution guidelines for developers
 
 ## Quick Start
 
