@@ -55,8 +55,8 @@ class Command(BaseCommand):
         """
         try:
             # Try to get existing configuration
-            config_query = BigQueryPipelineConfig.objects.filter(config_id='default').limit(1)
-            for config in config_query:
+            config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
+            if config:
                 return config
             
             # No configuration exists - create default
