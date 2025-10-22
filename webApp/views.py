@@ -858,15 +858,29 @@ def high_value_accounts_view(request):
     total_hva_balance = 0
     
     try:
-        # Query HVA accounts to avoid full table scan
-        # Start with is_hva=True filter, then do in-memory threshold filtering
-        hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
+        # Query strategy based on selected threshold:
+        # - If threshold <= admin default: Need to scan more records (potential accounts below is_hva threshold)
+        # - If threshold > admin default: Can safely use is_hva filter
+        admin_threshold = HVARankingHelper.get_hva_threshold()
         
-        # Filter by specific threshold and sort by balance descending
-        qualifying_records = [
-            rec for rec in hva_records
-            if rec.xlm_balance and rec.xlm_balance >= selected_threshold
-        ]
+        if selected_threshold <= admin_threshold:
+            # Need broader query - get all accounts and filter in-memory
+            # This is necessary because is_hva flag is based on admin_threshold
+            # Note: This will do a table scan, but necessary for lower thresholds
+            all_records = StellarCreatorAccountLineage.objects.all()
+            hva_records = [
+                rec for rec in all_records
+                if rec.xlm_balance and rec.xlm_balance >= selected_threshold
+            ]
+        else:
+            # Can use is_hva filter safely since selected_threshold > admin_threshold
+            hva_records = StellarCreatorAccountLineage.objects.filter(is_hva=True).all()
+            hva_records = [
+                rec for rec in hva_records
+                if rec.xlm_balance and rec.xlm_balance >= selected_threshold
+            ]
+        
+        qualifying_records = hva_records
         
         sorted_records = sorted(
             qualifying_records,
