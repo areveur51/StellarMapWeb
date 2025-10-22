@@ -1737,3 +1737,103 @@ def cassandra_query_api(request):
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
+
+
+def pipeline_stats_api(request):
+    """
+    API endpoint that returns dual-pipeline statistics showing BigQuery vs API processing.
+    
+    Returns:
+        JsonResponse: Dict with pipeline processing counts and status.
+    """
+    try:
+        from apiApp.model_loader import StellarCreatorAccountLineage, USE_CASSANDRA
+        from datetime import datetime, timedelta
+        
+        # Initialize stats
+        stats = {
+            'bigquery_total': 0,
+            'bigquery_with_fallback_total': 0,
+            'api_total': 0,
+            'pending_total': 0,
+            'processing_total': 0,
+            'complete_total': 0,
+            'failed_total': 0,
+            'last_24h': {
+                'bigquery': 0,
+                'bigquery_with_fallback': 0,
+                'api': 0,
+            }
+        }
+        
+        # Calculate 24h cutoff
+        cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+        
+        # Query records
+        if USE_CASSANDRA:
+            # Cassandra: Scan all records and aggregate
+            for record in StellarCreatorAccountLineage.objects.filter(network_name='public'):
+                # Count by pipeline source
+                pipeline_source = getattr(record, 'pipeline_source', '')
+                if pipeline_source == 'BIGQUERY':
+                    stats['bigquery_total'] += 1
+                elif pipeline_source == 'BIGQUERY_WITH_API_FALLBACK':
+                    stats['bigquery_with_fallback_total'] += 1
+                elif pipeline_source == 'API':
+                    stats['api_total'] += 1
+                
+                # Count by status
+                status = getattr(record, 'status', '')
+                if status == 'PENDING':
+                    stats['pending_total'] += 1
+                elif status == 'PROCESSING':
+                    stats['processing_total'] += 1
+                elif status in ['COMPLETE', 'BIGQUERY_COMPLETE']:
+                    stats['complete_total'] += 1
+                elif status == 'FAILED':
+                    stats['failed_total'] += 1
+                
+                # Count last 24h by pipeline source
+                updated_at = getattr(record, 'updated_at', None)
+                if updated_at and updated_at >= cutoff_24h:
+                    if pipeline_source == 'BIGQUERY':
+                        stats['last_24h']['bigquery'] += 1
+                    elif pipeline_source == 'BIGQUERY_WITH_API_FALLBACK':
+                        stats['last_24h']['bigquery_with_fallback'] += 1
+                    elif pipeline_source == 'API':
+                        stats['last_24h']['api'] += 1
+        else:
+            # SQLite: Use efficient filtering
+            all_records = StellarCreatorAccountLineage.objects.filter(network_name='public')
+            
+            # Count by pipeline source
+            stats['bigquery_total'] = all_records.filter(pipeline_source='BIGQUERY').count()
+            stats['bigquery_with_fallback_total'] = all_records.filter(pipeline_source='BIGQUERY_WITH_API_FALLBACK').count()
+            stats['api_total'] = all_records.filter(pipeline_source='API').count()
+            
+            # Count by status
+            stats['pending_total'] = all_records.filter(status='PENDING').count()
+            stats['processing_total'] = all_records.filter(status='PROCESSING').count()
+            stats['complete_total'] = all_records.filter(status__in=['COMPLETE', 'BIGQUERY_COMPLETE']).count()
+            stats['failed_total'] = all_records.filter(status='FAILED').count()
+            
+            # Count last 24h by pipeline source
+            recent_records = all_records.filter(updated_at__gte=cutoff_24h)
+            stats['last_24h']['bigquery'] = recent_records.filter(pipeline_source='BIGQUERY').count()
+            stats['last_24h']['bigquery_with_fallback'] = recent_records.filter(pipeline_source='BIGQUERY_WITH_API_FALLBACK').count()
+            stats['last_24h']['api'] = recent_records.filter(pipeline_source='API').count()
+        
+        # Add metadata
+        stats['timestamp'] = datetime.utcnow().isoformat()
+        stats['total_accounts'] = stats['bigquery_total'] + stats['bigquery_with_fallback_total'] + stats['api_total']
+        
+        return JsonResponse(stats, status=200)
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in pipeline_stats_api: {e}')
+        sentry_sdk.capture_exception(e)
+        return JsonResponse({
+            'error': 'Internal server error',
+            'message': str(e)
+        }, status=500)
