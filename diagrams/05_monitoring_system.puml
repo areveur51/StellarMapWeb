@@ -1,4 +1,4 @@
-@startuml Monitoring System
+@startuml 05_monitoring_system
 
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2

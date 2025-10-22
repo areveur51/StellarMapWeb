@@ -1,4 +1,4 @@
-@startuml Query Builder Architecture
+@startuml 08_query_builder_architecture
 
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2

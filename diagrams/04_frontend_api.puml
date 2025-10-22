@@ -1,4 +1,4 @@
-@startuml Frontend & API Layer
+@startuml 04_frontend_api
 
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2

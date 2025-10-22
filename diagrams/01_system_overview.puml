@@ -1,4 +1,4 @@
-@startuml System Overview
+@startuml 01_system_overview
 
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2

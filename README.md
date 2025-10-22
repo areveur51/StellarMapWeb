@@ -304,6 +304,9 @@ Includes web server and BigQuery cron job in one stack.
 #### 7. High Value Account (HVA) Ranking System
 ![HVA Ranking System](./diagrams/07_hva_ranking_system.png)
 
+#### 8. Query Builder Architecture
+![Query Builder Architecture](./diagrams/08_query_builder_architecture.png)
+
 ---
 
 ### Framework and Structure

@@ -1,4 +1,4 @@
-@startuml Database Schema
+@startuml 03_database_schema
 
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2

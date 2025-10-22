@@ -7,7 +7,22 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
 # Recent Changes (October 2025)
-## Multi-Threshold HVA Leaderboard System (Latest)
+## PlantUML Diagrams Updated (Latest - Oct 22, 2025)
+- **All Diagrams Regenerated**: Updated all 8 PlantUML diagrams to reflect latest code changes
+- **New Query Builder Diagram**: Added comprehensive diagram (08) showing Query Builder architecture with pre-defined queries and custom filter builder
+- **Updated Database Schema**: Reflects HVAStandingChange with xlm_threshold column and BigQueryPipelineConfig
+- **Updated HVA Ranking System**: Shows multi-threshold tracking logic and admin-configurable thresholds
+- **Updated Frontend & API**: Includes Query Builder endpoints, multi-threshold HVA API, and comma-formatted displays
+- **Updated Monitoring System**: Shows API rate limiting, dashboard metrics, and age-based filtering
+- **All PNG Files Fresh**: Regenerated all PNG files with consistent naming (01-08) for easy reference
+
+## Clickable Account Links (Oct 22, 2025)
+- **HVA Leaderboard Links**: All stellar account addresses on HVA leaderboard now clickable
+- **Direct Navigation**: Links open search page with account and network parameters in new tab
+- **Cyberpunk Styling**: Hover effects with cyan-to-green color transitions and glow effects
+- **User Experience**: Maintains leaderboard context while exploring individual accounts
+
+## Multi-Threshold HVA Leaderboard System
 - **Admin-Configurable Thresholds**: HVA threshold list is now fully configurable through the admin portal (default: 10K, 50K, 100K, 500K, 750K, 1M XLM)
 - **Dynamic Threshold Loading**: HVARankingHelper.get_supported_thresholds() reads from admin config with safe fallback to defaults
 - **Threshold Dropdown Selector**: Interactive dropdown on HVA page to switch between different threshold leaderboards
@@ -57,7 +72,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Query Builder**: Comprehensive Cassandra database explorer at /web/query-builder/ with 10 pre-defined queries (stuck accounts, orphan accounts, failed stages, etc.) and custom multi-filter builder supporting AND logic. Features network-aware filtering (public/testnet) across all queries. Performance safeguards use adaptive max_scan limits (10x for dense data, 100x for sparse HVA data) to prevent unbounded table scans while ensuring complete results. Includes sortable results table with clickable account links and result limits (50-500 records).
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements using a consistent color palette.
 - **Dashboard Layout**: Alerts & Recommendations are prioritized at the top for immediate visibility.
-- **Architecture Diagrams**: 7 PlantUML diagrams are used for documentation.
+- **Architecture Diagrams**: 8 PlantUML diagrams are used for documentation:
+  1. System Overview - Complete system architecture
+  2. Data Pipeline - BigQuery & API approaches
+  3. Database Schema - Astra DB Cassandra tables
+  4. Frontend & API Layer - API endpoints and UI components
+  5. Monitoring System - Health monitoring and rate limiting
+  6. Hybrid Architecture - Production deployment architecture
+  7. HVA Ranking System - Multi-threshold ranking with event-based tracking
+  8. Query Builder Architecture - NEW: Database explorer with 10 pre-defined queries
 
 ## Technical Implementation
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
