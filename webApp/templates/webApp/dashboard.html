@@ -24,14 +24,15 @@
     .stat-card {
         background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%); /* Subtle gradient */
         border: 1px solid #3f2c70; /* Cyberpunk purple border */
-        border-radius: 4px;
-        padding: 10px;
+        border-radius: 6px;
+        padding: 20px 15px;
         margin-bottom: 10px;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
-        /* Make cards square */
-        aspect-ratio: 1 / 1;
+        /* Fixed square size */
+        width: 180px;
+        height: 180px;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -52,72 +53,66 @@
         left: 100%;
     }
     .stat-card:hover {
-        transform: translateY(-2px);
+        transform: translateY(-3px) scale(1.02);
         border-color: #96DDF2; /* Cyberpunk cyan on hover */
-        box-shadow: 0 4px 20px rgba(150, 221, 242, 0.3), 0 0 15px rgba(150, 221, 242, 0.1);
+        box-shadow: 0 8px 30px rgba(150, 221, 242, 0.4), 
+                    0 0 20px rgba(150, 221, 242, 0.2),
+                    inset 0 0 30px rgba(150, 221, 242, 0.05);
     }
     .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
+        font-size: 2.8rem;
+        font-weight: 700;
         color: #96DDF2; /* Cyberpunk cyan for values */
         word-wrap: break-word;
         overflow-wrap: break-word;
-        margin: 4px 0;
-        text-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
+        margin: 8px 0;
+        text-shadow: 0 0 15px rgba(150, 221, 242, 0.5), 0 0 30px rgba(150, 221, 242, 0.2);
         position: relative;
         z-index: 1;
-        line-height: 1.2;
+        line-height: 1;
+        letter-spacing: -1px;
     }
     .stat-label {
         color: #c4b5fd; /* Light purple for labels */
-        font-size: 0.65rem;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
-        margin-bottom: 4px;
-        line-height: 1.1;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        line-height: 1.2;
+        font-weight: 500;
     }
     .stat-card small {
         display: block;
         word-wrap: break-word;
         overflow-wrap: break-word;
         color: #a78bfa; /* Muted purple for small text */
-        font-size: 0.6rem;
-        margin-top: 4px;
-        line-height: 1.1;
+        font-size: 0.7rem;
+        margin-top: 8px;
+        line-height: 1.3;
+        opacity: 0.85;
     }
     .admin-link-btn {
-        margin-top: 6px;
-        font-size: 0.55rem;
-        padding: 3px 8px;
+        margin-top: 10px;
+        font-size: 0.65rem;
+        padding: 5px 12px;
         transition: all 0.3s ease;
         position: relative;
         z-index: 1;
         white-space: nowrap;
+        border-radius: 3px;
+        font-weight: 500;
     }
     .admin-link-btn:hover {
-        transform: scale(1.05);
+        transform: scale(1.08);
+        box-shadow: 0 0 15px currentColor;
     }
-    /* Responsive grid for square cards */
+    /* Centered grid for fixed-size square cards */
     .dashboard-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-    @media (min-width: 768px) {
-        .dashboard-grid {
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        }
-    }
-    @media (min-width: 1200px) {
-        .dashboard-grid {
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        }
-    }
-    @media (min-width: 1600px) {
-        .dashboard-grid {
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        }
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 20px;
     }
     /* Override Bootstrap button hover states with cyberpunk colors */
     .btn-outline-info:hover,
@@ -150,24 +145,26 @@
     }
     .section-title {
         color: #0BE784; /* Cyberpunk green accent */
-        margin-bottom: 6px;
-        margin-top: 8px;
-        padding-bottom: 3px;
-        border-bottom: 1px solid #3f2c70; /* Cyberpunk purple border */
-        font-size: 0.95rem;
+        margin-bottom: 12px;
+        margin-top: 20px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #3f2c70; /* Cyberpunk purple border */
+        font-size: 1rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 600;
+        letter-spacing: 1.5px;
+        font-weight: 700;
         position: relative;
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.3);
     }
     .section-title::after {
         content: '';
         position: absolute;
-        bottom: -1px;
+        bottom: -2px;
         left: 0;
-        width: 60px;
+        width: 80px;
         height: 2px;
         background: linear-gradient(90deg, #0BE784, transparent);
+        box-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
     }
     .health-indicator {
         display: inline-block;
