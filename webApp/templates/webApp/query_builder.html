@@ -399,31 +399,14 @@
                 </div>
                 
                 <!-- Column Visibility Controls -->
-                <div style="background: rgba(38, 29, 69, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #3f2c70;">
+                <div v-if="visibleColumns.length > 0" style="background: rgba(38, 29, 69, 0.3); padding: 15px; border-radius: 4px; margin-bottom: 15px; border: 1px solid #3f2c70;">
                     <div style="margin-bottom: 10px; font-weight: 600; color: #96DDF2;">
                         <i class="fas fa-columns"></i> Column Visibility
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 15px;">
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.status" style="margin-right: 5px; cursor: pointer;"> Status
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.xlm_balance" style="margin-right: 5px; cursor: pointer;"> XLM Balance
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.creator_account" style="margin-right: 5px; cursor: pointer;"> Creator
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.home_domain" style="margin-right: 5px; cursor: pointer;"> Home Domain
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.age_minutes" style="margin-right: 5px; cursor: pointer;"> Age (min)
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.retry_count" style="margin-right: 5px; cursor: pointer;"> Retries
-                        </label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
-                            <input type="checkbox" v-model="columnVisibility.updated_at" style="margin-right: 5px; cursor: pointer;"> Updated
+                        <label v-for="column in visibleColumns" :key="column" style="display: flex; align-items: center; cursor: pointer; color: #E0DFF2;">
+                            <input type="checkbox" v-model="columnVisibility[column]" style="margin-right: 5px; cursor: pointer;"> 
+                            {{ getColumnLabel(column) }}
                         </label>
                     </div>
                 </div>
@@ -648,6 +631,7 @@
                   this.results = data.results || [];
                   this.queryDescription = data.description || 'Custom Query Results';
                   this.visibleColumns = data.visible_columns || [];
+                  this.initializeColumnVisibility();
                   
               } catch (error) {
                   console.error('Custom query execution failed:', error);
@@ -671,6 +655,7 @@
                   this.results = data.results || [];
                   this.queryDescription = data.description || 'Query Results';
                   this.visibleColumns = data.visible_columns || [];
+                  this.initializeColumnVisibility();
                   
               } catch (error) {
                   console.error('Query execution failed:', error);
@@ -701,6 +686,29 @@
               // Then check user's checkbox preference
               const userPreference = this.columnVisibility[column] !== false;
               return inApiResponse && userPreference;
+          },
+          
+          initializeColumnVisibility() {
+              // Reset and initialize column visibility based on current query's columns
+              const newVisibility = {};
+              this.visibleColumns.forEach(column => {
+                  newVisibility[column] = true; // All columns visible by default
+              });
+              this.columnVisibility = newVisibility;
+          },
+          
+          getColumnLabel(column) {
+              // Map column names to readable labels
+              const labels = {
+                  'status': 'Status',
+                  'xlm_balance': 'XLM Balance',
+                  'creator_account': 'Creator',
+                  'home_domain': 'Home Domain',
+                  'age_minutes': 'Age (min)',
+                  'retry_count': 'Retries',
+                  'updated_at': 'Updated'
+              };
+              return labels[column] || column.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
           },
           
           getStatusClass(status) {
