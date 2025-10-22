@@ -138,9 +138,23 @@
     
     .account-address {
         font-family: monospace;
-        color: #96DDF2; /* Cyberpunk cyan */
         font-size: 0.9rem;
         word-break: break-all;
+    }
+    
+    .account-link {
+        color: #96DDF2; /* Cyberpunk cyan */
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-block;
+        border-bottom: 1px solid transparent;
+    }
+    
+    .account-link:hover {
+        color: #0BE784; /* Cyberpunk green on hover */
+        text-shadow: 0 0 10px rgba(11, 231, 132, 0.5);
+        border-bottom: 1px solid #0BE784;
+        transform: translateX(2px);
     }
     
     .balance-highlight {
@@ -351,7 +365,14 @@
                     </span>
                   {% endif %}
                 </td>
-                <td class="account-address">{{ account.stellar_account }}</td>
+                <td class="account-address">
+                  <a href="/search/?account={{ account.stellar_account }}&network={{ account.network_name }}" 
+                     class="account-link" 
+                     target="_blank"
+                     title="View lineage for {{ account.stellar_account }}">
+                    {{ account.stellar_account }}
+                  </a>
+                </td>
                 <td class="balance-highlight">
                   {{ account.xlm_balance|intcomma }} XLM
                   {% if account.balance_change_pct != 0 %}
