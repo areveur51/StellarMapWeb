@@ -199,7 +199,7 @@ python manage.py test
 - [1M XLM View](docs/screenshots/hva-leaderboard-1M.png) - Premium whale accounts
 
 ### Query Builder
-![Query Builder](docs/screenshots/query-builder.png)
+![Query Builder Architecture](diagrams/08_query_builder_architecture.png)
 *Powerful Cassandra database explorer with 10 pre-defined queries and custom filter builder*
 
 ### Bulk Account Search
