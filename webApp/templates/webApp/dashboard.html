@@ -353,13 +353,11 @@
             <div>
                 <div class="stat-card">
                     <div class="stat-label">Rate Limiting Status</div>
-                    <div class="stat-value" style="line-height: 1; font-size: 2.4rem; margin: 8px 0;">
+                    <div class="stat-value" style="line-height: 1.1; font-size: 2.4rem; margin: 8px 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         {% if api_health.rate_limiting_enabled %}
-                            <div><span class="health-indicator health-good"></span></div>
-                            <div style="margin-top: 5px;">ACTIVE</div>
+                            <span class="health-indicator health-good"></span> ACTIVE
                         {% else %}
-                            <div><span class="health-indicator health-danger"></span></div>
-                            <div style="margin-top: 5px;">DISABLED</div>
+                            <span class="health-indicator health-danger"></span> DISABLED
                         {% endif %}
                     </div>
                     <small style="margin-top: 10px; line-height: 1.2;">
@@ -668,17 +666,15 @@
             <div>
                 <div class="stat-card">
                     <div class="stat-label">Cron Status</div>
-                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 2.4rem;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 2.4rem;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.2; padding: 0 8px;{% else %}color: #ffc107; font-size: 2.4rem;{% endif %} margin: 8px 0;">
-                        <div style="margin-bottom: 4px;">
-                            {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
-                                <span class="health-indicator health-good"></span>
-                            {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
-                                <span class="health-indicator health-danger"></span>
-                            {% else %}
-                                <span class="health-indicator health-warning"></span>
-                            {% endif %}
-                        </div>
-                        <div>{{ cron_health.status|slice:":60"|wordwrap:18 }}</div>
+                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 2.4rem;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 2.4rem;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.25; padding: 0 8px;{% else %}color: #ffc107; font-size: 2.4rem;{% endif %} margin: 8px 0;">
+                        {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
+                            <span class="health-indicator health-good"></span>
+                        {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
+                            <span class="health-indicator health-danger"></span>
+                        {% else %}
+                            <span class="health-indicator health-warning"></span>
+                        {% endif %}
+                        {{ cron_health.status|slice:":60"|wordwrap:18 }}
                     </div>
                     <small style="margin-top: 6px; font-size: 0.65rem;">Last run:<br>{% if cron_health.last_run %}{{ cron_health.last_run|slice:":19" }}{% else %}Never{% endif %}</small>
                 </div>
