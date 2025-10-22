@@ -64,7 +64,8 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 ## Open Source & CI/CD
 - **License**: MIT License.
-- **Documentation**: `CONTRIBUTING.md` and `SECURITY.md`.
+- **Documentation**: `CONTRIBUTING.md`, `SECURITY.md`, `TESTING.md`, and `USER_GUIDE.md`.
+- **User Guide**: Comprehensive user guide with screenshots and examples for all features.
 - **GitHub Actions**: Automated CI workflow for testing, linting, and security audits.
 - **Environment Configuration**: `.env.example` for easy setup.
 - **Startup Script**: `startup.sh` provides guidance for workflow restarts after ENV secret changes.
