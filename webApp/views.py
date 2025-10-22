@@ -685,14 +685,14 @@ def dashboard_view(request):
         'estimated_monthly_cost': 0,
         'accounts_remaining_in_budget': 0,
         'bigquery_enabled': False,
-        'pipeline_mode': 'UNKNOWN',
+        'pipeline_mode': 'API_ONLY',
     }
     
     if bigquery_config:
         bigquery_stats['cost_limit_usd'] = bigquery_config.cost_limit_usd
         bigquery_stats['size_limit_gb'] = bigquery_config.size_limit_mb / 1024
         bigquery_stats['bigquery_enabled'] = bigquery_config.bigquery_enabled
-        bigquery_stats['pipeline_mode'] = bigquery_config.pipeline_mode
+        bigquery_stats['pipeline_mode'] = getattr(bigquery_config, 'pipeline_mode', 'API_ONLY')
         
         # Estimate monthly costs based on processing rate
         if performance_stats['total_accounts_processed_7d'] > 0:
