@@ -50,32 +50,74 @@
 <div id="content-main">
     <div class="info-message">
         <strong>Read-Only View</strong> - Showing up to 100 most recent records from Cassandra
-    </div>
-    
-    <div class="cassandra-results">
-        {% if results %}
-            <table class="cassandra-table">
-                <thead>
-                    <tr>
-                        {% for column in column_names %}
-                        <th>{{ column|title }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in results %}
-                    <tr>
-                        {% for value in row %}
-                        <td>{{ value|safe }}</td>
-                        {% endfor %}
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p><em>{{ results|length }} record(s) displayed</em></p>
-        {% else %}
-            <p>No records found in this table.</p>
+        {% if action_choices %}
+        <br><em>Tip: Select rows using checkboxes, choose an action from the dropdown, and click "Go"</em>
         {% endif %}
     </div>
+    
+    <form method="post" id="changelist-form">
+        {% csrf_token %}
+        
+        {% if action_choices %}
+        <div class="actions" style="margin: 20px 0;">
+            <label>Action:
+                <select name="action" required>
+                    <option value="">---------</option>
+                    {% for action_value, action_desc in action_choices %}
+                    <option value="{{ action_value }}">{{ action_desc }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button type="submit" class="button" style="margin-left: 10px;">Go</button>
+        </div>
+        {% endif %}
+        
+        <div class="cassandra-results">
+            {% if results %}
+                <table class="cassandra-table">
+                    <thead>
+                        <tr>
+                            {% if action_choices %}
+                            <th><input type="checkbox" id="action-toggle" title="Select all"></th>
+                            {% endif %}
+                            {% for column in column_names %}
+                            <th>{{ column|title }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for processed_row, raw_row in combined_rows %}
+                        <tr>
+                            {% if action_choices %}
+                            <td><input type="checkbox" name="_selected_action" value="{{ raw_row.stellar_account }}|{{ raw_row.network_name }}" class="action-select"></td>
+                            {% endif %}
+                            {% for value in processed_row %}
+                            <td>{{ value|safe }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p><em>{{ results|length }} record(s) displayed</em></p>
+            {% else %}
+                <p>No records found in this table.</p>
+            {% endif %}
+        </div>
+    </form>
 </div>
+
+<script>
+// Select/deselect all checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    var toggle = document.getElementById('action-toggle');
+    if (toggle) {
+        toggle.addEventListener('click', function() {
+            var checkboxes = document.querySelectorAll('.action-select');
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = toggle.checked;
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

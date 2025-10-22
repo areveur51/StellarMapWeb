@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.admin import helpers as admin_helpers
 from django.shortcuts import render
 from django.utils.html import format_html
 from django.conf import settings
@@ -23,10 +24,75 @@ USE_CASSANDRA_ADMIN = (ENV in ['production', 'replit'])
 
 
 class CassandraAdminMixin:
-    """Mixin to handle Cassandra-specific admin functionality - READ ONLY."""
+    """Mixin to handle Cassandra-specific admin functionality with action support."""
     
     def changelist_view(self, request, extra_context=None):
-        """Override changelist view to use raw CQL queries via CassandraConnectionsHelpers."""
+        """
+        Override changelist view to use raw CQL queries via CassandraConnectionsHelpers.
+        
+        Supports POST actions (e.g., refresh_enrichment_data) by detecting POST requests
+        and calling the action handler before rendering.
+        """
+        
+        # ============================================================
+        # STEP 1: Handle POST actions (e.g., refresh_enrichment_data)
+        # ============================================================
+        if request.method == 'POST' and 'action' in request.POST:
+            # Get the action name
+            action = request.POST.get('action')
+            
+            # Get selected items (checkbox IDs from admin form)
+            selected = request.POST.getlist(admin_helpers.ACTION_CHECKBOX_NAME)
+            
+            # Find the action method
+            if hasattr(self, action) and action in [a for a, _ in self.get_actions(request).items()]:
+                # Build a queryset from selected items by fetching actual Django model instances
+                queryset = []
+                
+                for item_id in selected:
+                    # item_id is in format "account|network" (composite key)
+                    try:
+                        parts = item_id.split('|')
+                        if len(parts) == 2:
+                            account, network = parts
+                            
+                            # Fetch the actual Django model instance using Cassandra ORM
+                            try:
+                                # Query the model directly using the ORM
+                                obj = self.model.objects.filter(
+                                    stellar_account=account,
+                                    network_name=network
+                                ).first()
+                                
+                                if obj:
+                                    queryset.append(obj)
+                            except Exception as e:
+                                # If ORM query fails, log but continue
+                                import traceback
+                                self.message_user(
+                                    request,
+                                    f"Error fetching account {account}: {str(e)}",
+                                    level=messages.ERROR
+                                )
+                    except Exception as e:
+                        pass
+                
+                # Call the action with the queryset
+                if queryset:
+                    action_method = getattr(self, action)
+                    response = action_method(request, queryset)
+                    
+                    # If the action returns a response (e.g., file download), return it
+                    if response:
+                        return response
+                    
+                    # Otherwise, redirect back to changelist
+                    from django.http import HttpResponseRedirect
+                    return HttpResponseRedirect(request.path)
+        
+        # ============================================================
+        # STEP 2: Render normal changelist view
+        # ============================================================
         try:
             conn_helpers = CassandraConnectionsHelpers()
             cql_query = f"SELECT * FROM {self.get_table_name()} LIMIT 100 ALLOW FILTERING;"
@@ -43,6 +109,7 @@ class CassandraAdminMixin:
             
             # Get column headers and processed row data
             column_names = []
+            combined_rows = []  # List of (processed_row, raw_row) tuples
             if self.list_display:
                 for display_field in self.list_display:
                     # Get the display method or field
@@ -69,17 +136,30 @@ class CassandraAdminMixin:
                             value = row_dict.get(display_field, '')
                         processed_row.append(value)
                     processed_rows.append(processed_row)
+                    combined_rows.append((processed_row, row_dict))
             
             conn_helpers.close_connection()
+            
+            # Build action choices for the dropdown
+            action_choices = []
+            if hasattr(self, 'actions'):
+                for action in self.actions:
+                    if hasattr(self, action):
+                        action_method = getattr(self, action)
+                        description = getattr(action_method, 'short_description', action.replace('_', ' ').title())
+                        action_choices.append((action, description))
             
             context = {
                 'title': f'Select {self.model._meta.verbose_name}',
                 'results': processed_rows,
+                'raw_results': results,  # For checkbox values
+                'combined_rows': combined_rows,  # List of (processed_row, raw_row) tuples
                 'column_names': column_names,
                 'opts': self.model._meta,
                 'has_add_permission': False,
                 'app_label': self.model._meta.app_label,
                 'cl': None,
+                'action_choices': action_choices,
             }
             
             if extra_context:
