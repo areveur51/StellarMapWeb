@@ -165,7 +165,13 @@ class StellarMapHorizonAPIParserHelpers:
     def parse_account_native_balance(self) -> float:
         """Extract native (XLM) balance safely."""
         try:
-            for balance in self.datastax_response.get('data', {}).get('raw_data', {}).get('balances', []):
+            # Check if response is nested DataStax format or direct Horizon format
+            balances = self.datastax_response.get('balances', [])
+            if not balances:
+                # Try nested format for backward compatibility
+                balances = self.datastax_response.get('data', {}).get('raw_data', {}).get('balances', [])
+            
+            for balance in balances:
                 if balance.get('asset_type') == 'native':
                     return float(balance.get('balance', 0.0))
             return 0.0
@@ -176,7 +182,12 @@ class StellarMapHorizonAPIParserHelpers:
     def parse_account_home_domain(self) -> str:
         """Extract home domain safely."""
         try:
-            return self.datastax_response.get('data', {}).get('raw_data', {}).get('home_domain', '')
+            # Check if response is direct Horizon format (top-level home_domain)
+            home_domain = self.datastax_response.get('home_domain', '')
+            if not home_domain:
+                # Try nested DataStax format for backward compatibility
+                home_domain = self.datastax_response.get('data', {}).get('raw_data', {}).get('home_domain', '')
+            return home_domain
         except (KeyError, AttributeError) as e:
             sentry_sdk.capture_exception(e)
             return ''
