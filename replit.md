@@ -6,116 +6,53 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Keep Replit usage anonymous - do not mention Replit in public documentation
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
-# Recent Changes (October 2025)
-## PlantUML Diagrams Updated (Latest - Oct 22, 2025)
-- **All Diagrams Regenerated**: Updated all 8 PlantUML diagrams to reflect latest code changes
-- **New Query Builder Diagram**: Added comprehensive diagram (08) showing Query Builder architecture with pre-defined queries and custom filter builder
-- **Updated Database Schema**: Reflects HVAStandingChange with xlm_threshold column and BigQueryPipelineConfig
-- **Updated HVA Ranking System**: Shows multi-threshold tracking logic and admin-configurable thresholds
-- **Updated Frontend & API**: Includes Query Builder endpoints, multi-threshold HVA API, and comma-formatted displays
-- **Updated Monitoring System**: Shows API rate limiting, dashboard metrics, and age-based filtering
-- **All PNG Files Fresh**: Regenerated all PNG files with consistent naming (01-08) for easy reference
-
-## Clickable Account Links (Oct 22, 2025)
-- **HVA Leaderboard Links**: All stellar account addresses on HVA leaderboard now clickable
-- **Direct Navigation**: Links open search page with account and network parameters in new tab
-- **Cyberpunk Styling**: Hover effects with cyan-to-green color transitions and glow effects
-- **User Experience**: Maintains leaderboard context while exploring individual accounts
-
-## Multi-Threshold HVA Leaderboard System
-- **Admin-Configurable Thresholds**: HVA threshold list is now fully configurable through the admin portal (default: 10K, 50K, 100K, 500K, 750K, 1M XLM)
-- **Dynamic Threshold Loading**: HVARankingHelper.get_supported_thresholds() reads from admin config with safe fallback to defaults
-- **Threshold Dropdown Selector**: Interactive dropdown on HVA page to switch between different threshold leaderboards
-- **Threshold-Specific Ranking**: HVAStandingChange model tracks rankings per threshold with xlm_threshold column
-- **Management Commands**: 
-  - `recalculate_hva_rankings_multi` backfills rankings for all thresholds
-  - `backfill_hva_flags` updates is_hva flags and HVA tags based on admin-configured threshold
-- **Custom Template Filter**: format_xlm_threshold filter for clean threshold display (10K, 100K, 1.0M)
-- **Network-Aware Filtering**: Rank change tracking filters by both threshold AND network to prevent cross-network leaks
-- **Performance Optimized**: Maintains is_hva filter to avoid Cassandra full-table scans, then applies threshold filtering in-memory
-- **Flexible Configuration**: Admins can customize threshold list (e.g., 50K,100K,500K for 3 leaderboards, or add custom values like 25K,5M)
-
-## Enhanced Dashboard & API Rate Limiting
-- **API Rate Limiter**: Implements slow continuous retrieval (0.5s Horizon, 1.0s Stellar Expert) using Django cache for cross-process metrics sharing
-- **Enhanced Dashboard**: New "API Health Monitoring" section displays real-time API call counts, burst limits, rate delays, and last call timestamps
-- **Dashboard Organization**: Reorganized into clear sections - Alerts & Recommendations, API Health, BigQuery Costs, Database Health, Performance Metrics
-- **Age-Based Filtering**: Prevents infinite queue loop by skipping creator accounts >2 years old (prevents BigQuery limit violations)
-- **Clear Old Pending Command**: `python manage.py clear_old_pending` safely removes stuck PENDING accounts with --dry-run support
-- **Configuration Fix**: Fixed 'QuerySet' object has no attribute 'limit' error using .first() method
-- **Default Scheduler Settings**: Every 3 minutes, 6 accounts per batch (slow continuous retrieval)
-- **Query Builder Fix**: Fixed "Stuck Accounts" pre-defined query to use StellarAccountSearchCache table (was incorrectly querying StellarCreatorAccountLineage)
-
-## Comprehensive Testing Infrastructure
-- **Pytest Configuration**: Added 6 test markers (unit, integration, e2e, performance, regression, slow) with parallel execution support in `pyproject.toml`.
-- **New Test Files**: Created 5+ comprehensive test suites covering BigQuery caching, API endpoint optimizations, Query Builder column parity, Query Builder stuck accounts accuracy, Vue component initialization, and database integration.
-- **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/test.yml`) with 5 parallel jobs for unit, integration, performance, coverage, and all-tests.
-- **Documentation**: Enhanced `TESTING.md` with pytest usage examples, best practices, and debugging tips.
-
 # System Architecture
 
 ## System Design and UI/UX
-- **Interactive Radial Tree Diagrams**: Utilizes D3.js for visualizing Stellar account lineage with circular and standard tidy tree layouts. Features include smart tooltips, scroll restoration, viewport-aware overflow prevention, and dynamic line length calculation based on child node count.
-- **Tidy Tree Visualization**: Dynamic horizontal spacing where line lengths adapt to child count (fewer children = shorter lines, more children = longer lines). Optimized typography with normal font weight (400) and increased letter spacing for readability. Text overflow prevented with increased right margin (250px) and constrained tree width (70%). Vertical spacing controlled by nodeSize() layout allowing natural tree expansion.
-- **Visualization Mode Persistence**: Toggle state persists across page refreshes on both /search and /tree endpoints using localStorage with automatic re-rendering.
-- **Advanced Spacing Controls (Tidy Tree Only)**: Three independent sliders for precise layout control: Vertical Spacing (0.5x-3.0x) for up/down node distribution, Min Child Distance (0.3x-1.5x) for nodes with few children, Max Child Distance (1.0x-3.0x) for nodes with many children. Controls automatically hidden in Radial mode, visible only in Tidy Tree mode. All preferences persist via localStorage.
-- **Zoom & Pan Controls**: D3 zoom behavior with mouse wheel zoom, click-drag pan, and three control buttons (Zoom In 1.3x, Zoom Out 0.77x, Fit to Window). Scale extent 0.1x-10x with smooth transitions (300ms zoom, 750ms fit). Works seamlessly in both visualization modes.
-- **DRY Visualization Controls**: Shared visualization controls (toggle switch, spacing sliders, zoom buttons) implemented with DRY architecture: `visualization_controls.css` for styling, `visualization_toggle_include.html` for HTML/JS, loaded by both /search and /tree pages for consistency.
+- **Interactive Radial Tree Diagrams**: Utilizes D3.js for visualizing Stellar account lineage with circular and standard tidy tree layouts, featuring smart tooltips, scroll restoration, and dynamic line length calculation.
+- **Tidy Tree Visualization**: Dynamic horizontal spacing where line lengths adapt to child count, optimized typography, and constrained tree width. Vertical spacing is controlled by `nodeSize()` layout.
+- **Visualization Mode Persistence**: Toggle state persists across page refreshes using localStorage with automatic re-rendering.
+- **Advanced Spacing Controls (Tidy Tree Only)**: Three independent sliders for precise layout control (Vertical Spacing, Min Child Distance, Max Child Distance), with preferences persisting via localStorage.
+- **Zoom & Pan Controls**: D3 zoom behavior with mouse wheel zoom, click-drag pan, and control buttons (Zoom In, Zoom Out, Fit to Window).
+- **DRY Visualization Controls**: Shared visualization controls implemented with DRY architecture (`visualization_controls.css`, `visualization_toggle_include.html`) for consistency across pages.
 - **Responsive Design**: Bootstrap-based frontend for adaptive layouts.
 - **Real-time Feedback**: Vue.js displays pending accounts and pipeline progress.
 - **Consistent Theming**: Cyberpunk theme, with additional Borg Green and Predator Red themes, applied across the application with dynamic switching and persistence.
 - **Ultra-Compact Dashboard Design**: Optimized dashboard with minimal spacing and smaller font sizes for maximum information density.
-- **Modern UX Enhancements**: Gradient backgrounds, shimmer effects, pulsing indicators, smooth transitions, and glow effects maintain the cyberpunk aesthetic.
+- **Modern UX Enhancements**: Gradient backgrounds, shimmer effects, pulsing indicators, smooth transitions, and glow effects.
 - **DRY Template Architecture**: Shared components like `search_container_include.html` ensure no code duplication.
 - **Icon-Free Navigation**: Clean, cyberpunk-styled navigation buttons.
-- **High Value Account (HVA) Leaderboard**: Identifies and ranks accounts based on configurable XLM threshold (default: >=100K XLM, adjustable via admin portal), displayed on a dedicated page with efficient filtering.
-- **HVA Ranking System**: Event-based change tracking that records only meaningful ranking changes (ENTERED, EXITED, RANK_UP, RANK_DOWN) achieving 480x storage efficiency vs snapshots. UI displays 24h rank changes with visual indicators (arrows, badges, percentages). See [HVA_RANKING_SYSTEM.md](HVA_RANKING_SYSTEM.md) for details.
-- **Query Builder**: Comprehensive Cassandra database explorer at /web/query-builder/ with 10 pre-defined queries (stuck accounts, orphan accounts, failed stages, etc.) and custom multi-filter builder supporting AND logic. Features network-aware filtering (public/testnet) across all queries. Performance safeguards use adaptive max_scan limits (10x for dense data, 100x for sparse HVA data) to prevent unbounded table scans while ensuring complete results. Includes sortable results table with clickable account links and result limits (50-500 records).
-- **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements using a consistent color palette.
-- **Dashboard Layout**: Alerts & Recommendations are prioritized at the top for immediate visibility.
-- **Architecture Diagrams**: 8 PlantUML diagrams are used for documentation:
-  1. System Overview - Complete system architecture
-  2. Data Pipeline - BigQuery & API approaches
-  3. Database Schema - Astra DB Cassandra tables
-  4. Frontend & API Layer - API endpoints and UI components
-  5. Monitoring System - Health monitoring and rate limiting
-  6. Hybrid Architecture - Production deployment architecture
-  7. HVA Ranking System - Multi-threshold ranking with event-based tracking
-  8. Query Builder Architecture - NEW: Database explorer with 10 pre-defined queries
+- **High Value Account (HVA) Leaderboard**: Identifies and ranks accounts based on admin-configurable XLM thresholds, displayed on a dedicated page with efficient filtering and event-based change tracking for storage efficiency.
+- **Query Builder**: Comprehensive Cassandra database explorer at `/web/query-builder/` with 10 pre-defined queries and a custom multi-filter builder supporting AND logic. Features network-aware filtering, adaptive `max_scan` limits, sortable results, and clickable account links.
+- **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements.
+- **Dashboard Layout**: Alerts & Recommendations are prioritized at the top.
+- **Architecture Diagrams**: 8 PlantUML diagrams document the system, including System Overview, Data Pipeline, Database Schema, Frontend & API Layer, Monitoring System, Hybrid Architecture, HVA Ranking System, and Query Builder Architecture.
 
 ## Technical Implementation
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development, with a custom `DatabaseAppsRouter`. Cassandra models use composite primary keys.
 - **Environment-Aware Model Loading**: `apiApp/model_loader.py` dynamically imports Cassandra or SQLite models based on the environment.
-- **Django Admin Integration**: Full integration of Cassandra models with workarounds for query constraints. Admin portal features clickable hyperlinks for stellar_account and stellar_creator_account fields that open search pages in new windows.
-- **Query Optimizations**: HVA leaderboard uses network-aware filtering to reduce scan size and smart threshold-based query strategies (is_hva filter for high thresholds, network-filtered scan for low thresholds). Rank change lookups use efficient partition-key queries on stellar_account.
-- **Docker Deployment**: Cross-platform Docker Compose setup for development and production, including automatic migrations.
-- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset for lineage, with an age restriction for instant queries (<1 year old accounts). Cost optimization strategies include permanent Cassandra storage after first query, consolidated CTE-based queries, `BigQueryCostGuard` for cost and size limits, and singleton pattern for client caching to avoid expensive re-initialization. An Admin Configuration Panel allows dynamic adjustment of pipeline settings including configurable HVA threshold (default: 100K XLM). Includes an API fallback mechanism if BigQuery limits are exceeded. Pipeline automatically detects and records HVA ranking changes.
-- **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility. `recalculate_hva_rankings` management command for initial backfill.
-- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for educational purposes, providing comprehensive workflow tracking.
+- **Django Admin Integration**: Full integration of Cassandra models with clickable hyperlinks for account fields.
+- **Query Optimizations**: HVA leaderboard uses network-aware filtering and smart threshold-based query strategies.
+- **Docker Deployment**: Cross-platform Docker Compose setup for development and production.
+- **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset, with age restrictions, cost optimization strategies (`BigQueryCostGuard`), and an API fallback. Includes dynamic adjustment of pipeline settings via an Admin Configuration Panel.
+- **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility.
+- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for comprehensive workflow tracking.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Two-Tier Creator Extraction**: BigQuery for `create_account` operations; API pipeline with Stellar Expert fallback.
 - **Comprehensive Child Account Discovery**: BigQuery pipeline discovers up to 100,000 child accounts with pagination and deduplication.
-- **Caching**: 12-hour caching for Stellar address searches. Optimized API endpoint caching with 30s TTL for pending accounts.
-- **Frontend Interactivity**: Django templates enhanced with Vue.js components for real-time updates and JSON viewing.
-- **Performance Optimizations**: 30s polling intervals (reduced from 15s) with Page Visibility API to pause when tab is inactive. Account lineage API eliminates Cassandra full-table scans by building hierarchy from in-memory lineage sets. Proper cleanup of event listeners to prevent memory leaks.
-
-## Security and Monitoring
-- **Comprehensive Testing**: 180+ tests across 45+ test files using pytest with markers. Includes performance, regression, integration, and unit tests. Tests cover security, functionality, visualization controls, monitoring, BigQuery caching, API optimizations, Query Builder schema parity, Vue component initialization, and database integration.
+- **Caching**: 12-hour caching for Stellar address searches, optimized API endpoint caching with 30s TTL for pending accounts.
+- **Frontend Interactivity**: Django templates enhanced with Vue.js components for real-time updates.
+- **Performance Optimizations**: 30s polling intervals with Page Visibility API and efficient lineage API to avoid full-table scans.
+- **Comprehensive Testing**: 180+ tests across 45+ test files using pytest with various markers, covering security, functionality, and performance.
 - **Input Validation**: Multi-layer validation for Stellar addresses.
 - **Injection Prevention**: Robust measures against various injection types.
 - **API Security**: CSRF protection, Content-Type validation, query parameter security, and HTTP security headers.
 - **Configuration Security**: Secrets managed via environment variables, secure Django defaults, and HTTPS enforcement.
 - **Production Settings**: Dedicated `production.py` for best practices.
 - **Error Tracking**: Sentry integration for error monitoring.
-- **Security Auditing**: Regular `pip-audit` checks and documented vulnerabilities.
-
-## Open Source & CI/CD
-- **License**: MIT License.
-- **Documentation**: `CONTRIBUTING.md`, `SECURITY.md`, `TESTING.md`, and `USER_GUIDE.md`.
-- **User Guide**: Comprehensive user guide with screenshots and examples for all features.
-- **GitHub Actions**: Automated CI workflow for testing, linting, and security audits.
-- **Environment Configuration**: `.env.example` for easy setup.
-- **Startup Script**: `startup.sh` provides guidance for workflow restarts after ENV secret changes.
+- **Security Auditing**: Regular `pip-audit` checks.
+- **Open Source & CI/CD**: MIT License, comprehensive documentation, GitHub Actions for automated CI, and environment configuration guidance.
 
 # External Dependencies
 
