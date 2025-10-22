@@ -162,6 +162,44 @@ python manage.py test
 
 ---
 
+## Screenshots
+
+### Home Page
+![Home Page](docs/screenshots/home-page.png)
+*Clean, cyberpunk-themed landing page with quick navigation to key features*
+
+### Dashboard
+![System Dashboard](docs/screenshots/dashboard.png)
+*Comprehensive system monitoring with alerts, database health, lineage integrity, and performance metrics*
+
+### Account Search & Radial Visualization
+![Account Search with Radial Tree](docs/screenshots/search.png)
+*Interactive D3.js radial tree visualization showing account lineage with spacing controls and zoom/pan*
+
+### High Value Accounts Leaderboard
+![HVA Leaderboard](docs/screenshots/hva-leaderboard.png)
+*Track accounts with >1M XLM balance, ranked by holdings with 24h change indicators*
+
+### Query Builder
+![Query Builder](docs/screenshots/query-builder.png)
+*Powerful Cassandra database explorer with 10 pre-defined queries and custom filter builder*
+
+### Bulk Account Search
+![Bulk Search Input](docs/screenshots/bulk-search.png)
+*Queue multiple Stellar accounts for batch processing*
+
+![Bulk Search Results](docs/screenshots/bulk-search-queued.png)
+*Processing results showing queued, duplicates, and invalid accounts*
+
+### Admin Configuration
+![BigQuery Configuration](docs/screenshots/admin-bigquery-config.png)
+*Advanced pipeline configuration with cost limits, mode selection, and timeout controls*
+
+![Scheduler Configuration](docs/screenshots/admin-scheduler-config.png)
+*Cron scheduler management with batch limits and monitoring statistics*
+
+---
+
 ## Production Deployment Options
 
 ### Option 1: Hybrid Architecture (Recommended for Production)

@@ -10,6 +10,14 @@
 7. [Network Selection](#network-selection)
 8. [Themes](#themes)
 9. [Tips & Best Practices](#tips--best-practices)
+10. [Advanced Features](#advanced-features)
+11. [Admin Portal Configuration](#admin-portal-configuration)
+12. [API Endpoints](#api-endpoints)
+13. [Keyboard Shortcuts](#keyboard-shortcuts)
+14. [FAQ](#faq)
+15. [Support & Resources](#support--resources)
+16. [Glossary](#glossary)
+17. [Version Information](#version-information)
 
 ---
 
@@ -74,9 +82,9 @@ Data is fetched from multiple sources:
 
 ## Page-by-Page Guide
 
-> 💡 **Note**: For live screenshots and interactive demos, visit the application at your deployed URL. The following sections describe what you'll see on each page.
-
 ### 🏠 Home Page (`/`)
+
+![Home Page](docs/screenshots/home-page.png)
 
 **What You See:**
 - Application overview and description
@@ -96,6 +104,8 @@ Data is fetched from multiple sources:
 ---
 
 ### 📊 Dashboard (`/dashboard`)
+
+![System Dashboard](docs/screenshots/dashboard.png)
 
 **What You See:**
 - **Alerts & Recommendations** section (top priority)
@@ -133,6 +143,8 @@ Data is fetched from multiple sources:
 ---
 
 ### 🔍 Account Search & Lineage (`/search`)
+
+![Account Search with Radial Visualization](docs/screenshots/search.png)
 
 **What You See:**
 - Search input field for Stellar account address
@@ -219,6 +231,8 @@ If the account is being processed, you'll see:
 
 ### 🏆 High Value Accounts Leaderboard (`/web/high-value-accounts/`)
 
+![HVA Leaderboard](docs/screenshots/hva-leaderboard.png)
+
 **What You See:**
 - Total HVA count and combined XLM balance
 - Sortable table with ranked accounts
@@ -256,6 +270,8 @@ If the account is being processed, you'll see:
 ---
 
 ### 🔍 Query Builder (`/web/query-builder/`)
+
+![Query Builder Interface](docs/screenshots/query-builder.png)
 
 **What You See:**
 - Pre-defined query dropdown
@@ -364,6 +380,8 @@ Network: public
 
 ### 📦 Bulk Account Search (`/web/bulk-search/`)
 
+![Bulk Search Input](docs/screenshots/bulk-search.png)
+
 **What You See:**
 - Large text area for multiple account addresses
 - "How to Use" instructions
@@ -390,6 +408,8 @@ Paste your list of accounts into the large text box
 
 #### Step 3: Submit for Processing
 Click the submit button to queue all accounts
+
+![Bulk Search Processing Results](docs/screenshots/bulk-search-queued.png)
 
 #### Step 4: Monitor Progress
 The system will:
@@ -838,6 +858,60 @@ All data stored in Astra DB (Cassandra):
 - **HVA** - High value account tracking
 - **Stages** - Pipeline execution tracking
 - **HVA Changes** - Ranking change events
+
+---
+
+## Admin Portal Configuration
+
+The Django admin portal provides advanced configuration for BigQuery pipeline settings and scheduler control. Access it at `/admin/` (requires authentication).
+
+### BigQuery Pipeline Configuration
+
+![BigQuery Configuration Panel](docs/screenshots/admin-bigquery-config.png)
+
+**Configuration Options:**
+- **Cost Limit** ($0.17 per query) - Control BigQuery spending
+- **Size Limit** (2 GB) - Limit data scanned per query
+- **Pipeline Mode** - BIGQUERY_WITH_API_FALLBACK, API_ONLY, or BIGQUERY_ONLY
+- **Age Limits** - Restrict queries by account age
+- **API Server Selection** - Choose Horizon API server (mainnet/testnet)
+- **Stage Timeouts** - Control pipeline stage execution limits
+- **Cache Settings** - Configure result caching behavior
+- **Child Discovery Settings** - Control child account pagination
+
+**Use Cases:**
+- Adjust cost limits based on usage patterns
+- Switch pipeline modes for testing or cost optimization
+- Fine-tune timeout values for performance
+- Enable/disable specific pipeline features
+
+### Scheduler Configuration
+
+![Scheduler Configuration Panel](docs/screenshots/admin-scheduler-config.png)
+
+**Scheduler Settings:**
+- **Enable/Disable Scheduler** - Turn automated processing on/off
+- **Cron Schedule** - Set execution frequency (*/15 * * * * = every 15 minutes)
+- **Batch Limit** - Number of PENDING accounts to process per run (17 default)
+- **Run on Startup** - Execute pipeline immediately when deployed
+
+**Common Schedules:**
+- `*/15 * * * *` - Every 15 minutes (recommended)
+- `*/30 * * * *` - Every 30 minutes
+- `*/5 * * * *` - Every 5 minutes (for testing)
+- `0 * * * *` - Once per hour at midnight
+
+**Monitoring:**
+- **Last run at** - Timestamp of last successful execution
+- **Last run status** - SUCCESS, FAILED, or other status
+- **Last run processed** - Number of accounts processed
+- **Last run failed** - Number of failures
+
+**Best Practices:**
+- Start with scheduler disabled for manual testing
+- Use 15-30 minute intervals for production
+- Monitor "Last run processed" to ensure progress
+- Adjust batch limit based on processing time
 
 ---
 
