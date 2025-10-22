@@ -434,6 +434,32 @@ def search_view(request):
                 ).all()
                 
                 for record in lineage_records:
+                    # Extract assets from horizon_accounts_json
+                    assets = []
+                    if record.horizon_accounts_json:
+                        try:
+                            import json
+                            horizon_data = json.loads(record.horizon_accounts_json)
+                            balances = horizon_data.get('balances', [])
+                            
+                            for balance in balances:
+                                asset_type = balance.get('asset_type', '')
+                                if asset_type != 'native':
+                                    asset_code = balance.get('asset_code', '')
+                                    asset_issuer = balance.get('asset_issuer', '')
+                                    asset_balance = balance.get('balance', '0')
+                                    
+                                    assets.append({
+                                        'name': asset_code,
+                                        'node_type': 'ASSET',
+                                        'asset_type': asset_type,
+                                        'asset_code': asset_code,
+                                        'asset_issuer': asset_issuer,
+                                        'balance': float(asset_balance) if asset_balance else 0.0
+                                    })
+                        except (json.JSONDecodeError, KeyError, ValueError):
+                            pass
+                    
                     record_data = {
                         'stellar_account': record.stellar_account,
                         'stellar_creator_account': record.stellar_creator_account,
@@ -441,6 +467,7 @@ def search_view(request):
                         'stellar_account_created_at': record.stellar_account_created_at.isoformat() if record.stellar_account_created_at else None,
                         'home_domain': record.home_domain,
                         'xlm_balance': record.xlm_balance,
+                        'assets': assets,
                         'status': record.status,
                         'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
                         'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
