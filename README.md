@@ -2,7 +2,12 @@
 
 StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from Stellar's BigQuery/Hubble dataset (primary) and Horizon API/Stellar Expert (educational reference), stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a high-performance BigQuery pipeline capable of processing an address in 50-90 seconds (2-3x faster than API approach), discovering up to 100,000 child accounts per parent, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
 
-📖 **[Read the Complete User Guide](USER_GUIDE.md)** - Comprehensive guide with examples and screenshots for all features!
+## 📚 Documentation
+
+- 📖 **[User Guide](USER_GUIDE.md)** - Complete guide with examples and screenshots for all features
+- 🏗️ **[Technical Architecture](TECHNICAL_ARCHITECTURE.md)** - Developer documentation with 8 PlantUML diagrams, database schemas, API specs, and performance optimizations
+- 🏆 **[HVA Ranking System](HVA_RANKING_SYSTEM.md)** - Detailed explanation of multi-threshold ranking system
+- 🧪 **[Testing Guide](TESTING.md)** - pytest usage, best practices, and CI/CD pipeline
 
 ## Quick Start
 
@@ -281,31 +286,22 @@ Includes web server and BigQuery cron job in one stack.
 
 ## System Architecture
 
-### Architecture Diagrams
+**📖 For detailed technical architecture, see [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)**
 
-#### 1. System Overview
-![System Overview](./diagrams/01_system_overview.png)
+This comprehensive developer documentation includes:
+- 8 detailed PlantUML architecture diagrams
+- Database schema explanations
+- API endpoint specifications
+- Performance optimizations
+- Security implementations
+- Deployment strategies
 
-#### 2. Data Pipeline (BigQuery & API Approaches)
-![Data Pipeline](./diagrams/02_data_pipeline.png)
-
-#### 3. Database Schema
-![Database Schema](./diagrams/03_database_schema.png)
-
-#### 4. Frontend & API Layer
-![Frontend & API](./diagrams/04_frontend_api.png)
-
-#### 5. Monitoring System
-![Monitoring System](./diagrams/05_monitoring_system.png)
-
-#### 6. Hybrid Production Architecture
-![Hybrid Architecture](./diagrams/06_hybrid_architecture.png)
-
-#### 7. High Value Account (HVA) Ranking System
-![HVA Ranking System](./diagrams/07_hva_ranking_system.png)
-
-#### 8. Query Builder Architecture
-![Query Builder Architecture](./diagrams/08_query_builder_architecture.png)
+**Quick Architecture Overview:**
+- **Frontend:** Vue.js + D3.js for interactive visualizations
+- **Backend:** Django 5.0.2 with multi-app structure
+- **Database:** Astra DB (Cassandra) for production, SQLite for development
+- **Data Sources:** Google BigQuery, Horizon API, Stellar Expert
+- **Deployment:** Docker Compose with Nginx load balancing
 
 ---
 
