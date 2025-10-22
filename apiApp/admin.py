@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.shortcuts import render
 from django.utils.html import format_html
 from django.conf import settings
+from django.contrib import messages
 from .models import (
     StellarAccountSearchCache,
     StellarCreatorAccountLineage,
@@ -11,6 +12,7 @@ from .models import (
     SchedulerConfig,
 )
 from .helpers.sm_conn import CassandraConnectionsHelpers
+from .helpers.sm_enrichment import StellarMapEnrichmentHelper
 
 # Import SchedulerConfig admin registration
 from .admin_scheduler import SchedulerConfigAdmin
@@ -131,7 +133,8 @@ if USE_CASSANDRA_ADMIN:
 
     @admin.register(StellarCreatorAccountLineage)
     class StellarCreatorAccountLineageAdmin(CassandraAdminMixin, admin.ModelAdmin):
-        list_display = ('stellar_account_link', 'network_name', 'creator_account_link', 'xlm_balance', 'is_hva', 'tags', 'status')
+        list_display = ('stellar_account_link', 'network_name', 'creator_account_link', 'xlm_balance', 'is_hva', 'tags', 'status', 'refresh_action')
+        actions = ['refresh_enrichment_data']
 
         def stellar_account_link(self, obj):
             """Display stellar_account as clickable link to search page."""
@@ -150,6 +153,59 @@ if USE_CASSANDRA_ADMIN:
             url = f"/search/?account={creator}&network={network}"
             return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, creator, creator[:8] + '...' + creator[-8:] if len(creator) > 20 else creator)
         creator_account_link.short_description = 'Creator Account'
+
+        def refresh_action(self, obj):
+            """Display refresh link for manual enrichment refresh."""
+            account = obj.get('stellar_account', '') if isinstance(obj, dict) else getattr(obj, 'stellar_account', '')
+            network = obj.get('network_name', 'public') if isinstance(obj, dict) else getattr(obj, 'network_name', 'public')
+            account_id = obj.get('id', '') if isinstance(obj, dict) else getattr(obj, 'id', '')
+            return format_html('<a href="#" onclick="alert(\'Cassandra admin is read-only. Use the action dropdown to refresh selected accounts.\'); return false;">Refresh</a>')
+        refresh_action.short_description = 'Actions'
+
+        def refresh_enrichment_data(self, request, queryset):
+            """
+            Admin action to refresh enrichment data for selected accounts.
+            
+            Note: For Cassandra, we need to re-query the accounts since queryset is dict-based.
+            """
+            success_count = 0
+            error_count = 0
+            
+            for row in queryset:
+                try:
+                    account = row.get('stellar_account', '') if isinstance(row, dict) else row.stellar_account
+                    network = row.get('network_name', 'public') if isinstance(row, dict) else row.network_name
+                    
+                    # Fetch the actual object from Cassandra
+                    account_obj = StellarCreatorAccountLineage.objects.filter(
+                        stellar_account=account,
+                        network_name=network
+                    ).first()
+                    
+                    if account_obj:
+                        result = StellarMapEnrichmentHelper.refresh_account_enrichment(
+                            account_obj, network_name=network
+                        )
+                        
+                        if result['success']:
+                            success_count += 1
+                        else:
+                            error_count += 1
+                            self.message_user(request, f"Error refreshing {account}: {result.get('error', 'Unknown error')}", level=messages.ERROR)
+                    else:
+                        error_count += 1
+                        self.message_user(request, f"Could not find account {account} in database", level=messages.ERROR)
+                        
+                except Exception as e:
+                    error_count += 1
+                    self.message_user(request, f"Error refreshing account: {str(e)}", level=messages.ERROR)
+            
+            if success_count > 0:
+                self.message_user(request, f"Successfully refreshed enrichment data for {success_count} account(s)", level=messages.SUCCESS)
+            if error_count > 0:
+                self.message_user(request, f"Failed to refresh {error_count} account(s)", level=messages.WARNING)
+        
+        refresh_enrichment_data.short_description = "Refresh Enrichment Data (balance, home_domain, flags, assets)"
 
         def get_table_name(self):
             return 'stellar_creator_account_lineage'
@@ -199,6 +255,7 @@ else:
         list_filter = ('network_name', 'status', 'is_hva')
         search_fields = ('stellar_account', 'stellar_creator_account')
         readonly_fields = ('created_at', 'updated_at')
+        actions = ['refresh_enrichment_data']
 
         def stellar_account_link(self, obj):
             """Display stellar_account as clickable link to search page."""
@@ -217,6 +274,55 @@ else:
             url = f"/search/?account={creator}&network={network}"
             return format_html('<a href="{}" target="_blank" title="{}">{}</a>', url, creator, creator[:8] + '...' + creator[-8:] if len(creator) > 20 else creator)
         creator_account_link.short_description = 'Creator Account'
+
+        def refresh_enrichment_data(self, request, queryset):
+            """
+            Admin action to refresh enrichment data for selected accounts.
+            
+            Fetches fresh data from Horizon API (balance, home_domain, flags) and
+            Stellar Expert API (assets, trustlines).
+            """
+            success_count = 0
+            error_count = 0
+            
+            for account_obj in queryset:
+                try:
+                    result = StellarMapEnrichmentHelper.refresh_account_enrichment(
+                        account_obj, network_name=account_obj.network_name
+                    )
+                    
+                    if result['success']:
+                        success_count += 1
+                    else:
+                        error_count += 1
+                        self.message_user(
+                            request,
+                            f"Error refreshing {account_obj.stellar_account}: {result.get('error', 'Unknown error')}",
+                            level=messages.ERROR
+                        )
+                        
+                except Exception as e:
+                    error_count += 1
+                    self.message_user(
+                        request,
+                        f"Error refreshing {account_obj.stellar_account}: {str(e)}",
+                        level=messages.ERROR
+                    )
+            
+            if success_count > 0:
+                self.message_user(
+                    request,
+                    f"Successfully refreshed enrichment data for {success_count} account(s)",
+                    level=messages.SUCCESS
+                )
+            if error_count > 0:
+                self.message_user(
+                    request,
+                    f"Failed to refresh {error_count} account(s)",
+                    level=messages.WARNING
+                )
+        
+        refresh_enrichment_data.short_description = "Refresh Enrichment Data (balance, home_domain, flags, assets)"
 
     @admin.register(ManagementCronHealth)
     class ManagementCronHealthAdmin(admin.ModelAdmin):
