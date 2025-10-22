@@ -400,13 +400,13 @@
             <div>
                 <div class="stat-card">
                     <div class="stat-label">Pipeline Mode</div>
-                    <div class="stat-value" style="font-size: 1.2rem;">
+                    <div class="stat-value" style="font-size: 1.0rem; white-space: normal; word-wrap: break-word; line-height: 1.3;">
                         {% if bigquery_stats.bigquery_enabled %}
                             <span class="health-indicator health-good"></span>
                         {% else %}
                             <span class="health-indicator health-danger"></span>
                         {% endif %}
-                        {{ bigquery_stats.pipeline_mode|truncatechars:15 }}
+                        {{ bigquery_stats.pipeline_mode }}
                     </div>
                 </div>
             </div>
