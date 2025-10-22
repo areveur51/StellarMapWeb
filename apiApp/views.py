@@ -1508,13 +1508,24 @@ def cassandra_query_api(request):
             results = [format_record(r, visible_columns) for r in completed]
         
         elif query_name == 'high_value_accounts':
-            description = 'High Value Accounts (>1M XLM)'
+            # Get configurable HVA threshold
+            from apiApp.models import BigQueryPipelineConfig
+            config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
+            hva_threshold = config.hva_threshold_xlm if config else 100000.0
+            
+            # Format threshold for display (e.g., 100000 -> "100K", 1000000 -> "1M")
+            if hva_threshold >= 1000000:
+                threshold_display = f"{hva_threshold / 1000000:.1f}M".rstrip('0').rstrip('.')
+            else:
+                threshold_display = f"{hva_threshold / 1000:.0f}K"
+            
+            description = f'High Value Accounts (>={threshold_display} XLM)'
             visible_columns = ['xlm_balance', 'creator_account', 'updated_at']
             
             if USE_CASSANDRA:
                 # Cassandra limitation: is_hva/xlm_balance not in PK
                 # Strategy: Use is_hva flag with higher max_scan for sparse data
-                # HVAs are rare (1-10 per 10k accounts), so need deeper scan
+                # HVAs are rare, so need deeper scan
                 # WARNING: This approach may miss HVAs if dataset grows beyond max_scan
                 # TODO: Implement materialized view or secondary index on is_hva for guaranteed coverage
                 hva_list = []
@@ -1527,7 +1538,7 @@ def cassandra_query_api(request):
                     if count > max_scan:
                         hit_scan_limit = True
                         break
-                    # Use is_hva flag (set automatically when xlm_balance > 1M)
+                    # Use is_hva flag (set automatically based on configurable threshold)
                     if record.is_hva:
                         hva_list.append(record)
                         if len(hva_list) >= limit:
@@ -1546,7 +1557,7 @@ def cassandra_query_api(request):
                 # Sort by balance descending
                 hva_list.sort(key=lambda r: r.xlm_balance or 0, reverse=True)
             else:
-                hva_list = StellarCreatorAccountLineage.objects.filter(network_name=network, xlm_balance__gt=1000000).order_by('-xlm_balance')[:limit]
+                hva_list = StellarCreatorAccountLineage.objects.filter(network_name=network, xlm_balance__gte=hva_threshold).order_by('-xlm_balance')[:limit]
             
             results = [format_record(r, visible_columns) for r in hva_list]
         

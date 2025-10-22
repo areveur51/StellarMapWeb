@@ -19,14 +19,23 @@ logger = logging.getLogger(__name__)
 class HVARankingHelper:
     """Helper class for HVA leaderboard ranking calculations and change tracking."""
     
-    # Minimum balance to be considered HVA
-    HVA_THRESHOLD = 1_000_000.0  # 1M XLM
-    
     # Significant balance change threshold (percentage)
     SIGNIFICANT_BALANCE_CHANGE_PCT = 5.0  # 5%
     
     # Minimum rank change to trigger event
     MIN_RANK_CHANGE = 1  # Any rank change is significant
+    
+    @classmethod
+    def get_hva_threshold(cls):
+        """Get current HVA threshold from config (default: 100K XLM)."""
+        try:
+            from apiApp.models import BigQueryPipelineConfig
+            config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
+            if config:
+                return config.hva_threshold_xlm
+            return 100000.0  # Default if no config exists
+        except Exception:
+            return 100000.0  # Default fallback
     
     @classmethod
     def get_current_rankings(cls, network_name='public', limit=1000):
@@ -144,7 +153,7 @@ class HVARankingHelper:
             
             # Case 1: Account entered top 1000
             if current_rank and not previous_rank:
-                if new_balance >= cls.HVA_THRESHOLD:
+                if new_balance >= cls.get_hva_threshold():
                     event_type = 'ENTERED'
             
             # Case 2: Account exited top 1000

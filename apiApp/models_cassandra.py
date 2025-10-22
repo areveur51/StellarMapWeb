@@ -135,7 +135,7 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     # Tags for categorizing accounts (e.g., HVA for High Value Account)
     tags = cassandra_columns.Text(max_length=255)
 
-    # High Value Account flag for efficient querying (>1M XLM balance)
+    # High Value Account flag for efficient querying (configurable threshold, default >=100K XLM)
     is_hva = cassandra_columns.Boolean(default=False)
 
     status = cassandra_columns.Text(max_length=127)
@@ -150,8 +150,16 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
             self.created_at = datetime.datetime.utcnow()
         self.updated_at = datetime.datetime.utcnow()
 
-        # Auto-tag High Value Accounts (HVA) with >1M XLM balance
-        if self.xlm_balance and self.xlm_balance > 1_000_000:
+        # Get configurable HVA threshold (default: 100K XLM)
+        try:
+            from apiApp.models import BigQueryPipelineConfig
+            config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
+            hva_threshold = config.hva_threshold_xlm if config else 100000.0
+        except Exception:
+            hva_threshold = 100000.0  # Fallback default
+
+        # Auto-tag High Value Accounts (HVA) based on configurable threshold
+        if self.xlm_balance and self.xlm_balance >= hva_threshold:
             # Set HVA flag for efficient querying
             self.is_hva = True
 
@@ -164,7 +172,7 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
             else:
                 self.tags = 'HVA'
         else:
-            # Clear HVA flag and remove HVA tag if balance drops below 1M
+            # Clear HVA flag and remove HVA tag if balance drops below threshold
             self.is_hva = False
 
             if self.tags:

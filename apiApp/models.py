@@ -65,6 +65,12 @@ class BigQueryPipelineConfig(django_models.Model):
     # Data Freshness
     cache_ttl_hours = django_models.IntegerField(default=12)  # How long before data is considered stale
 
+    # High Value Account (HVA) Settings
+    hva_threshold_xlm = django_models.FloatField(
+        default=100000.0,
+        help_text="Minimum XLM balance to be considered a High Value Account (default: 100,000 XLM)"
+    )
+
     # Metadata
     created_at = django_models.DateTimeField(auto_now_add=True)
     updated_at = django_models.DateTimeField(auto_now=True)
