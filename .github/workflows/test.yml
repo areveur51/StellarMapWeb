@@ -1,0 +1,167 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-django pytest-mock pytest-cov
+        pip install -r requirements.txt || echo "No requirements.txt found"
+        # Install from pyproject.toml if available
+        pip install Django python-decouple aiohttp requests tenacity sentry-sdk
+    
+    - name: Run unit tests
+      run: |
+        pytest -m unit --tb=short --maxfail=5 -v
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        CASSANDRA_KEYSPACE: test_keyspace
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test
+  
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-django pytest-mock pytest-cov
+        pip install Django python-decouple aiohttp requests tenacity sentry-sdk
+    
+    - name: Set up test database
+      run: |
+        python manage.py migrate --noinput || echo "Migration skipped for CI"
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        DATABASE_URL: sqlite:///test_db.sqlite3
+        ENVIRONMENT: test
+    
+    - name: Run integration tests
+      run: |
+        pytest -m integration --tb=short -v
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        CASSANDRA_KEYSPACE: test_keyspace
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test
+  
+  performance-tests:
+    name: Performance & Regression Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-django pytest-mock pytest-cov
+        pip install Django python-decouple aiohttp requests tenacity sentry-sdk google-cloud-bigquery
+    
+    - name: Run performance tests
+      run: |
+        pytest -m "performance or regression" --tb=short -v
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test
+        GOOGLE_APPLICATION_CREDENTIALS_JSON: '{"type":"service_account","project_id":"test"}'
+  
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-django pytest-mock pytest-cov
+        pip install Django python-decouple aiohttp requests tenacity sentry-sdk
+    
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=apiApp --cov=webApp --cov-report=xml --cov-report=term-missing -v
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.xml
+        fail_ci_if_error: false
+        verbose: true
+
+  all-tests:
+    name: All Tests (Parallel)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-django pytest-mock pytest-cov pytest-xdist
+        pip install Django python-decouple aiohttp requests tenacity sentry-sdk
+    
+    - name: Run all tests in parallel
+      run: |
+        pytest -n auto --maxfail=10 -v --tb=line
+      env:
+        DJANGO_SETTINGS_MODULE: StellarMapWeb.settings
+        DJANGO_SECRET_KEY: test-secret-key-for-ci
+        ENVIRONMENT: test

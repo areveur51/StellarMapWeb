@@ -254,23 +254,208 @@ Tests should NOT connect to real Cassandra. If seeing connection errors:
 - Check patch decorators are applied
 - Ensure mocks return expected types
 
+## Comprehensive Test Suite (Performance & Regression)
+
+### New Test Categories with Pytest Markers
+
+The project now uses pytest with structured markers for better test organization:
+
+- **`@pytest.mark.unit`**: Fast unit tests with no external dependencies
+- **`@pytest.mark.integration`**: Integration tests (database, API, external services)
+- **`@pytest.mark.e2e`**: End-to-end workflow tests
+- **`@pytest.mark.performance`**: Performance and optimization tests
+- **`@pytest.mark.regression`**: Regression tests for bug fixes
+- **`@pytest.mark.slow`**: Tests that take significant time
+
+### New Comprehensive Test Files
+
+#### 1. Performance - BigQuery Client Caching (`test_performance_bigquery_caching.py`)
+Tests BigQuery client singleton caching optimization:
+- Client caching with same credentials
+- Cache invalidation on credential changes
+- Credential hash calculation consistency
+- Cost guard initialization per instance
+- No client re-initialization in loops (performance regression test)
+
+#### 2. Performance - API Endpoints (`test_performance_api_endpoints.py`)
+Tests API endpoint optimizations:
+- Pending accounts 30s cache TTL enforcement
+- Cache invalidation after TTL expires
+- No full table scans in lineage API (Cassandra optimization)
+- In-memory hierarchy building from fetched records
+- Rate limiting enforcement
+- Response cache headers validation
+
+#### 3. Query Builder Column Parity (`test_query_builder_column_parity.py`)
+Tests ensuring UI matches database schema:
+- Column definitions match Cassandra model fields
+- All important model fields available in custom filter builder
+- Parametrized tests for all tables (lineage, cache, hva, stages, hva_changes)
+- Network column present in all tables
+- Reasonable column counts per table
+- Custom query API integration
+
+#### 4. Vue.js Component Initialization (`test_vue_component_initialization.py`)
+Tests Vue component initialization and rendering:
+- Vue components initialize without JavaScript errors
+- Polling intervals correctly configured (30s, not 15s)
+- Page Visibility API handlers properly set up
+- Event listener cleanup in beforeDestroy hook
+- No raw Vue template syntax visible (regression test)
+- Methods properly scoped within methods object
+- No template rendering issues
+
+#### 5. Database Integration (`test_database_integration.py`)
+Tests dual database support (SQLite + Cassandra):
+- SQLite fallback works correctly in development
+- Cassandra models validate data correctly
+- Model loader switches between databases based on environment
+- Database routers work as expected
+- N+1 query prevention
+- Model timestamp auto-management
+- HVA flag auto-set for balances >1M XLM
+
+### Running Pytest Tests
+
+#### Run Tests by Category
+```bash
+# Unit tests only (fast)
+pytest -m unit
+
+# Integration tests
+pytest -m integration
+
+# Performance tests
+pytest -m "performance or regression"
+
+# Exclude slow tests
+pytest -m "not slow"
+```
+
+#### Run Tests in Parallel
+```bash
+# Use all CPU cores
+pytest -n auto
+
+# Use specific number of cores
+pytest -n 4
+```
+
+#### Run with Coverage
+```bash
+pytest --cov=apiApp --cov=webApp --cov-report=html --cov-report=term-missing
+```
+
+#### Run Specific Test File
+```bash
+pytest apiApp/tests/test_performance_bigquery_caching.py -v
+pytest apiApp/tests/test_query_builder_column_parity.py::TestQueryBuilderColumnParity -v
+```
+
+### CI/CD Integration
+
+#### GitHub Actions Workflow
+
+The `.github/workflows/test.yml` runs on every push and pull request with 5 parallel jobs:
+
+1. **Unit Tests**: Fast tests with no external dependencies
+2. **Integration Tests**: Database and API tests with test database
+3. **Performance Tests**: Performance and regression tests
+4. **Coverage**: Code coverage reporting with Codecov integration
+5. **All Tests (Parallel)**: Full test suite using pytest-xdist
+
+#### Local Pre-Push Testing
+```bash
+# Run the same tests as CI
+pytest -m unit --tb=short --maxfail=5 -v
+pytest -m integration --tb=short -v
+pytest -m "performance or regression" --tb=short -v
+```
+
+### Test Configuration
+
+Configuration in `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "StellarMapWeb.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+testpaths = ["apiApp/tests", "webApp/tests"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (database, API, external services)",
+    "e2e: End-to-end tests (full workflow tests)",
+    "slow: Tests that take significant time",
+    "performance: Performance and optimization tests",
+    "regression: Regression tests for bug fixes"
+]
+```
+
+### Best Practices for New Features
+
+When adding new features:
+
+1. **Write tests first** (TDD approach when possible)
+2. **Add regression tests** for any bugs you fix
+3. **Mark tests appropriately** with pytest markers
+4. **Keep unit tests fast** (<100ms per test)
+5. **Use mocking** for external dependencies
+6. **Test one thing per test** (single responsibility)
+7. **Run tests before committing** to catch issues early
+8. **Verify CI passes** before merging
+
+### Debugging Failed Tests
+
+```bash
+# View detailed output
+pytest -vv --tb=long
+
+# Stop on first failure
+pytest -x
+
+# Run only failed tests from last run
+pytest --lf
+
+# Enter debugger on failure
+pytest --pdb
+```
+
 ## Future Enhancements
 
 ### Test Coverage Goals
+- [x] Add performance/load tests for cache system ✅
+- [x] Add pytest with markers for better organization ✅
+- [x] Add Query Builder schema parity tests ✅
+- [x] Add Vue component initialization tests ✅
+- [x] Add CI/CD with GitHub Actions ✅
 - [ ] Add async helper method tests
 - [ ] Add API response validation tests
-- [ ] Add performance/load tests for cache system
-- [ ] Add end-to-end workflow tests
+- [ ] Add end-to-end workflow tests with Playwright
 - [ ] Add database migration tests
 
+### Testing Tools Implemented
+- ✅ `pytest` for flexible test organization
+- ✅ `pytest-django` for Django integration
+- ✅ `pytest-xdist` for parallel test execution
+- ✅ `pytest-cov` for coverage reports
+- ✅ `pytest-mock` for enhanced mocking
+
 ### Testing Tools to Consider
-- `pytest` for more flexible test organization
-- `coverage.py` for test coverage reports
 - `factory_boy` for test data generation
 - `freezegun` for time-dependent test cases
+- `playwright` for E2E frontend testing
+
+## Test Statistics
+
+- **Total test files**: 45+ (41 existing + 5 new comprehensive tests)
+- **Test categories**: 6 markers (unit, integration, e2e, performance, regression, slow)
+- **CI jobs**: 5 parallel jobs in GitHub Actions
+- **Coverage target**: >80% for critical code paths
 
 ## References
 
 - Django Testing Documentation: https://docs.djangoproject.com/en/stable/topics/testing/
+- Pytest Documentation: https://docs.pytest.org/
 - Python unittest Mock: https://docs.python.org/3/library/unittest.mock.html
 - Cassandra Best Practices: https://cassandra.apache.org/doc/latest/
+- GitHub Actions: https://docs.github.com/en/actions

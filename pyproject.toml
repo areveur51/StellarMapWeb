@@ -22,6 +22,54 @@ django-ratelimit = "^4.1.0"
 redis = "^6.4.0"
 apscheduler = "^3.11.0"
 [tool.poetry.dev-dependencies]
+pytest = "^7.4.0"
+pytest-django = "^4.5.2"
+pytest-xdist = "^3.3.1"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.11.1"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "StellarMapWeb.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*", "*Tests", "*TestCase"]
+python_functions = ["test_*"]
+testpaths = ["apiApp/tests", "webApp/tests"]
+markers = [
+    "unit: Unit tests (fast, no external dependencies)",
+    "integration: Integration tests (database, API, external services)",
+    "e2e: End-to-end tests (full workflow tests)",
+    "slow: Tests that take significant time",
+    "performance: Performance and optimization tests",
+    "regression: Regression tests for bug fixes"
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+    "--tb=short",
+    "-p no:warnings",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["apiApp", "webApp"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.pythonlibs/*"
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
