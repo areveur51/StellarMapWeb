@@ -44,11 +44,11 @@
         </div>
     </div>
     <div class="filter-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Asset Count:</span>
+        <span class="toggle-label" style="font-size: 0.8em;">Asset Balance:</span>
         <div style="display: flex; gap: 5px; margin-top: 3px;">
-            <input type="number" id="asset-min-filter" class="filter-input" placeholder="Min" min="0" step="1" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+            <input type="number" id="asset-min-filter" class="filter-input" placeholder="Min" min="0" step="0.01" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
             <span style="color: #666;">to</span>
-            <input type="number" id="asset-max-filter" class="filter-input" placeholder="Max" min="0" step="1" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+            <input type="number" id="asset-max-filter" class="filter-input" placeholder="Max" min="0" step="0.01" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
         </div>
     </div>
     <div class="filter-control">
@@ -292,15 +292,65 @@
         }
     }
     
-    // DISABLED: Filter tree accounts - will be replaced with color muting approach
-    window.filterTreeAccounts = function(accounts) {
-        return accounts; // Pass through for now - filtering disabled
+    // Check if a node should be muted based on filter criteria
+    // Returns true if node should be MUTED (dimmed/blended into background)
+    window.shouldMuteNode = function(node) {
+        // No filters active - show everything normally
+        if (!window.treeFilters.xlmMin && !window.treeFilters.xlmMax && 
+            !window.treeFilters.assetMin && !window.treeFilters.assetMax && 
+            !window.treeFilters.issuersOnly) {
+            return false;
+        }
+        
+        // Skip asset nodes - only filter account nodes
+        if (node.node_type === 'ASSET') {
+            return false;
+        }
+        
+        // XLM Balance filters
+        const xlmBalance = node.xlm_balance || 0;
+        if (window.treeFilters.xlmMin !== null && xlmBalance < window.treeFilters.xlmMin) {
+            return true;
+        }
+        if (window.treeFilters.xlmMax !== null && xlmBalance > window.treeFilters.xlmMax) {
+            return true;
+        }
+        
+        // Asset Balance filters (sum of all asset balances)
+        let totalAssetBalance = 0;
+        if (node.assets && node.assets.length > 0) {
+            totalAssetBalance = node.assets.reduce((sum, asset) => {
+                return sum + (parseFloat(asset.balance) || 0);
+            }, 0);
+        }
+        
+        if (window.treeFilters.assetMin !== null && totalAssetBalance < window.treeFilters.assetMin) {
+            return true;
+        }
+        if (window.treeFilters.assetMax !== null && totalAssetBalance > window.treeFilters.assetMax) {
+            return true;
+        }
+        
+        // Issuers Only filter
+        if (window.treeFilters.issuersOnly && (!node.assets || node.assets.length === 0)) {
+            return true;
+        }
+        
+        return false;
     };
     
-    // DISABLED: Apply tree filters - will be replaced with color muting approach
+    // Apply tree filters by re-rendering with color muting
     function applyTreeFilters() {
-        console.log('Tree filters temporarily disabled - will implement color muting approach');
-        return;
+        console.log('Applying tree filters with color muting...');
+        
+        // Re-render the tree (rendering functions will use shouldMuteNode to apply colors)
+        if (window.currentTreeData) {
+            if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                renderRadialTree(window.currentTreeData);
+            } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                renderTidyTree(window.currentTreeData);
+            }
+        }
     }
     
     // Update filter status indicator

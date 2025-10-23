@@ -382,8 +382,18 @@ function renderRadialTree(jsonData) {
         node.append('circle')
             .attr('r', d => d.data.is_searched_account ? 7 : 5)  // Larger for searched account
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', '#3f2c70')
+            .style('fill', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#1a1a2e';  // Dark background color (muted)
+                }
+                return '#3f2c70';  // Normal cyberpunk purple
+            })
             .style('stroke', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#2a2a3e';  // Slightly lighter dark (muted)
+                }
                 // Cyan glow for searched account
                 if (d.data.is_searched_account) {
                     return '#00ffff';  // Cyan for searched account
@@ -392,6 +402,13 @@ function renderRadialTree(jsonData) {
                 return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
             })
             .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2px')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.2;  // Very dim for filtered nodes
+                }
+                return 1;  // Normal visibility
+            })
             .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none')
             .on('mouseover', function(event, d) { showTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTooltip(); });
@@ -412,7 +429,14 @@ function renderRadialTree(jsonData) {
             .style('fill', 'white')
             .style('font-size', '13px')
             .style('font-weight', '500')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.15;  // Very dim text for filtered nodes
+                }
+                return 1;  // Normal visibility
+            });
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {
@@ -754,8 +778,18 @@ function renderTidyTree(jsonData) {
         node.append('circle')
             .attr('r', d => d.data.is_searched_account ? 8 : 6)  // Larger for searched account
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', '#3f2c70')
+            .style('fill', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#1a1a2e';  // Dark background color (muted)
+                }
+                return '#3f2c70';  // Normal cyberpunk purple
+            })
             .style('stroke', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#2a2a3e';  // Slightly lighter dark (muted)
+                }
                 // Cyan glow for searched account
                 if (d.data.is_searched_account) {
                     return '#00ffff';  // Cyan for searched account
@@ -764,6 +798,13 @@ function renderTidyTree(jsonData) {
                 return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
             })
             .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2.5px')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.2;  // Very dim for filtered nodes
+                }
+                return 1;  // Normal visibility
+            })
             .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 10px #00ffff)' : 'none')
             .on('mouseover', function(event, d) { showTidyTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTidyTooltip(); });
@@ -782,7 +823,14 @@ function renderTidyTree(jsonData) {
             .style('font-size', '13px')  // Reduced from 14px for less thickness
             .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
             .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
-            .style('letter-spacing', '0.5px');  // Slightly increased letter spacing for clarity
+            .style('letter-spacing', '0.5px')  // Slightly increased letter spacing for clarity
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.15;  // Very dim text for filtered nodes
+                }
+                return 1;  // Normal visibility
+            });
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {
