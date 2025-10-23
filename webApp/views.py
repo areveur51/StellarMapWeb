@@ -746,7 +746,7 @@ def dashboard_view(request):
             completed_cache_records = (
                 StellarAccountSearchCache.objects
                 .filter(status=DONE_MAKE_PARENT_LINEAGE)
-                .only('created_at', 'updated_at')
+                .all()
             )
             
             for record in completed_cache_records:
@@ -769,7 +769,7 @@ def dashboard_view(request):
             completed_lineage_records = (
                 StellarCreatorAccountLineage.objects
                 .filter(status=COMPLETE)
-                .only('created_at', 'updated_at')
+                .all()
             )
             
             for record in completed_lineage_records:
@@ -789,7 +789,7 @@ def dashboard_view(request):
                 bigquery_completed_records = (
                     StellarCreatorAccountLineage.objects
                     .filter(status='BIGQUERY_COMPLETE')
-                    .only('created_at', 'updated_at')
+                    .all()
                 )
                 
                 for record in bigquery_completed_records:
