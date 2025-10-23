@@ -351,10 +351,24 @@ function renderRadialTree(jsonData) {
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
                 .radius(d => d.y))
-            .style('stroke', '#3f2c70')
-            .style('stroke-width', '1.5px')
+            .style('stroke', d => {
+                // Color coding: Red for direct lineage path, White for siblings
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    return '#ff3366';  // Red for direct lineage path
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    return '#888888';  // Gray for siblings
+                }
+                return '#3f2c70';  // Default cyberpunk purple
+            })
+            .style('stroke-width', d => {
+                // Thicker lines for lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
             .style('fill', 'none')
-            .style('opacity', 0.6);
+            .style('opacity', d => {
+                // More prominent lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? 0.9 : 0.5;
+            });
 
         const node = g.selectAll('.node')
             .data(root.descendants())
@@ -366,11 +380,19 @@ function renderRadialTree(jsonData) {
             });
 
         node.append('circle')
-            .attr('r', 5)
+            .attr('r', d => d.data.is_searched_account ? 7 : 5)  // Larger for searched account
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', '#3f2c70')
-            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
-            .style('stroke-width', '2px')
+            .style('stroke', d => {
+                // Cyan glow for searched account
+                if (d.data.is_searched_account) {
+                    return '#00ffff';  // Cyan for searched account
+                }
+                // Yellow for assets, green for issuers
+                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+            })
+            .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2px')
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none')
             .on('mouseover', function(event, d) { showTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTooltip(); });
 
@@ -704,10 +726,24 @@ function renderTidyTree(jsonData) {
             .attr('d', d3.linkHorizontal()
                 .x(d => d.y)
                 .y(d => d.x + yOffset))
-            .style('stroke', '#3f2c70')
-            .style('stroke-width', '1.5px')
+            .style('stroke', d => {
+                // Color coding: Red for direct lineage path, Gray for siblings
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    return '#ff3366';  // Red for direct lineage path
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    return '#888888';  // Gray for siblings
+                }
+                return '#3f2c70';  // Default cyberpunk purple
+            })
+            .style('stroke-width', d => {
+                // Thicker lines for lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
             .style('fill', 'none')
-            .style('opacity', 0.6);
+            .style('opacity', d => {
+                // More prominent lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? 0.9 : 0.5;
+            });
 
         const node = g.selectAll('.node')
             .data(descendants)
@@ -716,11 +752,19 @@ function renderTidyTree(jsonData) {
             .attr('transform', d => `translate(${d.y},${d.x + yOffset})`);
 
         node.append('circle')
-            .attr('r', 6)  // Increased from 5 to 6 for better visibility
+            .attr('r', d => d.data.is_searched_account ? 8 : 6)  // Larger for searched account
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', '#3f2c70')
-            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
-            .style('stroke-width', '2.5px')  // Increased from 2px for better visibility
+            .style('stroke', d => {
+                // Cyan glow for searched account
+                if (d.data.is_searched_account) {
+                    return '#00ffff';  // Cyan for searched account
+                }
+                // Yellow for assets, green for issuers
+                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+            })
+            .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2.5px')
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 10px #00ffff)' : 'none')
             .on('mouseover', function(event, d) { showTidyTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTidyTooltip(); });
 
