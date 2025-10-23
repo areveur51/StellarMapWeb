@@ -908,13 +908,12 @@
               // Store unfiltered data globally for tree filters
               window.unfilteredTreeData = allAccountsForTree;
               
-              // Apply tree filters to get filtered accounts
-              const filteredAccountsForTree = window.filterTreeAccounts ? window.filterTreeAccounts(allAccountsForTree) : allAccountsForTree;
+              // Debug: Log data being passed to buildTreeFromLineage
+              console.log('[fetchAccountLineage] allAccountsForTree count:', allAccountsForTree.length);
+              console.log('[fetchAccountLineage] First 3 accounts:', allAccountsForTree.slice(0, 3));
               
-              // Build D3 tree from filtered accounts
-              const treeData = this.buildTreeFromLineage(filteredAccountsForTree);
-              this.tree_data = treeData;
-              window.currentTreeData = filteredAccountsForTree;
+              // Build D3 tree from all accounts (buildTreeFromLineage handles rendering internally)
+              this.buildTreeFromLineage(allAccountsForTree);
               
               // Store raw sibling data for future enhancements
               this.siblingsData = data;
