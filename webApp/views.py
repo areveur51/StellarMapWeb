@@ -573,17 +573,17 @@ def dashboard_view(request):
         all_cache_records = StellarAccountSearchCache.objects.all()
         db_stats['total_cached_accounts'] = len(list(all_cache_records))
         
-        # Count by status
-        db_stats['pending_accounts'] = len(list(
+        # Count by status from Search Cache
+        cache_pending = len(list(
             StellarAccountSearchCache.objects.filter(status=PENDING_MAKE_PARENT_LINEAGE).all()
         ))
-        db_stats['in_progress_accounts'] = len(list(
+        cache_in_progress = len(list(
             StellarAccountSearchCache.objects.filter(status=IN_PROGRESS_MAKE_PARENT_LINEAGE).all()
         ))
-        db_stats['completed_accounts'] = len(list(
+        cache_completed = len(list(
             StellarAccountSearchCache.objects.filter(status=DONE_MAKE_PARENT_LINEAGE).all()
         ))
-        db_stats['re_inquiry_accounts'] = len(list(
+        cache_re_inquiry = len(list(
             StellarAccountSearchCache.objects.filter(status=RE_INQUIRY).all()
         ))
         
@@ -613,6 +613,89 @@ def dashboard_view(request):
         db_stats['fresh_accounts'] = fresh_count
         db_stats['stale_accounts'] = stale_count
         db_stats['stuck_accounts'] = stuck_count
+        
+        # COUNT FROM LINEAGE TABLE - All pipeline statuses (comprehensive)
+        try:
+            # PENDING: PENDING status in lineage table (used by both BigQuery and API pipelines)
+            lineage_pending = len(list(
+                StellarCreatorAccountLineage.objects.filter(status=PENDING).all()
+            ))
+            
+            # IN_PROGRESS/PROCESSING: All active processing statuses
+            lineage_processing = len(list(
+                StellarCreatorAccountLineage.objects.filter(status=PROCESSING).all()
+            ))
+            
+            # Also count API pipeline IN_PROGRESS statuses (not used by BigQuery pipeline)
+            api_pipeline_in_progress_statuses = [
+                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS',
+                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_OPERATIONS',
+                'IN_PROGRESS_COLLECTING_HORIZON_API_DATASETS_EFFECTS',
+                'IN_PROGRESS_UPDATING_FROM_RAW_DATA',
+                'IN_PROGRESS_UPDATING_FROM_OPERATIONS_RAW_DATA',
+                'IN_PROGRESS_MAKE_GRANDPARENT_LINEAGE',
+            ]
+            
+            api_pipeline_in_progress = 0
+            for status in api_pipeline_in_progress_statuses:
+                try:
+                    count = len(list(StellarCreatorAccountLineage.objects.filter(status=status).all()))
+                    api_pipeline_in_progress += count
+                except Exception:
+                    pass
+            
+            # COMPLETED: COMPLETE (API pipeline) and BIGQUERY_COMPLETE (BigQuery pipeline)
+            lineage_complete = len(list(
+                StellarCreatorAccountLineage.objects.filter(status=COMPLETE).all()
+            ))
+            
+            try:
+                bigquery_complete = len(list(
+                    StellarCreatorAccountLineage.objects.filter(status='BIGQUERY_COMPLETE').all()
+                ))
+                lineage_complete += bigquery_complete
+            except Exception:
+                pass
+            
+            # Also count API pipeline DONE statuses (intermediate completion states)
+            api_pipeline_done_statuses = [
+                'DONE_COLLECTING_HORIZON_API_DATASETS_ACCOUNTS',
+                'DONE_COLLECTING_HORIZON_API_DATASETS_OPERATIONS',
+                'DONE_HORIZON_API_DATASETS',
+                'DONE_UPDATING_FROM_RAW_DATA',
+                'DONE_UPDATING_FROM_OPERATIONS_RAW_DATA',
+                'DONE_GRANDPARENT_LINEAGE',
+            ]
+            
+            for status in api_pipeline_done_statuses:
+                try:
+                    count = len(list(StellarCreatorAccountLineage.objects.filter(status=status).all()))
+                    lineage_complete += count
+                except Exception:
+                    pass
+            
+            # FAILED: Count failed records from lineage table (both pipelines use FAILED status)
+            try:
+                lineage_failed = len(list(
+                    StellarCreatorAccountLineage.objects.filter(status='FAILED').all()
+                ))
+                # Add failed accounts to re_inquiry count (they need attention like RE_INQUIRY)
+                db_stats['re_inquiry_accounts'] = cache_re_inquiry + lineage_failed
+            except Exception:
+                db_stats['re_inquiry_accounts'] = cache_re_inquiry
+            
+            # COMBINE counts from both tables
+            db_stats['pending_accounts'] = cache_pending + lineage_pending
+            db_stats['in_progress_accounts'] = cache_in_progress + lineage_processing + api_pipeline_in_progress
+            db_stats['completed_accounts'] = cache_completed + lineage_complete
+            
+        except Exception as e:
+            # Fallback to cache-only counts if lineage query fails
+            db_stats['pending_accounts'] = cache_pending
+            db_stats['in_progress_accounts'] = cache_in_progress
+            db_stats['completed_accounts'] = cache_completed
+            db_stats['re_inquiry_accounts'] = cache_re_inquiry
+            sentry_sdk.capture_exception(e)
         
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -644,7 +727,7 @@ def dashboard_view(request):
     except Exception as e:
         sentry_sdk.capture_exception(e)
     
-    # Performance metrics
+    # Performance metrics - Calculate from BOTH Search Cache AND Lineage tables
     performance_stats = {
         'avg_processing_time_minutes': 0,
         'fastest_account_minutes': None,
@@ -654,29 +737,79 @@ def dashboard_view(request):
     }
     
     try:
-        # Calculate average processing time from completed accounts - OPTIMIZED: only load needed fields
+        # Calculate average processing time from completed accounts - DUAL TABLE SCAN
         now = datetime.utcnow()
         processing_times = []
         
-        # Only fetch created_at and updated_at fields instead of full objects
-        completed_records = (
-            StellarAccountSearchCache.objects
-            .filter(status=DONE_MAKE_PARENT_LINEAGE)
-            .only('created_at', 'updated_at')
-        )
+        # SEARCH CACHE: Fetch DONE_MAKE_PARENT_LINEAGE records
+        try:
+            completed_cache_records = (
+                StellarAccountSearchCache.objects
+                .filter(status=DONE_MAKE_PARENT_LINEAGE)
+                .only('created_at', 'updated_at')
+            )
+            
+            for record in completed_cache_records:
+                if record.created_at and record.updated_at:
+                    delta = record.updated_at - record.created_at
+                    minutes = delta.total_seconds() / 60
+                    processing_times.append(minutes)
+                    
+                    # Count accounts processed in last 24h and 7d
+                    if record.updated_at > now - timedelta(hours=24):
+                        performance_stats['total_accounts_processed_24h'] += 1
+                    if record.updated_at > now - timedelta(days=7):
+                        performance_stats['total_accounts_processed_7d'] += 1
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
         
-        for record in completed_records:
-            if record.created_at and record.updated_at:
-                delta = record.updated_at - record.created_at
-                minutes = delta.total_seconds() / 60
-                processing_times.append(minutes)
+        # LINEAGE TABLE: Fetch COMPLETE and BIGQUERY_COMPLETE records
+        try:
+            # Get COMPLETE status records
+            completed_lineage_records = (
+                StellarCreatorAccountLineage.objects
+                .filter(status=COMPLETE)
+                .only('created_at', 'updated_at')
+            )
+            
+            for record in completed_lineage_records:
+                if record.created_at and record.updated_at:
+                    delta = record.updated_at - record.created_at
+                    minutes = delta.total_seconds() / 60
+                    processing_times.append(minutes)
+                    
+                    # Count accounts processed in last 24h and 7d
+                    if record.updated_at > now - timedelta(hours=24):
+                        performance_stats['total_accounts_processed_24h'] += 1
+                    if record.updated_at > now - timedelta(days=7):
+                        performance_stats['total_accounts_processed_7d'] += 1
+            
+            # Get BIGQUERY_COMPLETE status records
+            try:
+                bigquery_completed_records = (
+                    StellarCreatorAccountLineage.objects
+                    .filter(status='BIGQUERY_COMPLETE')
+                    .only('created_at', 'updated_at')
+                )
                 
-                # Count accounts processed in last 24h and 7d
-                if record.updated_at > now - timedelta(hours=24):
-                    performance_stats['total_accounts_processed_24h'] += 1
-                if record.updated_at > now - timedelta(days=7):
-                    performance_stats['total_accounts_processed_7d'] += 1
+                for record in bigquery_completed_records:
+                    if record.created_at and record.updated_at:
+                        delta = record.updated_at - record.created_at
+                        minutes = delta.total_seconds() / 60
+                        processing_times.append(minutes)
+                        
+                        # Count accounts processed in last 24h and 7d
+                        if record.updated_at > now - timedelta(hours=24):
+                            performance_stats['total_accounts_processed_24h'] += 1
+                        if record.updated_at > now - timedelta(days=7):
+                            performance_stats['total_accounts_processed_7d'] += 1
+            except Exception:
+                pass
+                
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
         
+        # Calculate aggregate stats from combined processing times
         if processing_times:
             performance_stats['avg_processing_time_minutes'] = sum(processing_times) / len(processing_times)
             performance_stats['fastest_account_minutes'] = min(processing_times)
