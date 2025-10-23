@@ -60,7 +60,9 @@ class Command(BaseCommand):
         if USE_CASSANDRA:
             # Scan through Search Cache
             for record in StellarAccountSearchCache.objects.filter(network_name=network):
-                if record.status and 'PROGRESS' in record.status:
+                # Case-insensitive check for 'PROCESSING' in status
+                status_normalized = (record.status or '').upper()
+                if 'PROCESSING' in status_normalized:
                     is_stale = record.updated_at and record.updated_at < stale_threshold
                     
                     if is_stale:
@@ -81,7 +83,7 @@ class Command(BaseCommand):
             # SQLite can filter directly
             stale_records = StellarAccountSearchCache.objects.filter(
                 network_name=network,
-                status__contains='PROGRESS',
+                status__icontains='PROCESSING',
                 updated_at__lt=stale_threshold
             )
             
@@ -106,7 +108,9 @@ class Command(BaseCommand):
         if USE_CASSANDRA:
             # Scan through Account Lineage
             for record in StellarCreatorAccountLineage.objects.filter(network_name=network):
-                if record.status and 'PROGRESS' in record.status:
+                # Case-insensitive check for 'PROCESSING' in status
+                status_normalized = (record.status or '').upper()
+                if 'PROCESSING' in status_normalized:
                     # Use processing_started_at if available, otherwise fall back to updated_at
                     is_stale = False
                     age_minutes = 0
@@ -140,7 +144,7 @@ class Command(BaseCommand):
             # Check both processing_started_at and updated_at
             stale_records = StellarCreatorAccountLineage.objects.filter(
                 network_name=network,
-                status__contains='PROGRESS'
+                status__icontains='PROCESSING'
             ).filter(
                 Q(processing_started_at__lt=stale_threshold) | 
                 Q(updated_at__lt=stale_threshold)
