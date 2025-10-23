@@ -38,14 +38,14 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production.
 - **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset, with age restrictions, cost optimization strategies (`BigQueryCostGuard`), and an API fallback. Includes dynamic adjustment of pipeline settings via an Admin Configuration Panel.
 - **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility.
-- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for comprehensive workflow tracking.
+- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for comprehensive workflow tracking. Critical bug fixes (2025-10-23): DateTime parsing now converts ISO 8601 strings to datetime objects; asset parsing method added; processing accounts query fixed to match 'PROCESSING' not 'PROGRESS'.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Two-Tier Creator Extraction**: BigQuery for `create_account` operations; API pipeline with Stellar Expert fallback.
 - **Comprehensive Child Account Discovery**: BigQuery pipeline discovers up to 100,000 child accounts with pagination and deduplication.
 - **Caching**: 12-hour caching for Stellar address searches, optimized API endpoint caching with 30s TTL for pending accounts.
 - **Frontend Interactivity**: Django templates enhanced with Vue.js components for real-time updates.
 - **Performance Optimizations**: 30s polling intervals with Page Visibility API and efficient lineage API to avoid full-table scans.
-- **Comprehensive Testing**: 180+ tests across 45+ test files using pytest with various markers, covering security, functionality, and performance.
+- **Comprehensive Testing**: 180+ tests across 45+ test files using pytest with various markers, covering security, functionality, and performance. Includes focused regression tests for API pipeline datetime parsing and Query Builder status matching (2025-10-23).
 - **Input Validation**: Multi-layer validation for Stellar addresses.
 - **Injection Prevention**: Robust measures against various injection types.
 - **API Security**: CSRF protection, Content-Type validation, query parameter security, and HTTP security headers.
