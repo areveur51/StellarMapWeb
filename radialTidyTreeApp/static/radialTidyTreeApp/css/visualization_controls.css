@@ -186,3 +186,31 @@
     transform: translateY(0);
     box-shadow: 0 0 10px rgba(150, 221, 242, 0.3);
 }
+
+.filter-control {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(150, 221, 242, 0.3);
+}
+
+.filter-input {
+    background: rgba(150, 221, 242, 0.1);
+    border: 1px solid #96DDF2;
+    border-radius: 6px;
+    color: #96DDF2;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.filter-input:focus {
+    outline: none;
+    background: rgba(150, 221, 242, 0.2);
+    box-shadow: 0 0 10px rgba(150, 221, 242, 0.4);
+    border-color: #0BE784;
+}
+
+.filter-input::placeholder {
+    color: rgba(150, 221, 242, 0.5);
+}

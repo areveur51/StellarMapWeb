@@ -33,6 +33,33 @@
             <button class="zoom-btn" id="zoom-in-btn" onclick="zoomIn()">+</button>
         </div>
     </div>
+    
+    <!-- Tree Filters -->
+    <div class="filter-control">
+        <span class="toggle-label" style="font-size: 0.8em;">XLM Balance:</span>
+        <div style="display: flex; gap: 5px; margin-top: 3px;">
+            <input type="number" id="xlm-min-filter" class="filter-input" placeholder="Min" min="0" step="100" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+            <span style="color: #666;">to</span>
+            <input type="number" id="xlm-max-filter" class="filter-input" placeholder="Max" min="0" step="100" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+        </div>
+    </div>
+    <div class="filter-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Asset Count:</span>
+        <div style="display: flex; gap: 5px; margin-top: 3px;">
+            <input type="number" id="asset-min-filter" class="filter-input" placeholder="Min" min="0" step="1" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+            <span style="color: #666;">to</span>
+            <input type="number" id="asset-max-filter" class="filter-input" placeholder="Max" min="0" step="1" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+        </div>
+    </div>
+    <div class="filter-control">
+        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.8em;">
+            <input type="checkbox" id="issuers-only-filter" style="cursor: pointer;">
+            <span class="toggle-label">Issuers Only</span>
+        </label>
+    </div>
+    <div class="filter-control">
+        <button class="zoom-btn" id="reset-filters-btn" onclick="resetTreeFilters()" style="width: 100%; font-size: 0.75em;">Reset Filters</button>
+    </div>
 </div>
 
 <script>
@@ -40,6 +67,22 @@
     // Use window.currentMode for true global scope (accessible by both toggle and slider)
     if (typeof window.currentMode === 'undefined') {
         window.currentMode = localStorage.getItem('visualizationMode') || 'radial';
+    }
+    
+    // Global tree filter settings (persisted in localStorage)
+    if (typeof window.treeFilters === 'undefined') {
+        window.treeFilters = {
+            xlmMin: parseFloat(localStorage.getItem('treeFilter_xlmMin')) || null,
+            xlmMax: parseFloat(localStorage.getItem('treeFilter_xlmMax')) || null,
+            assetMin: parseInt(localStorage.getItem('treeFilter_assetMin')) || null,
+            assetMax: parseInt(localStorage.getItem('treeFilter_assetMax')) || null,
+            issuersOnly: localStorage.getItem('treeFilter_issuersOnly') === 'true'
+        };
+    }
+    
+    // Store unfiltered tree data for re-filtering
+    if (typeof window.unfilteredTreeData === 'undefined') {
+        window.unfilteredTreeData = null;
     }
     
     // Global spacing multiplier (persisted in localStorage) with validation
@@ -77,6 +120,9 @@
         const modeIndicator = document.getElementById('mode-indicator');
         const spacingSlider = document.getElementById('spacing-slider');
         const spacingValue = document.getElementById('spacing-value');
+        
+        // Initialize tree filters
+        initializeTreeFilters();
         
         // Initialize toggle using global window.currentMode
         if (window.currentMode === 'tidy') {
@@ -239,5 +285,163 @@
         if (window.resetZoom && typeof window.resetZoom === 'function') {
             window.resetZoom();
         }
+    }
+    
+    // Filter tree accounts based on criteria
+    window.filterTreeAccounts = function(accounts) {
+        if (!accounts || accounts.length === 0) return accounts;
+        
+        return accounts.filter(account => {
+            // XLM Balance filters
+            if (window.treeFilters.xlmMin !== null && account.xlm_balance < window.treeFilters.xlmMin) {
+                return false;
+            }
+            if (window.treeFilters.xlmMax !== null && account.xlm_balance > window.treeFilters.xlmMax) {
+                return false;
+            }
+            
+            // Asset Count filters
+            const assetCount = account.assets ? account.assets.length : 0;
+            if (window.treeFilters.assetMin !== null && assetCount < window.treeFilters.assetMin) {
+                return false;
+            }
+            if (window.treeFilters.assetMax !== null && assetCount > window.treeFilters.assetMax) {
+                return false;
+            }
+            
+            // Issuers Only filter
+            if (window.treeFilters.issuersOnly && assetCount === 0) {
+                return false;
+            }
+            
+            return true;
+        });
+    };
+    
+    // Apply tree filters and re-render
+    function applyTreeFilters() {
+        if (!window.unfilteredTreeData) return;
+        
+        // Filter the accounts
+        const filteredAccounts = window.filterTreeAccounts(window.unfilteredTreeData);
+        
+        // Store filtered data as current tree data
+        window.currentTreeData = filteredAccounts;
+        
+        // Re-render the tree
+        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+            renderRadialTree(filteredAccounts);
+        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+            renderTidyTree(filteredAccounts);
+        }
+        
+        console.log(`Tree filters applied: ${filteredAccounts.length} / ${window.unfilteredTreeData.length} accounts shown`);
+    }
+    
+    // Reset all tree filters
+    function resetTreeFilters() {
+        // Clear filter values
+        window.treeFilters = {
+            xlmMin: null,
+            xlmMax: null,
+            assetMin: null,
+            assetMax: null,
+            issuersOnly: false
+        };
+        
+        // Clear localStorage
+        localStorage.removeItem('treeFilter_xlmMin');
+        localStorage.removeItem('treeFilter_xlmMax');
+        localStorage.removeItem('treeFilter_assetMin');
+        localStorage.removeItem('treeFilter_assetMax');
+        localStorage.removeItem('treeFilter_issuersOnly');
+        
+        // Reset UI inputs
+        document.getElementById('xlm-min-filter').value = '';
+        document.getElementById('xlm-max-filter').value = '';
+        document.getElementById('asset-min-filter').value = '';
+        document.getElementById('asset-max-filter').value = '';
+        document.getElementById('issuers-only-filter').checked = false;
+        
+        // Re-render with unfiltered data
+        if (window.unfilteredTreeData) {
+            window.currentTreeData = window.unfilteredTreeData;
+            if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                renderRadialTree(window.unfilteredTreeData);
+            } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                renderTidyTree(window.unfilteredTreeData);
+            }
+        }
+        
+        console.log('Tree filters reset');
+    }
+    
+    // Initialize filter controls with saved values and event listeners
+    function initializeTreeFilters() {
+        const xlmMinInput = document.getElementById('xlm-min-filter');
+        const xlmMaxInput = document.getElementById('xlm-max-filter');
+        const assetMinInput = document.getElementById('asset-min-filter');
+        const assetMaxInput = document.getElementById('asset-max-filter');
+        const issuersOnlyCheckbox = document.getElementById('issuers-only-filter');
+        
+        // Set initial values from localStorage
+        if (window.treeFilters.xlmMin !== null) xlmMinInput.value = window.treeFilters.xlmMin;
+        if (window.treeFilters.xlmMax !== null) xlmMaxInput.value = window.treeFilters.xlmMax;
+        if (window.treeFilters.assetMin !== null) assetMinInput.value = window.treeFilters.assetMin;
+        if (window.treeFilters.assetMax !== null) assetMaxInput.value = window.treeFilters.assetMax;
+        issuersOnlyCheckbox.checked = window.treeFilters.issuersOnly;
+        
+        // Add event listeners
+        xlmMinInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            window.treeFilters.xlmMin = isNaN(value) || this.value === '' ? null : value;
+            if (window.treeFilters.xlmMin !== null) {
+                localStorage.setItem('treeFilter_xlmMin', window.treeFilters.xlmMin);
+            } else {
+                localStorage.removeItem('treeFilter_xlmMin');
+            }
+            applyTreeFilters();
+        });
+        
+        xlmMaxInput.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            window.treeFilters.xlmMax = isNaN(value) || this.value === '' ? null : value;
+            if (window.treeFilters.xlmMax !== null) {
+                localStorage.setItem('treeFilter_xlmMax', window.treeFilters.xlmMax);
+            } else {
+                localStorage.removeItem('treeFilter_xlmMax');
+            }
+            applyTreeFilters();
+        });
+        
+        assetMinInput.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            window.treeFilters.assetMin = isNaN(value) || this.value === '' ? null : value;
+            if (window.treeFilters.assetMin !== null) {
+                localStorage.setItem('treeFilter_assetMin', window.treeFilters.assetMin);
+            } else {
+                localStorage.removeItem('treeFilter_assetMin');
+            }
+            applyTreeFilters();
+        });
+        
+        assetMaxInput.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            window.treeFilters.assetMax = isNaN(value) || this.value === '' ? null : value;
+            if (window.treeFilters.assetMax !== null) {
+                localStorage.setItem('treeFilter_assetMax', window.treeFilters.assetMax);
+            } else {
+                localStorage.removeItem('treeFilter_assetMax');
+            }
+            applyTreeFilters();
+        });
+        
+        issuersOnlyCheckbox.addEventListener('change', function() {
+            window.treeFilters.issuersOnly = this.checked;
+            localStorage.setItem('treeFilter_issuersOnly', window.treeFilters.issuersOnly);
+            applyTreeFilters();
+        });
+        
+        console.log('Tree filters initialized:', window.treeFilters);
     }
 </script>
