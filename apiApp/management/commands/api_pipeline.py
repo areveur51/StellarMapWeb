@@ -397,8 +397,16 @@ class Command(BaseCommand):
         try:
             import json
             
-            # Update basic account info
-            account_obj.stellar_account_created_at = account_data.get('account_creation_date')
+            # Update basic account info - parse datetime string to datetime object
+            created_at_str = account_data.get('account_creation_date')
+            if created_at_str:
+                # Parse ISO 8601 datetime string (e.g., '2025-03-09T05:18:48Z')
+                # Replace 'Z' with '+00:00' for Python's fromisoformat()
+                created_at_str = created_at_str.replace('Z', '+00:00')
+                account_obj.stellar_account_created_at = datetime.fromisoformat(created_at_str)
+            else:
+                account_obj.stellar_account_created_at = None
+                
             account_obj.xlm_balance = horizon_data.get('balance', 0.0)
             account_obj.home_domain = horizon_data.get('home_domain', '')
             
