@@ -46,8 +46,9 @@ class Command(BaseCommand):
         self.stdout.write(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}")
         self.stdout.write(f"{'='*70}\n")
 
-        from django.conf import settings
-        USE_CASSANDRA = settings.DATABASES['default']['ENGINE'] == 'django_cassandra_engine'
+        # Detect if we're using Cassandra models by checking for Cassandra-specific attributes
+        # Cassandra models use objects.filter().all() while Django uses objects.filter()
+        USE_CASSANDRA = hasattr(StellarAccountSearchCache, '__default_ttl__')
         
         stale_threshold = datetime.datetime.utcnow() - datetime.timedelta(minutes=minutes)
         
