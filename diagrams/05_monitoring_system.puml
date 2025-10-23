@@ -3,6 +3,8 @@
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2
 
+top to bottom direction
+
 skinparam component {
   BackgroundColor #100D23
   BorderColor #0BE784
@@ -16,12 +18,6 @@ skinparam database {
   FontColor #96DDF2
 }
 
-skinparam package {
-  BackgroundColor #231B3D
-  BorderColor #3f2c70
-  FontColor #96DDF2
-}
-
 skinparam note {
   BackgroundColor #231B3D
   BorderColor #3f2c70
@@ -30,85 +26,68 @@ skinparam note {
 
 title <color:#0BE784>Monitoring & Health System
 
-top to bottom direction
+component "BigQuery Pipeline" as BQPipeline
+component "API Pipeline" as APIPipeline
+component "Progress Tracker" as ProgressTracker
+database "Progress DB" as ProgressDB
 
-package "Pipelines" #231B3D {
-  component "BigQuery Pipeline\n(Primary)" as BQPipeline
-  component "API Pipeline\n(Educational)" as APIPipeline
-}
+component "Health Monitor" as HealthMonitor
+database "Health DB" as HealthDB
 
-package "Monitoring Components" #231B3D {
-  component "Health Monitor" as HealthMonitor
-  component "Progress Tracker" as ProgressTracker
-  component "Stuck Record\nRecovery" as Recovery
-  component "API Rate Limiter" as RateLimiter
-  component "Dashboard Metrics" as Dashboard
-}
+component "Stuck Record Recovery" as Recovery
+database "Cache & Lineage DB" as DataDB
 
-package "Data Storage" #231B3D {
-  database "ManagementCronHealth" as HealthDB
-  database "Progress Tracking" as ProgressDB
-  database "Cache & Lineage" as DataDB
-  database "Django Cache\n(rate metrics)" as CacheDB
-}
+component "API Rate Limiter" as RateLimiter
+database "Django Cache" as CacheDB
 
-BQPipeline -[#0BE784]-> ProgressTracker : "Updates"
-APIPipeline -[#96DDF2,dashed]-> ProgressTracker : "(If enabled)"
+component "Dashboard Metrics" as Dashboard
 
-ProgressTracker -[#01C176]-> ProgressDB
+BQPipeline -down-> ProgressTracker
+APIPipeline -down-> ProgressTracker
+ProgressTracker -down-> ProgressDB
 
-HealthMonitor -[#01C176]-> HealthDB
-HealthMonitor -[#01C176]-> BQPipeline
-HealthMonitor -[#96DDF2,dashed]-> APIPipeline
+HealthMonitor -down-> HealthDB
+HealthMonitor -up-> BQPipeline : "monitors"
+HealthMonitor -up-> APIPipeline : "monitors"
 
-Recovery -[#01C176]-> DataDB : "Finds stuck\nResets to PENDING"
+Recovery -down-> DataDB : "finds stuck\nresets PENDING"
 
-RateLimiter -[#01C176]-> CacheDB
-RateLimiter -[#01C176]-> APIPipeline
-RateLimiter -[#01C176]-> BQPipeline
+RateLimiter -down-> CacheDB
+RateLimiter -up-> APIPipeline : "controls"
+RateLimiter -up-> BQPipeline : "age filter"
 
-Dashboard -[#01C176]-> HealthDB
-Dashboard -[#01C176]-> CacheDB
-Dashboard -[#01C176]-> DataDB
+Dashboard -up-> HealthDB : "reads"
+Dashboard -up-> CacheDB : "reads"
+Dashboard -up-> DataDB : "reads"
 
-note right of BQPipeline #231B3D
-  <color:#0BE784>BigQuery Pipeline:
-  <color:#96DDF2>• 50-90 second processing
+note right of BQPipeline
+  <color:#0BE784>BigQuery Pipeline
+  <color:#96DDF2>• 50-90s processing
   <color:#96DDF2>• No rate limits
-  <color:#96DDF2>• Age filter (<2 years)
-  <color:#96DDF2>• Up to 100 accounts/batch
-  <color:#0BE784>• Comma-formatted metrics
+  <color:#96DDF2>• Age filter <2 years
+  <color:#0BE784>• Up to 100/batch
 end note
 
-note right of HealthMonitor #231B3D
-  <color:#0BE784>Health Statuses:
+note right of HealthMonitor
+  <color:#0BE784>Health Statuses
   <color:#96DDF2>• HEALTHY
   <color:#E5526F>• UNHEALTHY_RATE_LIMITED
-  
-  <color:#0BE784>Recovery:
-  <color:#96DDF2>Manual cleanup via
-  clear_old_pending command
 end note
 
-note right of Recovery #231B3D
-  <color:#0BE784>Stuck Thresholds:
-  <color:#96DDF2>Detects records in:
-  • PENDING (>2 hours)
-  • IN_PROGRESS
-  
-  <color:#0BE784>Terminal Statuses:
-  <color:#E5526F>• FAILED
-  <color:#E5526F>• INVALID_HORIZON_...
+note right of Recovery
+  <color:#0BE784>Stuck Thresholds
+  <color:#96DDF2>• PENDING >2 hours
+  <color:#96DDF2>• IN_PROGRESS stuck
+  <color:#E5526F>• Never recovers FAILED
 end note
 
-note right of Dashboard #231B3D
-  <color:#0BE784>Dashboard Sections:
+note right of Dashboard
+  <color:#0BE784>Dashboard Sections
   <color:#96DDF2>1. Alerts (top)
   <color:#96DDF2>2. API Health
   <color:#96DDF2>3. BigQuery Costs
   <color:#96DDF2>4. Database Health
   <color:#96DDF2>5. Performance
-  <color:#0BE784>All comma-formatted
 end note
 
 @enduml

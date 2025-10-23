@@ -3,6 +3,8 @@
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2
 
+top to bottom direction
+
 skinparam class {
   BackgroundColor #100D23
   BorderColor #0BE784
@@ -18,8 +20,6 @@ skinparam note {
 
 title <color:#0BE784>Astra DB (Cassandra) Schema
 
-top to bottom direction
-
 class StellarAccountSearchCache {
   <color:#0BE784>+ stellar_account (PK)
   <color:#0BE784>+ network_name (PK)
@@ -27,8 +27,6 @@ class StellarAccountSearchCache {
   + cached_json
   + last_fetched_at
   + retry_count
-  + created_at
-  + updated_at
   --
   <color:#01C176>12-hour cache
 }
@@ -37,33 +35,14 @@ class StellarCreatorAccountLineage {
   <color:#0BE784>+ id (PK)
   <color:#0BE784>+ stellar_account (CK)
   <color:#0BE784>+ network_name (CK)
-  <color:#0BE784>+ created_at (CK)
   <color:#96DDF2>+ stellar_creator_account
-  + stellar_account_created_at
-  + home_domain
   + xlm_balance
   + is_hva
-  + tags
   + status
   + num_child_accounts
   + pipeline_source
-  + processing_started_at
   --
-  <color:#01C176>Lineage + HVA flag
-}
-
-class StellarAccountStageExecution {
-  <color:#0BE784>+ stellar_account (PK)
-  <color:#0BE784>+ network_name (PK)
-  <color:#0BE784>+ created_at (PK)
-  <color:#0BE784>+ stage_number (CK)
-  <color:#96DDF2>+ cron_name
-  + status
-  + execution_time_ms
-  + error_message
-  + updated_at
-  --
-  <color:#01C176>Pipeline tracking
+  <color:#01C176>Main lineage table
 }
 
 class HVAStandingChange {
@@ -74,12 +53,20 @@ class HVAStandingChange {
   + new_rank
   + old_balance
   + new_balance
-  + rank_change
-  + network_name
   + xlm_threshold
-  + created_at
   --
-  <color:#01C176>Multi-threshold ranking
+  <color:#01C176>Ranking history
+}
+
+class StellarAccountStageExecution {
+  <color:#0BE784>+ stellar_account (PK)
+  <color:#0BE784>+ network_name (PK)
+  <color:#0BE784>+ stage_number (CK)
+  <color:#96DDF2>+ status
+  + execution_time_ms
+  + error_message
+  --
+  <color:#01C176>Pipeline tracking
 }
 
 class BigQueryPipelineConfig {
@@ -88,55 +75,43 @@ class BigQueryPipelineConfig {
   + cost_limit_usd
   + pipeline_mode
   + hva_threshold
-  + hva_supported_thresholds
   + batch_size
-  + cache_ttl_hours
-  + created_at
-  + updated_at
   --
   <color:#01C176>Admin settings
 }
 
-note right of StellarAccountSearchCache #231B3D
-  <color:#0BE784>Optimized Queries:
-  <color:#96DDF2>filter(status__in=[
-    'PENDING',
-    'IN_PROGRESS',
-    'RE_INQUIRY'
-  ])
+StellarAccountSearchCache -down-> StellarCreatorAccountLineage : "syncs to"
+StellarCreatorAccountLineage -down-> HVAStandingChange : "tracks changes"
+StellarCreatorAccountLineage -down-> StellarAccountStageExecution : "pipeline stages"
+
+note right of StellarAccountSearchCache
+  <color:#0BE784>Search Cache
+  <color:#96DDF2>• 12-hour TTL
+  <color:#96DDF2>• Status filtering
+  <color:#96DDF2>• Queue sync to Lineage
 end note
 
-note right of StellarCreatorAccountLineage #231B3D
-  <color:#0BE784>Dual Pipeline:
-  <color:#96DDF2>Primary: <color:#0BE784>BigQuery
-  <color:#96DDF2>• Account data
-  <color:#96DDF2>• Assets
-  <color:#96DDF2>• Creator info
-  <color:#96DDF2>• Child accounts
+note right of StellarCreatorAccountLineage
+  <color:#0BE784>Dual Pipeline Source
+  <color:#96DDF2>• BigQuery (primary)
+  <color:#96DDF2>• API (fallback)
   <color:#96DDF2>• HVA tagging
-  
-  <color:#96DDF2>Fallback: <color:#96DDF2>API Pipeline
+  <color:#96DDF2>• Creator/child tracking
 end note
 
-note right of HVAStandingChange #231B3D
-  <color:#0BE784>Multi-Threshold:
-  <color:#96DDF2>• Tracks per threshold
-  <color:#96DDF2>• xlm_threshold column
-  <color:#96DDF2>• Network filtering
-  <color:#96DDF2>• Event types: ENTERED,
-  <color:#96DDF2>  EXITED, RANK_UP,
-  <color:#96DDF2>  RANK_DOWN
-  
-  <color:#0BE784>480x storage efficiency
+note right of HVAStandingChange
+  <color:#0BE784>Multi-Threshold Ranking
+  <color:#96DDF2>• 10K-1M XLM thresholds
+  <color:#96DDF2>• Event-based tracking
+  <color:#96DDF2>• ENTERED/EXITED/RANK_UP
+  <color:#0BE784>• 480x storage efficiency
 end note
 
-note right of BigQueryPipelineConfig #231B3D
-  <color:#0BE784>Dynamic Config:
-  <color:#96DDF2>• Default: 100K XLM
-  <color:#96DDF2>• Supported thresholds:
-  <color:#96DDF2>  10K, 50K, 100K,
-  <color:#96DDF2>  500K, 750K, 1M
-  <color:#96DDF2>• Admin customizable
+note right of BigQueryPipelineConfig
+  <color:#0BE784>Dynamic Configuration
+  <color:#96DDF2>• Admin configurable
+  <color:#96DDF2>• Multiple thresholds
+  <color:#96DDF2>• Cost limits
 end note
 
 @enduml

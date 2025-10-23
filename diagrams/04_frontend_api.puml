@@ -3,6 +3,8 @@
 skinparam backgroundColor #261D45
 skinparam defaultFontColor #96DDF2
 
+top to bottom direction
+
 skinparam component {
   BackgroundColor #100D23
   BorderColor #0BE784
@@ -13,12 +15,6 @@ skinparam component {
 skinparam database {
   BackgroundColor #100D23
   BorderColor #0BE784
-  FontColor #96DDF2
-}
-
-skinparam package {
-  BackgroundColor #231B3D
-  BorderColor #3f2c70
   FontColor #96DDF2
 }
 
@@ -36,90 +32,66 @@ skinparam note {
 
 title <color:#0BE784>Frontend & API Architecture
 
-top to bottom direction
-
 actor User #0BE784
 
-package "Frontend" #231B3D {
-  component "Vue.js\nReactive UI" as Vue
-  component "D3.js\nRadial/Tidy Tree" as D3
-  component "Query Builder" as QueryBuilder
-}
+component "Vue.js Reactive UI" as Vue
+component "D3.js Tree Visualization" as D3
+component "Query Builder UI" as QueryBuilder
 
-package "Core APIs" #231B3D {
-  component "/api/pending-accounts/\n(30s cache)" as PendingAPI
-  component "/search/\n(Main lineage search)" as SearchAPI
-  component "/api/account-lineage/\n(No full scan)" as LineageAPI
-}
+component "/api/pending-accounts/" as PendingAPI
+component "/api/account-lineage/" as LineageAPI
+component "/web/query-builder/" as QueryBuilderAPI
+component "/search/" as SearchAPI
+component "/web/high-value-accounts/" as HVAAPI
 
-package "Feature APIs" #231B3D {
-  component "/web/high-value-accounts/\n(Multi-threshold)" as HVAAPI
-  component "/web/query-builder/\n(10 pre-defined)" as QueryBuilderAPI
-}
+database "Astra DB (Cassandra)" as DB
 
-database "Astra DB\n(Cassandra)" as DB
+User -down-> Vue
+User -down-> D3
+User -down-> QueryBuilder
+User -down-> SearchAPI
+User -down-> HVAAPI
 
-User -[#01C176]-> Vue
-User -[#01C176]-> D3
-User -[#01C176]-> QueryBuilder
+Vue -down-> PendingAPI : "polls 30s"
+D3 -down-> LineageAPI
+QueryBuilder -down-> QueryBuilderAPI
 
-Vue -[#01C176]-> PendingAPI : "Polls 30s"
-User -[#01C176]-> SearchAPI
-D3 -[#01C176]-> LineageAPI
-User -[#01C176]-> HVAAPI
-QueryBuilder -[#01C176]-> QueryBuilderAPI
+PendingAPI -down-> DB
+LineageAPI -down-> DB
+QueryBuilderAPI -down-> DB
+SearchAPI -down-> DB
+HVAAPI -down-> DB
 
-PendingAPI -[#01C176]-> DB
-SearchAPI -[#01C176]-> DB
-LineageAPI -[#01C176]-> DB
-HVAAPI -[#01C176]-> DB
-QueryBuilderAPI -[#01C176]-> DB
-
-note right of PendingAPI #231B3D
-  <color:#0BE784>Optimized Query:
-  
-  <color:#96DDF2>FROM search_cache
-  WHERE status IN (
-    'PENDING',
-    'IN_PROGRESS',
-    'RE_INQUIRY'
-  )
-  
-  <color:#01C176>30s TTL cache
-  <color:#01C176>88% fewer queries
+note right of PendingAPI
+  <color:#0BE784>Pending Accounts API
+  <color:#96DDF2>• 30s TTL cache
+  <color:#96DDF2>• Status IN clause
+  <color:#01C176>• 88% fewer queries
 end note
 
-note right of SearchAPI #231B3D
-  <color:#0BE784>Pipeline Initiation:
+note right of SearchAPI
+  <color:#0BE784>Main Search API
   <color:#96DDF2>1. Validate address
   <color:#96DDF2>2. Queue as PENDING
   <color:#0BE784>3. BigQuery processes
   <color:#96DDF2>4. Returns in 50-90s
-  
-  <color:#96DDF2>Up to 100K children
-  <color:#0BE784>Comma-formatted
+  <color:#96DDF2>• Up to 100K children
 end note
 
-note right of HVAAPI #231B3D
-  <color:#0BE784>Multi-Threshold:
-  <color:#96DDF2>• 10K-1M XLM selector
-  <color:#96DDF2>• Smart query strategy
-  <color:#96DDF2>• Partition-key lookups
-  <color:#96DDF2>• Clickable links
+note right of HVAAPI
+  <color:#0BE784>HVA Leaderboard
+  <color:#96DDF2>• Multi-threshold
+  <color:#96DDF2>• 10K-1M XLM
+  <color:#96DDF2>• Smart queries
   <color:#0BE784>• 24h rank changes
 end note
 
-note right of QueryBuilderAPI #231B3D
-  <color:#0BE784>10 Pre-Defined Queries:
-  <color:#96DDF2>• Stuck Accounts
-  <color:#96DDF2>• Orphan Accounts
-  <color:#96DDF2>• Failed Stages
-  <color:#96DDF2>• HVA Accounts
-  
-  <color:#0BE784>Custom Builder:
-  <color:#96DDF2>• Multi-column AND logic
+note right of QueryBuilderAPI
+  <color:#0BE784>Query Builder
+  <color:#96DDF2>• 10 pre-defined queries
+  <color:#96DDF2>• Custom AND logic
   <color:#96DDF2>• Adaptive max_scan
-  <color:#96DDF2>• Result limits: 50-500
+  <color:#96DDF2>• 50-500 result limit
 end note
 
 @enduml
