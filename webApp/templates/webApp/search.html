@@ -805,39 +805,51 @@
           }
         },
         transformSiblingsToLineage(siblingsData) {
-          // Transform sibling API response into linear lineage array format
-          // Color coding: Red links for direct lineage, white for siblings
+          // Transform sibling API response into the format expected by buildTreeFromLineage()
+          // Adds color coding flags AND populates child_accounts array for tree building
           const lineage = [];
           const { lineage_path, all_account_data, siblings_by_creator } = siblingsData;
+          const lineagePathSet = new Set(lineage_path);
           
-          // Add all accounts from lineage path first (these get red links)
-          lineage_path.forEach((accountAddr, index) => {
-            const accountData = all_account_data[accountAddr];
-            if (accountData) {
-              lineage.push({
-                ...accountData,
-                hierarchy_level: index,
-                is_lineage_path: true,  // Flag for red link coloring
-                is_searched_account: index === lineage_path.length - 1  // Flag for cyan glow
-              });
-              
-              // Add siblings at this level (these get white links)
-              const creatorAddr = accountData.stellar_creator_account;
-              if (creatorAddr && siblings_by_creator[creatorAddr]) {
-                siblings_by_creator[creatorAddr].forEach(siblingAddr => {
-                  const siblingData = all_account_data[siblingAddr];
-                  if (siblingData && siblingAddr !== accountAddr) {
-                    lineage.push({
-                      ...siblingData,
-                      hierarchy_level: index,
-                      is_lineage_path: false,  // Flag for white link coloring
-                      is_sibling: true
-                    });
-                  }
-                });
-              }
-            }
+          console.log('[transformSiblingsToLineage] Starting transformation');
+          console.log('[transformSiblingsToLineage] Lineage path length:', lineage_path.length);
+          console.log('[transformSiblingsToLineage] Total accounts:', Object.keys(all_account_data).length);
+          console.log('[transformSiblingsToLineage] Creators with siblings:', Object.keys(siblings_by_creator).length);
+          
+          // Process all accounts and add color coding metadata + child_accounts
+          Object.values(all_account_data).forEach(accountData => {
+            const accountAddr = accountData.stellar_account;
+            const isInLineagePath = lineagePathSet.has(accountAddr);
+            const isSearchedAccount = accountAddr === lineage_path[lineage_path.length - 1];
+            
+            // Check if this account is a creator with children in siblings_by_creator
+            const childAccounts = siblings_by_creator[accountAddr] || [];
+            
+            // Build the account record with ALL required fields
+            const record = {
+              stellar_account: accountData.stellar_account,
+              stellar_creator_account: accountData.stellar_creator_account,
+              network_name: accountData.network_name,
+              stellar_account_created_at: accountData.stellar_account_created_at,
+              home_domain: accountData.home_domain || '',
+              xlm_balance: accountData.xlm_balance || 0,
+              assets: accountData.assets || [],
+              child_accounts: childAccounts,  // Array of child account addresses
+              status: accountData.status,
+              created_at: accountData.created_at,
+              updated_at: accountData.updated_at,
+              // Color coding flags for D3 visualization
+              is_lineage_path: isInLineagePath,
+              is_sibling: !isInLineagePath,
+              is_searched_account: isSearchedAccount,
+              is_issuer: accountData.is_issuer || false
+            };
+            
+            lineage.push(record);
           });
+          
+          console.log('[transformSiblingsToLineage] Created', lineage.length, 'records');
+          console.log('[transformSiblingsToLineage] Sample record:', lineage[0]);
           
           return lineage;
         },
