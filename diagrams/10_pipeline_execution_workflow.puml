@@ -1,0 +1,126 @@
+@startuml Pipeline Execution Workflow
+!define RECTANGLE class
+
+skinparam backgroundColor #1a1a2e
+skinparam defaultTextAlignment center
+skinparam ArrowColor #00d4ff
+skinparam ArrowThickness 2
+
+skinparam package {
+  BackgroundColor #16213e
+  BorderColor #00d4ff
+  FontColor #ffffff
+}
+
+skinparam rectangle {
+  BackgroundColor #0f3460
+  BorderColor #00d4ff
+  FontColor #ffffff
+}
+
+skinparam note {
+  BackgroundColor #533483
+  BorderColor #e94560
+  FontColor #ffffff
+}
+
+title Pipeline Execution Workflow with Lineage Expansion\n(Creator & Child Account Queueing)
+
+package "Queue Synchronizer\n(Pre-Processing)" {
+  rectangle "Search Cache\n(PENDING)" as SearchCache #2d4059
+  rectangle "Promote to\nLineage Table" as Promote #2d4059
+  SearchCache -down-> Promote : sync_pending_to_lineage()
+}
+
+package "Pipeline Processing\n(BigQuery or API)" {
+  rectangle "1. Fetch Account\nfrom Lineage Table" as Fetch #0f3460
+  rectangle "2. Process Account\n(BigQuery/API)" as Process #0f3460
+  rectangle "3. Extract Data" as Extract #0f3460
+  
+  Promote -down-> Fetch
+  Fetch -down-> Process
+  Process -down-> Extract
+  
+  note right of Extract
+    Extract:
+    • Creator account
+    • Child accounts (list)
+    • Balance, assets, etc.
+  end note
+}
+
+package "Database Update\n(Lineage Expansion)" {
+  rectangle "4. Update Account\nRecord in Lineage" as Update #16213e
+  rectangle "5. Queue Creator\nfor Processing" as QueueCreator #16213e
+  rectangle "6. Queue Children\nfor Processing" as QueueChildren #16213e
+  
+  Extract -down-> Update
+  Update -down-> QueueCreator : _queue_creator_account()
+  Update -down-> QueueChildren : _queue_child_accounts()
+  
+  note right of QueueCreator
+    Check if creator exists
+    If NEW → Create PENDING record
+    If exists → Skip (no duplicate)
+  end note
+  
+  note right of QueueChildren
+    For each child account:
+    • Check if exists
+    • If NEW → Create PENDING
+    • Set parent relationship
+  end note
+}
+
+package "Status Sync\n(Post-Processing)" {
+  rectangle "7. Sync Status Back\nto Search Cache" as SyncBack #2d4059
+  rectangle "Search Cache\n(DONE_MAKE_PARENT_LINEAGE)" as CacheUpdated #2d4059
+  
+  QueueCreator -down-> SyncBack
+  QueueChildren -down-> SyncBack
+  SyncBack -down-> CacheUpdated : sync_status_back_to_cache()
+  
+  note left of SyncBack
+    API_COMPLETE → DONE_MAKE_PARENT_LINEAGE
+    BIGQUERY_COMPLETE → DONE_MAKE_PARENT_LINEAGE
+    FAILED → FAILED
+  end note
+}
+
+package "Lineage Graph Expansion" {
+  rectangle "New PENDING\nAccounts Queued" as NewAccounts #533483
+  rectangle "Next Pipeline Run\nProcesses Queue" as NextRun #533483
+  
+  CacheUpdated -down-> NewAccounts : Lineage count increases
+  NewAccounts -down-> NextRun : Cycle repeats
+  
+  note right of NewAccounts
+    Graph expands:
+    • Upward (creators)
+    • Downward (children)
+    
+    Count increases as
+    new accounts discovered
+  end note
+}
+
+NextRun .up.> Fetch : Process newly\nqueued accounts
+
+legend right
+  |= Color |= Component |
+  | #2d4059 | Queue Synchronizer |
+  | #0f3460 | Pipeline Core |
+  | #16213e | Database Operations |
+  | #533483 | Graph Expansion |
+  
+  **Status Flow:**
+  PENDING → PROCESSING → API_COMPLETE/BIGQUERY_COMPLETE → DONE_MAKE_PARENT_LINEAGE
+  
+  **Key Features:**
+  • Bidirectional sync (Search Cache ↔ Lineage)
+  • Duplicate detection (no re-queueing)
+  • Automatic lineage expansion
+  • Parent-child relationship tracking
+endlegend
+
+@enduml

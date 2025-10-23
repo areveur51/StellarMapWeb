@@ -2,7 +2,7 @@
 
 **Target Audience:** Developers, System Architects, DevOps Engineers
 
-**Last Updated:** October 22, 2025
+**Last Updated:** October 23, 2025
 
 ---
 
@@ -889,6 +889,55 @@ ADD processing_started_at timestamp;  -- Stuck detection
    └─ Use API Pipeline (reliable fallback)
       └─ Mark: pipeline_source='API'
 ```
+
+#### **Pipeline Execution Workflow**
+
+**Updated:** October 23, 2025
+
+![Pipeline Execution Workflow](./diagrams/10_pipeline_execution_workflow.png)
+
+##### **Lineage Graph Expansion**
+
+Both pipelines now automatically expand the lineage graph by queueing discovered accounts:
+
+**Creator Account Queueing:**
+- When processing an account, its creator is extracted
+- If creator doesn't exist in database → Create PENDING record
+- If creator exists → Skip (no duplicate queueing)
+- Next pipeline run processes the queued creator
+
+**Child Account Queueing:**
+- All child accounts discovered during processing are queued
+- Each child checked for existence in database
+- New children → Create PENDING records with parent relationship
+- Existing children → Skip
+
+**Queue Synchronizer Integration:**
+
+**Pre-Processing (Search Cache → Lineage):**
+```python
+# Promote PENDING from Search Cache to Lineage table
+sync_pending_to_lineage()
+```
+
+**Post-Processing (Lineage → Search Cache):**
+```python
+# Sync status back after successful processing
+sync_status_back_to_cache()
+# Maps: API_COMPLETE/BIGQUERY_COMPLETE → DONE_MAKE_PARENT_LINEAGE
+```
+
+**Execution Flow:**
+1. **Queue Sync**: Promote PENDING accounts from Search Cache to Lineage
+2. **Pipeline Processing**: Fetch and process account (BigQuery or API)
+3. **Data Extraction**: Extract creator, children, balance, assets
+4. **Database Update**: Store processed data in Lineage table
+5. **Creator Queueing**: Check and queue creator account if new
+6. **Child Queueing**: Check and queue all new child accounts
+7. **Status Sync**: Update Search Cache with completion status
+8. **Graph Expansion**: Newly queued accounts processed in next run
+
+**Result:** Lineage count increases continuously as new accounts are discovered and queued for processing.
 
 #### **Admin Configuration**
 

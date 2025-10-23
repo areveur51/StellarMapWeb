@@ -26,7 +26,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Query Builder**: Comprehensive Cassandra database explorer at `/web/query-builder/` with 10 pre-defined queries and a custom multi-filter builder supporting AND logic. Features network-aware filtering, adaptive `max_scan` limits, sortable results, and clickable account links. **Processing Accounts** query enhanced with dual-table scanning (Search Cache + Account Lineage) and stale detection (>30 min) with `[STALE]` tags. Management command `reset_stale_processing` available to reset stuck accounts.
 - **System-Wide Glow Effects**: Comprehensive cyberpunk glow treatments on all interactive elements.
 - **Dashboard Layout**: Alerts & Recommendations are prioritized at the top.
-- **Architecture Diagrams**: 8 PlantUML diagrams document the system, including System Overview, Data Pipeline, Database Schema, Frontend & API Layer, Monitoring System, Hybrid Architecture, HVA Ranking System, and Query Builder Architecture.
+- **Architecture Diagrams**: 10 PlantUML diagrams document the system, including System Overview, Data Pipeline, Database Schema, Frontend & API Layer, Monitoring System, Hybrid Architecture, HVA Ranking System, Query Builder Architecture, Dual-Pipeline Architecture, and Pipeline Execution Workflow (with Creator/Child Queueing).
 
 ## Technical Implementation
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure (`apiApp`, `webApp`, `radialTidyTreeApp`).
@@ -38,7 +38,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Docker Deployment**: Cross-platform Docker Compose setup for development and production.
 - **BigQuery-Based Data Collection**: Primary pipeline uses Stellar's BigQuery/Hubble dataset, with age restrictions, cost optimization strategies (`BigQueryCostGuard`), and an API fallback. Includes dynamic adjustment of pipeline settings via an Admin Configuration Panel.
 - **HVA Change Tracking**: `HVARankingHelper` provides ranking calculations and change detection with dual SQLite/Cassandra compatibility.
-- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for comprehensive workflow tracking. Critical bug fixes (2025-10-23): DateTime parsing now converts ISO 8601 strings to datetime objects (was causing 100% failure); asset parsing method added; processing accounts query fixed to match 'PROCESSING' not 'PROGRESS'; reset_stale_processing command fixed with runtime Cassandra detection using `__default_ttl__` attribute check.
+- **API-Based Fast Pipeline**: An alternative 8-stage pipeline using Horizon API and Stellar Expert for comprehensive workflow tracking. **Lineage Graph Expansion** (2025-10-23): Both pipelines now automatically queue discovered creator and child accounts for processing, expanding the lineage graph continuously. Critical bug fixes (2025-10-23): DateTime parsing now converts ISO 8601 strings to datetime objects (was causing 100% failure); asset parsing method added; processing accounts query fixed to match 'PROCESSING' not 'PROGRESS'; reset_stale_processing command fixed with runtime Cassandra detection using `__default_ttl__` attribute check.
 - **Queue Synchronizer**: Automatic sync between Search Cache and Account Lineage tables (2025-10-23). Single-account searches create PENDING records in Search Cache, which are promoted to Account Lineage before pipeline processing. After processing completes, status is synced back to Search Cache. Bulk Search bypasses Search Cache and creates records directly in Account Lineage. This architecture ensures all user searches are processed while maintaining data consistency across both tables.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Two-Tier Creator Extraction**: BigQuery for `create_account` operations; API pipeline with Stellar Expert fallback.
@@ -87,7 +87,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - jQuery
 
 # Documentation Files
-- **TECHNICAL_ARCHITECTURE.md**: Comprehensive developer documentation with all 9 PlantUML diagrams, detailed explanations of database schema, API endpoints, performance optimizations, security implementations, and deployment strategies
+- **TECHNICAL_ARCHITECTURE.md**: Comprehensive developer documentation with all 10 PlantUML diagrams, detailed explanations of database schema, API endpoints, performance optimizations, security implementations, deployment strategies, and pipeline execution workflow with lineage expansion
 - **USER_GUIDE.md**: End-user documentation with screenshots and examples
 - **DUAL_PIPELINE_IMPLEMENTATION.md**: Dual-pipeline architecture (BigQuery + API fallback) with cost optimization
 - **HVA_RANKING_SYSTEM.md**: Multi-threshold HVA system implementation details
