@@ -490,7 +490,7 @@
                 </h3>
         <div class="dashboard-grid">
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Total number of Stellar accounts stored in the search cache">
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">{{ db_stats.total_cached_accounts }}</div>
                     <small>in cache</small>
@@ -500,7 +500,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts updated within the last 12 hours (cache TTL). Data is current and doesn't need refreshing.">
                     <div class="stat-label">Fresh Records</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.fresh_accounts }}</div>
                     <small>up to date</small>
@@ -510,7 +510,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts not updated in over 12 hours. Data may be outdated and should be refreshed from the blockchain.">
                     <div class="stat-label">Stale Records</div>
                     <div class="stat-value" style="color: #ffc107;">{{ db_stats.stale_accounts }}</div>
                     <small>needs refresh</small>
@@ -520,7 +520,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts stuck in PENDING or PROCESSING status for over 30 minutes. These may require manual intervention or reset.">
                     <div class="stat-label">Stuck Records</div>
                     <div class="stat-value" style="color: #E5526F;">{{ db_stats.stuck_accounts }}</div>
                     <small>⚠️ requires attention</small>
@@ -537,7 +537,7 @@
         </h3>
         <div class="dashboard-grid">
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts waiting to be processed by the pipeline. These are queued for lineage data collection.">
                     <div class="stat-label">Pending</div>
                     <div class="stat-value">{{ db_stats.pending_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
@@ -546,7 +546,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts currently being processed by the pipeline. Data collection is in progress.">
                     <div class="stat-label">In Progress</div>
                     <div class="stat-value">{{ db_stats.in_progress_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
@@ -555,7 +555,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts that have been fully processed. Lineage data collection is complete.">
                     <div class="stat-label">Completed</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.completed_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
@@ -564,7 +564,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts flagged for re-processing due to errors or data changes.">
                     <div class="stat-label">Re-inquiry</div>
                     <div class="stat-value">{{ db_stats.re_inquiry_accounts }}</div>
                     <a href="/admin/apiApp/stellaraccountsearchcache/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
@@ -580,7 +580,7 @@
                 </h3>
         <div class="dashboard-grid">
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Total number of creator-child relationship records stored in the lineage table.">
                     <div class="stat-label">Total Lineage Records</div>
                     <div class="stat-value">{{ db_stats.total_lineage_records }}</div>
                     <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-info admin-link-btn" style="border-color: #96DDF2; color: #96DDF2;">
@@ -589,7 +589,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Unique accounts that have at least one lineage relationship (creator or child) in the database.">
                     <div class="stat-label">Accounts with Lineage</div>
                     <div class="stat-value" style="color: #0BE784;">{{ db_stats.accounts_with_lineage }}</div>
                     <a href="/admin/apiApp/stellarcreatoraccountlineage/" class="btn btn-sm btn-outline-success admin-link-btn" style="border-color: #0BE784; color: #0BE784;">
@@ -598,7 +598,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Accounts marked as complete in cache but missing lineage data. These may need reprocessing.">
                     <div class="stat-label">Orphan Accounts</div>
                     <div class="stat-value" style="{% if db_stats.orphan_accounts > 0 %}color: #ffc107;{% endif %}">
                         {{ db_stats.orphan_accounts }}
@@ -617,14 +617,14 @@
                 </h3>
         <div class="dashboard-grid">
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Average time (in minutes) to process an account from start to completion.">
                     <div class="stat-label">Avg Processing Time</div>
                     <div class="stat-value">{{ performance_stats.avg_processing_time_minutes|floatformat:1 }}</div>
                     <small>minutes</small>
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="The shortest processing time for any completed account.">
                     <div class="stat-label">Fastest Account</div>
                     <div class="stat-value">
                         {% if performance_stats.fastest_account_minutes %}
@@ -637,7 +637,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="The longest processing time for any completed account.">
                     <div class="stat-label">Slowest Account</div>
                     <div class="stat-value">
                         {% if performance_stats.slowest_account_minutes %}
@@ -650,7 +650,7 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card">
+                <div class="stat-card" title="Total number of accounts processed in the last 24 hours.">
                     <div class="stat-label">Processed (24h)</div>
                     <div class="stat-value">{{ performance_stats.total_accounts_processed_24h }}</div>
                     <small>accounts</small>
