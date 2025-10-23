@@ -198,6 +198,37 @@ class StellarMapStellarExpertAPIParserHelpers:
         except Exception as e:
             sentry_sdk.capture_exception(e)
             return None
+    
+    def parse_account_assets(self):
+        """
+        Extract asset holdings from Stellar Expert response.
+        
+        Returns:
+            list: List of asset dictionaries with code, issuer, and balance.
+        """
+        try:
+            if self.datastax_response:
+                raw_data = self.datastax_response.get('data', {}).get('raw_data', {})
+                balances = raw_data.get('balances', [])
+                
+                assets = []
+                for balance in balances:
+                    # Skip native XLM balance
+                    if balance.get('asset_type') == 'native':
+                        continue
+                    
+                    assets.append({
+                        'asset_code': balance.get('asset_code', ''),
+                        'asset_issuer': balance.get('asset_issuer', ''),
+                        'asset_type': balance.get('asset_type', ''),
+                        'balance': balance.get('balance', '0')
+                    })
+                
+                return assets
+            return []
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            return []
 
     def parse_asset_code_issuer_type(self) -> dict:
         """
