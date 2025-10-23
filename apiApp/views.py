@@ -1474,7 +1474,9 @@ def cassandra_query_api(request):
                     search_cache_count += 1
                     if search_cache_count > search_cache_max_scan:
                         break
-                    if record.status and 'PROGRESS' in record.status:
+                    # Case-insensitive check for 'PROCESSING' in status
+                    status_normalized = (record.status or '').upper()
+                    if 'PROCESSING' in status_normalized:
                         # Mark as stale if no updates for 30+ minutes
                         is_stale = record.updated_at and record.updated_at < stale_threshold
                         record._table_source = 'Search Cache' + (' [STALE]' if is_stale else '')
@@ -1491,7 +1493,9 @@ def cassandra_query_api(request):
                         lineage_count += 1
                         if lineage_count > lineage_max_scan:
                             break
-                        if record.status and 'PROGRESS' in record.status:
+                        # Case-insensitive check for 'PROCESSING' in status
+                        status_normalized = (record.status or '').upper()
+                        if 'PROCESSING' in status_normalized:
                             # Check if processing_started_at indicates stale processing
                             is_stale = False
                             if hasattr(record, 'processing_started_at') and record.processing_started_at:
@@ -1509,7 +1513,7 @@ def cassandra_query_api(request):
                 # Check Search Cache
                 search_cache_processing = StellarAccountSearchCache.objects.filter(
                     network_name=network,
-                    status__contains='PROGRESS'
+                    status__icontains='PROCESSING'
                 )[:limit]
                 
                 for record in search_cache_processing:
@@ -1522,7 +1526,7 @@ def cassandra_query_api(request):
                     remaining = limit - len(processing)
                     lineage_processing = StellarCreatorAccountLineage.objects.filter(
                         network_name=network,
-                        status__contains='PROGRESS'
+                        status__icontains='PROCESSING'
                     )[:remaining]
                     
                     for record in lineage_processing:
