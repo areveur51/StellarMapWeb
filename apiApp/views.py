@@ -2038,70 +2038,110 @@ def lineage_with_siblings_api(request):
         # Reverse to get root → searched account order
         lineage_path.reverse()
         
-        # STEP 2: For each account in lineage path, fetch siblings
-        siblings_by_creator = {}
-        all_accounts_to_fetch = set(lineage_path)  # Start with lineage path
+        # STEP 2: Collect creator addresses from lineage path and fetch siblings in ONE batch query
+        # First, get creator addresses from the lineage we just built
+        creator_addresses = []
+        lineage_path_set = set(lineage_path)
         
-        for account_addr in lineage_path:
-            # Fetch the record to get creator
-            if USE_CASSANDRA:
-                records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=account_addr,
-                    network_name=network
-                ).limit(1))
-                record = records[0] if records else None
-            else:
-                record = StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=account_addr,
-                    network_name=network
-                ).first()
+        # Build a map of account -> creator from the records we already fetched during lineage building
+        account_to_creator = {}
+        
+        # We need to get creators for all lineage accounts - batch fetch them with chunking
+        if lineage_path:
+            lineage_records = []
+            BATCH_SIZE = 25  # Cassandra's IN limit
             
-            if record and record.stellar_creator_account:
-                creator_addr = record.stellar_creator_account
-                
-                # Fetch all children of this creator (siblings of current account)
-                if USE_CASSANDRA:
-                    # Cassandra: fetch all children
-                    sibling_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=creator_addr,
+            if USE_CASSANDRA:
+                # Cassandra: fetch lineage records in batches of 25
+                for i in range(0, len(lineage_path), BATCH_SIZE):
+                    batch = lineage_path[i:i + BATCH_SIZE]
+                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
+                        stellar_account__in=batch,
                         network_name=network
-                    ).limit(max_siblings + 1))  # +1 to detect if there are more
-                else:
-                    # SQL: fetch with limit
-                    sibling_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=creator_addr,
-                        network_name=network
-                    )[:max_siblings + 1])
-                
-                # Extract sibling account addresses (excluding the one in lineage path)
-                sibling_addrs = [
-                    rec.stellar_account 
-                    for rec in sibling_records 
-                    if rec.stellar_account != account_addr
-                ][:max_siblings]
-                
-                if sibling_addrs:
-                    siblings_by_creator[creator_addr] = sibling_addrs
-                    all_accounts_to_fetch.update(sibling_addrs)
-                    all_accounts_to_fetch.add(creator_addr)
+                    ))
+                    lineage_records.extend(batch_records)
+            else:
+                # SQL: can handle larger IN clauses
+                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_account__in=lineage_path,
+                    network_name=network
+                ))
+            
+            # Build creator mapping and collect unique creators
+            for rec in lineage_records:
+                if rec.stellar_creator_account:
+                    account_to_creator[rec.stellar_account] = rec.stellar_creator_account
+                    if rec.stellar_creator_account not in creator_addresses:
+                        creator_addresses.append(rec.stellar_creator_account)
         
-        # STEP 3: Fetch full data for all accounts (lineage path + siblings)
+        # BATCH QUERY: Fetch ALL children of ALL creators at once
+        siblings_by_creator = {}
+        all_sibling_addresses = set()
+        
+        if creator_addresses:
+            if USE_CASSANDRA:
+                # For Cassandra, we need to query by creator - but can't use __in for non-primary key
+                # So we'll do individual queries but limit them
+                all_children_records = []
+                for creator_addr in creator_addresses:
+                    children = list(StellarCreatorAccountLineage.objects.filter(
+                        stellar_creator_account=creator_addr,
+                        network_name=network
+                    ).limit(max_siblings + 1))
+                    all_children_records.extend(children)
+            else:
+                # SQL: can use __in for indexed columns
+                all_children_records = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_creator_account__in=creator_addresses,
+                    network_name=network
+                ))
+            
+            # Group children by creator
+            for rec in all_children_records:
+                creator_addr = rec.stellar_creator_account
+                child_addr = rec.stellar_account
+                
+                # Only include siblings (not the lineage path account itself)
+                if child_addr not in lineage_path_set:
+                    if creator_addr not in siblings_by_creator:
+                        siblings_by_creator[creator_addr] = []
+                    
+                    if len(siblings_by_creator[creator_addr]) < max_siblings:
+                        siblings_by_creator[creator_addr].append(child_addr)
+                        all_sibling_addresses.add(child_addr)
+        
+        # STEP 3: BATCH FETCH full data for ALL accounts (lineage + siblings + creators)
+        # IMPORTANT: Cassandra has a limit of 25 values in __in queries
+        all_accounts_to_fetch = lineage_path_set | all_sibling_addresses | set(creator_addresses)
         all_account_data = {}
         
-        for acct_addr in all_accounts_to_fetch:
-            if USE_CASSANDRA:
-                records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=acct_addr,
-                    network_name=network
-                ).limit(1))
-                record = records[0] if records else None
-            else:
-                record = StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=acct_addr,
-                    network_name=network
-                ).first()
+        if all_accounts_to_fetch:
+            # Convert to list for querying
+            accounts_list = list(all_accounts_to_fetch)
             
-            if record:
+            # OPTIMIZED: Batch query with chunking for Cassandra's 25-value limit
+            all_records = []
+            BATCH_SIZE = 25  # Cassandra's IN limit
+            
+            if USE_CASSANDRA:
+                # Chunk accounts into batches of 25
+                for i in range(0, len(accounts_list), BATCH_SIZE):
+                    batch = accounts_list[i:i + BATCH_SIZE]
+                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
+                        stellar_account__in=batch,
+                        network_name=network
+                    ))
+                    all_records.extend(batch_records)
+            else:
+                # SQL can handle larger IN clauses
+                all_records = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_account__in=accounts_list,
+                    network_name=network
+                ))
+            
+            # Process all records in memory
+            for record in all_records:
+                acct_addr = record.stellar_account
                 assets = extract_assets(record.horizon_accounts_json)
                 
                 all_account_data[acct_addr] = {

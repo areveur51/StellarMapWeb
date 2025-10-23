@@ -240,6 +240,94 @@
                   </div>
                 </template>
               </b-tab>
+              <b-tab title="Siblings" :title-link-attributes="{ title: 'View all sibling accounts (other children of the same creators) discovered alongside the direct lineage path' }">
+                <template>
+                  <div v-if="lineageLoading" style="text-align: center; padding: 20px;">
+                    <b-spinner variant="primary"></b-spinner>
+                    <p>Loading siblings data...</p>
+                  </div>
+                  <div v-else-if="lineageError" class="alert alert-danger">
+                    {% verbatim %}{{ lineageError }}{% endverbatim %}
+                  </div>
+                  <div v-else-if="siblings_data && siblings_data.length > 0">
+                    <div class="alert alert-info" style="margin-bottom: 15px;">
+                      <strong>{% verbatim %}{{ siblings_data.length }}{% endverbatim %} sibling accounts</strong> found alongside the direct lineage path. 
+                      These are other accounts created by the same creators in the lineage chain.
+                    </div>
+                    <b-table
+                      :items="siblings_data"
+                      :fields="lineageTableFields"
+                      striped
+                      small
+                      dark
+                      hover
+                    >
+                      <template #cell(stellar_account)="data">
+                        {% verbatim %}<span 
+                          v-if="data.value"
+                          style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
+                          :title="data.value"
+                          @dblclick="copyToClipboard(data.value, 'Account address copied!')"
+                        >...{{ data.value.slice(-7) }}</span>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(stellar_creator_account)="data">
+                        {% verbatim %}<span 
+                          v-if="data.value"
+                          style="font-family: monospace; font-size: 0.85em; cursor: pointer;"
+                          :title="data.value"
+                          @dblclick="copyToClipboard(data.value, 'Creator address copied!')"
+                        >...{{ data.value.slice(-7) }}</span>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(xlm_balance)="data">
+                        {% verbatim %}{{ data.value ? data.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00' }} XLM{% endverbatim %}
+                      </template>
+                      <template #cell(assets)="row">
+                        {% verbatim %}<span v-if="row.item.assets && row.item.assets.length > 0">
+                          <b-badge variant="success">{{ row.item.assets.length }}</b-badge>
+                        </span>{% endverbatim %}
+                        <span v-else class="text-muted">0</span>
+                      </template>
+                      <template #cell(se_url)="row">
+                        {% verbatim %}<a 
+                          v-if="row.item.stellar_account && row.item.network_name"
+                          :href="'https://stellar.expert/explorer/' + row.item.network_name + '/account/' + row.item.stellar_account"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="View on Stellar Expert"
+                          class="btn btn-sm btn-outline-primary"
+                        >
+                          <i class="fas fa-external-link-alt"></i>
+                        </a>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(stellar_account_created_at)="data">
+                        {% verbatim %}<span v-if="data.value">{{ formatDateTimeEST(data.value) }}</span>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(home_domain)="data">
+                        {% verbatim %}<a 
+                          v-if="data.value && data.value.trim()"
+                          href="#"
+                          @click.prevent="showTomlContent(data.value)"
+                          :title="'TOML: https://' + data.value + '/.well-known/stellar.toml'"
+                          style="cursor: pointer; text-decoration: underline;"
+                        >{{ data.value }}</a>{% endverbatim %}
+                        <span v-else class="text-muted">-</span>
+                      </template>
+                      <template #cell(status)="row">
+                        {% verbatim %}<b-badge 
+                          :variant="getLineageStatusVariant(row.item.status)"
+                        >{{ row.item.status }}</b-badge>{% endverbatim %}
+                      </template>
+                    </b-table>
+                  </div>
+                  <div v-else class="alert alert-info">
+                    No sibling accounts found. Either this is the only child of each creator in the lineage, or the searched account is at the root.
+                  </div>
+                </template>
+              </b-tab>
               <b-tab title="Tree Data" :title-link-attributes="{ title: 'Raw JSON data structure used to render the radial tidy tree visualization' }">
                 <pre v-html="highlightedJSONResponse"></pre>
               </b-tab>
@@ -482,6 +570,7 @@
           tree_data: parsedTreeData,
           request_status_data: parsedRequestStatus,
           account_lineage_data: parsedAccountLineage,
+          siblings_data: [],  // NEW: Separate array for sibling accounts
           pending_accounts_data: parsedPendingAccounts,
           pendingAccountsInterval: null,
           stage_executions_data: { stages: [] },
@@ -805,9 +894,13 @@
           }
         },
         transformSiblingsToLineage(siblingsData) {
-          // Transform sibling API response into the format expected by buildTreeFromLineage()
-          // Adds color coding flags AND populates child_accounts array for tree building
-          const lineage = [];
+          // Transform sibling API response into SEPARATE arrays for:
+          // 1. account_lineage_data: ONLY direct lineage path
+          // 2. siblings_data: ONLY sibling accounts
+          // Also builds tree structure with child_accounts for visualization
+          
+          const lineageAccounts = [];
+          const siblingAccounts = [];
           const { lineage_path, all_account_data, siblings_by_creator } = siblingsData;
           const lineagePathSet = new Set(lineage_path);
           
@@ -816,7 +909,7 @@
           console.log('[transformSiblingsToLineage] Total accounts:', Object.keys(all_account_data).length);
           console.log('[transformSiblingsToLineage] Creators with siblings:', Object.keys(siblings_by_creator).length);
           
-          // Process all accounts and add color coding metadata + child_accounts
+          // Process all accounts and SEPARATE into lineage vs siblings
           Object.values(all_account_data).forEach(accountData => {
             const accountAddr = accountData.stellar_account;
             const isInLineagePath = lineagePathSet.has(accountAddr);
@@ -845,13 +938,23 @@
               is_issuer: accountData.is_issuer || false
             };
             
-            lineage.push(record);
+            // SEPARATE into different arrays based on whether it's in lineage path
+            if (isInLineagePath) {
+              lineageAccounts.push(record);
+            } else {
+              siblingAccounts.push(record);
+            }
           });
           
-          console.log('[transformSiblingsToLineage] Created', lineage.length, 'records');
-          console.log('[transformSiblingsToLineage] Sample record:', lineage[0]);
+          console.log('[transformSiblingsToLineage] Direct lineage:', lineageAccounts.length);
+          console.log('[transformSiblingsToLineage] Siblings:', siblingAccounts.length);
           
-          return lineage;
+          // Update both arrays in Vue data
+          this.account_lineage_data = lineageAccounts;
+          this.siblings_data = siblingAccounts;
+          
+          // Return lineage accounts for backward compatibility with buildTreeFromLineage()
+          return lineageAccounts;
         },
         async fetchServerLogs() {
           try {
