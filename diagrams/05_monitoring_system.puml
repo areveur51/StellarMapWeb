@@ -30,56 +30,54 @@ skinparam note {
 
 title <color:#0BE784>Monitoring & Health System
 
-package "Monitoring Components" #231B3D {
-  component "Health\nMonitor" as HealthMonitor
-  component "Stuck Record\nRecovery" as Recovery
-  component "Progress\nTracker" as ProgressTracker
-  component "API Rate\nLimiter" as RateLimiter
-  component "Dashboard\nMetrics" as Dashboard
+top to bottom direction
+
+package "Pipelines" #231B3D {
+  component "BigQuery Pipeline\n(Primary)" as BQPipeline
+  component "API Pipeline\n(Educational)" as APIPipeline
 }
 
-component "BigQuery Pipeline\n(Primary)" as BQPipeline
-component "API Pipeline\n(Educational)" as APIPipeline
+package "Monitoring Components" #231B3D {
+  component "Health Monitor" as HealthMonitor
+  component "Progress Tracker" as ProgressTracker
+  component "Stuck Record\nRecovery" as Recovery
+  component "API Rate Limiter" as RateLimiter
+  component "Dashboard Metrics" as Dashboard
+}
 
-database "ManagementCronHealth\nTable" as HealthDB
-database "Progress Tracking\nTable" as ProgressDB
-database "Cache & Lineage\nTables" as DataDB
-database "Django Cache\n(rate metrics)" as CacheDB
+package "Data Storage" #231B3D {
+  database "ManagementCronHealth" as HealthDB
+  database "Progress Tracking" as ProgressDB
+  database "Cache & Lineage" as DataDB
+  database "Django Cache\n(rate metrics)" as CacheDB
+}
 
-BQPipeline -[#0BE784]-> ProgressTracker : "Tracks processing"
+BQPipeline -[#0BE784]-> ProgressTracker : "Updates"
 APIPipeline -[#96DDF2,dashed]-> ProgressTracker : "(If enabled)"
 
-ProgressTracker -[#01C176]-> ProgressDB : "Updates status"
+ProgressTracker -[#01C176]-> ProgressDB
 
-HealthMonitor -[#01C176]-> HealthDB : "Monitors health"
-HealthMonitor -[#01C176]-> BQPipeline : "Checks BigQuery"
-HealthMonitor -[#96DDF2,dashed]-> APIPipeline : "(If enabled)"
+HealthMonitor -[#01C176]-> HealthDB
+HealthMonitor -[#01C176]-> BQPipeline
+HealthMonitor -[#96DDF2,dashed]-> APIPipeline
 
-Recovery -[#01C176]-> DataDB : "Finds stuck records"
-Recovery -[#01C176]-> DataDB : "Resets to PENDING"
+Recovery -[#01C176]-> DataDB : "Finds stuck\nResets to PENDING"
 
-RateLimiter -[#01C176]-> CacheDB : "Stores API metrics"
-RateLimiter -[#01C176]-> APIPipeline : "Controls API calls"
-RateLimiter -[#01C176]-> BQPipeline : "Applies age filter"
+RateLimiter -[#01C176]-> CacheDB
+RateLimiter -[#01C176]-> APIPipeline
+RateLimiter -[#01C176]-> BQPipeline
 
-Dashboard -[#01C176]-> HealthDB : "Reads health data"
-Dashboard -[#01C176]-> CacheDB : "Reads rate metrics"
-Dashboard -[#01C176]-> DataDB : "Counts records"
+Dashboard -[#01C176]-> HealthDB
+Dashboard -[#01C176]-> CacheDB
+Dashboard -[#01C176]-> DataDB
 
 note right of BQPipeline #231B3D
   <color:#0BE784>BigQuery Pipeline:
   <color:#96DDF2>• 50-90 second processing
   <color:#96DDF2>• No rate limits
-  <color:#96DDF2>• Age-based filtering (<2 years)
+  <color:#96DDF2>• Age filter (<2 years)
   <color:#96DDF2>• Up to 100 accounts/batch
   <color:#0BE784>• Comma-formatted metrics
-end note
-
-note right of APIPipeline #231B3D
-  <color:#96DDF2>API Pipeline (Reference):
-  <color:#96DDF2>• 8 sequential stages
-  <color:#96DDF2>• Educational purposes
-  <color:#96DDF2>• Rate limited: 0.5s Horizon, 1.0s Expert
 end note
 
 note right of HealthMonitor #231B3D
@@ -94,37 +92,23 @@ end note
 
 note right of Recovery #231B3D
   <color:#0BE784>Stuck Thresholds:
-  <color:#96DDF2>Detects records stuck in:
+  <color:#96DDF2>Detects records in:
   • PENDING (>2 hours)
   • IN_PROGRESS
   
   <color:#0BE784>Terminal Statuses:
-  <color:#96DDF2>(Never recovered)
   <color:#E5526F>• FAILED
-  • INVALID_HORIZON_STELLAR_ADDRESS
-end note
-
-note right of RateLimiter #231B3D
-  <color:#0BE784>API Rate Limiting:
-  <color:#96DDF2>• Horizon: 0.5s delay
-  <color:#96DDF2>• Stellar Expert: 1.0s delay
-  <color:#96DDF2>• Shared metrics via cache
-  <color:#96DDF2>• Cross-process awareness
-  <color:#0BE784>• Prevents infinite queue loops
+  <color:#E5526F>• INVALID_HORIZON_...
 end note
 
 note right of Dashboard #231B3D
   <color:#0BE784>Dashboard Sections:
-  <color:#96DDF2>1. Alerts & Recommendations (top)
-  <color:#96DDF2>2. API Health Monitoring
-  <color:#96DDF2>   • Call counts
-  <color:#96DDF2>   • Burst limits
-  <color:#96DDF2>   • Rate delays
-  <color:#96DDF2>   • Last call timestamps
+  <color:#96DDF2>1. Alerts (top)
+  <color:#96DDF2>2. API Health
   <color:#96DDF2>3. BigQuery Costs
   <color:#96DDF2>4. Database Health
-  <color:#96DDF2>5. Performance Metrics
-  <color:#0BE784>All numbers comma-formatted
+  <color:#96DDF2>5. Performance
+  <color:#0BE784>All comma-formatted
 end note
 
 @enduml

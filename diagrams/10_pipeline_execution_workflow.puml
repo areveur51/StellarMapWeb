@@ -1,126 +1,102 @@
-@startuml Pipeline Execution Workflow
-!define RECTANGLE class
+@startuml 10_pipeline_execution_workflow
 
-skinparam backgroundColor #1a1a2e
-skinparam defaultTextAlignment center
-skinparam ArrowColor #00d4ff
-skinparam ArrowThickness 2
-
-skinparam package {
-  BackgroundColor #16213e
-  BorderColor #00d4ff
-  FontColor #ffffff
-}
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
 
 skinparam rectangle {
-  BackgroundColor #0f3460
-  BorderColor #00d4ff
-  FontColor #ffffff
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
+}
+
+skinparam package {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
 }
 
 skinparam note {
-  BackgroundColor #533483
-  BorderColor #e94560
-  FontColor #ffffff
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
 }
 
-title Pipeline Execution Workflow with Lineage Expansion\n(Creator & Child Account Queueing)
+title <color:#0BE784>Pipeline Execution Workflow\n<color:#96DDF2>Creator & Child Account Queueing
 
-package "Queue Synchronizer\n(Pre-Processing)" {
-  rectangle "Search Cache\n(PENDING)" as SearchCache #2d4059
-  rectangle "Promote to\nLineage Table" as Promote #2d4059
-  SearchCache -down-> Promote : sync_pending_to_lineage()
-}
+top to bottom direction
 
-package "Pipeline Processing\n(BigQuery or API)" {
-  rectangle "1. Fetch Account\nfrom Lineage Table" as Fetch #0f3460
-  rectangle "2. Process Account\n(BigQuery/API)" as Process #0f3460
-  rectangle "3. Extract Data" as Extract #0f3460
-  
-  Promote -down-> Fetch
-  Fetch -down-> Process
-  Process -down-> Extract
-  
-  note right of Extract
-    Extract:
-    • Creator account
-    • Child accounts (list)
-    • Balance, assets, etc.
-  end note
-}
+rectangle "1. Queue Sync\n(Pre-Processing)" as QueueSync #100D23
+rectangle "2. Fetch Account\nfrom Lineage Table" as Fetch #100D23
+rectangle "3. Process Account\n(BigQuery/API)" as Process #100D23
+rectangle "4. Extract Data\n(Creator, Children, Balance)" as Extract #100D23
+rectangle "5. Update Lineage\nDatabase Record" as Update #100D23
+rectangle "6. Queue Creator\n(if new)" as QueueCreator #100D23
+rectangle "7. Queue Children\n(if new)" as QueueChildren #100D23
+rectangle "8. Sync Status Back\nto Search Cache" as SyncBack #100D23
+rectangle "9. Graph Expansion\n(Count Increases)" as Expansion #231B3D
 
-package "Database Update\n(Lineage Expansion)" {
-  rectangle "4. Update Account\nRecord in Lineage" as Update #16213e
-  rectangle "5. Queue Creator\nfor Processing" as QueueCreator #16213e
-  rectangle "6. Queue Children\nfor Processing" as QueueChildren #16213e
-  
-  Extract -down-> Update
-  Update -down-> QueueCreator : _queue_creator_account()
-  Update -down-> QueueChildren : _queue_child_accounts()
-  
-  note right of QueueCreator
-    Check if creator exists
-    If NEW → Create PENDING record
-    If exists → Skip (no duplicate)
-  end note
-  
-  note right of QueueChildren
-    For each child account:
-    • Check if exists
-    • If NEW → Create PENDING
-    • Set parent relationship
-  end note
-}
+QueueSync -[#01C176]-> Fetch
+Fetch -[#01C176]-> Process
+Process -[#01C176]-> Extract
+Extract -[#01C176]-> Update
+Update -[#01C176]-> QueueCreator
+Update -[#01C176]-> QueueChildren
+QueueCreator -[#01C176]-> SyncBack
+QueueChildren -[#01C176]-> SyncBack
+SyncBack -[#01C176]-> Expansion
+Expansion -[#96DDF2,dashed]-> Fetch : "<color:#96DDF2>Next pipeline run\nprocesses queue"
 
-package "Status Sync\n(Post-Processing)" {
-  rectangle "7. Sync Status Back\nto Search Cache" as SyncBack #2d4059
-  rectangle "Search Cache\n(DONE_MAKE_PARENT_LINEAGE)" as CacheUpdated #2d4059
-  
-  QueueCreator -down-> SyncBack
-  QueueChildren -down-> SyncBack
-  SyncBack -down-> CacheUpdated : sync_status_back_to_cache()
-  
-  note left of SyncBack
-    API_COMPLETE → DONE_MAKE_PARENT_LINEAGE
-    BIGQUERY_COMPLETE → DONE_MAKE_PARENT_LINEAGE
-    FAILED → FAILED
-  end note
-}
+note right of QueueSync #231B3D
+  <color:#0BE784>Pre-Processing:
+  <color:#96DDF2>• Search Cache → Lineage
+  <color:#96DDF2>• Promote PENDING records
+  <color:#96DDF2>• Single-account searches only
+  <color:#0BE784>• Bulk Search bypasses cache
+end note
 
-package "Lineage Graph Expansion" {
-  rectangle "New PENDING\nAccounts Queued" as NewAccounts #533483
-  rectangle "Next Pipeline Run\nProcesses Queue" as NextRun #533483
-  
-  CacheUpdated -down-> NewAccounts : Lineage count increases
-  NewAccounts -down-> NextRun : Cycle repeats
-  
-  note right of NewAccounts
-    Graph expands:
-    • Upward (creators)
-    • Downward (children)
-    
-    Count increases as
-    new accounts discovered
-  end note
-}
+note right of Process #231B3D
+  <color:#0BE784>Dual Pipeline:
+  <color:#96DDF2>• BigQuery (50-90s)
+  <color:#96DDF2>• API (180-300s)
+  <color:#96DDF2>• Horizon API + Stellar Expert
+  <color:#0BE784>• Tenacity retry logic
+end note
 
-NextRun .up.> Fetch : Process newly\nqueued accounts
+note right of QueueCreator #231B3D
+  <color:#0BE784>Creator Queueing:
+  <color:#96DDF2>• Check if creator exists
+  <color:#96DDF2>• If NEW → Create PENDING
+  <color:#96DDF2>• If exists → Skip
+  <color:#0BE784>• Builds lineage upward
+end note
 
-legend right
-  |= Color |= Component |
-  | #2d4059 | Queue Synchronizer |
-  | #0f3460 | Pipeline Core |
-  | #16213e | Database Operations |
-  | #533483 | Graph Expansion |
-  
-  **Status Flow:**
-  PENDING → PROCESSING → API_COMPLETE/BIGQUERY_COMPLETE → DONE_MAKE_PARENT_LINEAGE
-  
-  **Key Features:**
-  • Bidirectional sync (Search Cache ↔ Lineage)
-  • Duplicate detection (no re-queueing)
-  • Automatic lineage expansion
-  • Parent-child relationship tracking
-endlegend
+note right of QueueChildren #231B3D
+  <color:#0BE784>Child Queueing:
+  <color:#96DDF2>• For each discovered child
+  <color:#96DDF2>• Check if exists
+  <color:#96DDF2>• If NEW → Create PENDING
+  <color:#96DDF2>• Set parent relationship
+  <color:#0BE784>• Builds lineage downward
+end note
+
+note right of SyncBack #231B3D
+  <color:#0BE784>Status Mapping:
+  <color:#96DDF2>API_COMPLETE →
+  <color:#96DDF2>  DONE_MAKE_PARENT_LINEAGE
+  <color:#96DDF2>BIGQUERY_COMPLETE →
+  <color:#96DDF2>  DONE_MAKE_PARENT_LINEAGE
+  <color:#E5526F>FAILED → FAILED
+end note
+
+note right of Expansion #231B3D
+  <color:#0BE784>Continuous Expansion:
+  <color:#96DDF2>• New accounts queued
+  <color:#96DDF2>• Lineage count increases
+  <color:#96DDF2>• Graph grows organically
+  <color:#96DDF2>• Upward (creators)
+  <color:#96DDF2>• Downward (children)
+  <color:#0BE784>• No duplicate queueing
+end note
 
 @enduml

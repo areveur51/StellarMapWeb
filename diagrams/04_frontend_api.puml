@@ -36,56 +36,54 @@ skinparam note {
 
 title <color:#0BE784>Frontend & API Architecture
 
+top to bottom direction
+
 actor User #0BE784
 
-package "Frontend Components" #231B3D {
+package "Frontend" #231B3D {
   component "Vue.js\nReactive UI" as Vue
-  component "D3.js\nRadial/Tidy Tree\n(comma-formatted)" as D3
-  component "Bootstrap\nResponsive" as Bootstrap
-  component "Query Builder\nVue.js" as QueryBuilder
+  component "D3.js\nRadial/Tidy Tree" as D3
+  component "Query Builder" as QueryBuilder
 }
 
-package "API Endpoints" #231B3D {
-  component "/api/pending-accounts/\n(30s cache, auto-refresh)" as PendingAPI
-  component "/api/stage-executions/\n(5s auto-refresh)" as StagesAPI
-  component "/search/\n(Main search with lineage)" as SearchAPI
-  component "/web/high-value-accounts/\n(Multi-threshold leaderboard)" as HVAAPI
-  component "/web/query-builder/\n(10 pre-defined + custom)" as QueryBuilderAPI
-  component "/api/account-lineage/\n(No full table scan)" as LineageAPI
+package "Core APIs" #231B3D {
+  component "/api/pending-accounts/\n(30s cache)" as PendingAPI
+  component "/search/\n(Main lineage search)" as SearchAPI
+  component "/api/account-lineage/\n(No full scan)" as LineageAPI
+}
+
+package "Feature APIs" #231B3D {
+  component "/web/high-value-accounts/\n(Multi-threshold)" as HVAAPI
+  component "/web/query-builder/\n(10 pre-defined)" as QueryBuilderAPI
 }
 
 database "Astra DB\n(Cassandra)" as DB
 
-User -[#01C176]-> Vue : "Interacts"
-User -[#01C176]-> D3 : "Views Tree"
-User -[#01C176]-> QueryBuilder : "Explores Data"
+User -[#01C176]-> Vue
+User -[#01C176]-> D3
+User -[#01C176]-> QueryBuilder
 
-Vue -[#01C176]-> PendingAPI : "Polls every 30s"
-Vue -[#01C176]-> StagesAPI : "Polls every 5s"
-User -[#01C176]-> SearchAPI : "Searches"
-User -[#01C176]-> HVAAPI : "Views HVA Rankings"
-QueryBuilder -[#01C176]-> QueryBuilderAPI : "Executes queries"
-D3 -[#01C176]-> LineageAPI : "Fetches tree data"
+Vue -[#01C176]-> PendingAPI : "Polls 30s"
+User -[#01C176]-> SearchAPI
+D3 -[#01C176]-> LineageAPI
+User -[#01C176]-> HVAAPI
+QueryBuilder -[#01C176]-> QueryBuilderAPI
 
-PendingAPI -[#01C176]-> DB : "2 queries with IN"
-StagesAPI -[#01C176]-> DB : "Stage status"
-SearchAPI -[#01C176]-> DB : "Initiate pipeline"
-HVAAPI -[#01C176]-> DB : "Smart threshold queries"
-QueryBuilderAPI -[#01C176]-> DB : "Adaptive max_scan limits"
-LineageAPI -[#01C176]-> DB : "In-memory hierarchy build"
+PendingAPI -[#01C176]-> DB
+SearchAPI -[#01C176]-> DB
+LineageAPI -[#01C176]-> DB
+HVAAPI -[#01C176]-> DB
+QueryBuilderAPI -[#01C176]-> DB
 
 note right of PendingAPI #231B3D
   <color:#0BE784>Optimized Query:
   
-  <color:#96DDF2>FROM stellar_account_search_cache
+  <color:#96DDF2>FROM search_cache
   WHERE status IN (
     'PENDING',
     'IN_PROGRESS',
     'RE_INQUIRY'
   )
-  
-  <color:#96DDF2>FROM stellar_creator_account_lineage
-  WHERE status IN (...)
   
   <color:#01C176>30s TTL cache
   <color:#01C176>88% fewer queries
@@ -94,24 +92,21 @@ end note
 note right of SearchAPI #231B3D
   <color:#0BE784>Pipeline Initiation:
   <color:#96DDF2>1. Validate address
-  2. Queue as PENDING
-  3. <color:#0BE784>BigQuery Pipeline processes
-  <color:#96DDF2>4. Returns in 50-90 seconds
+  <color:#96DDF2>2. Queue as PENDING
+  <color:#0BE784>3. BigQuery processes
+  <color:#96DDF2>4. Returns in 50-90s
   
-  <color:#96DDF2>Up to 100K children/parent
-  <color:#0BE784>Comma-formatted balances
+  <color:#96DDF2>Up to 100K children
+  <color:#0BE784>Comma-formatted
 end note
 
 note right of HVAAPI #231B3D
-  <color:#0BE784>Multi-Threshold Leaderboard:
-  <color:#96DDF2>• Dropdown selector: 10K-1M XLM
-  <color:#96DDF2>• Smart query strategy:
-  <color:#96DDF2>  - High threshold: is_hva filter
-  <color:#96DDF2>  - Low threshold: network filter
-  <color:#96DDF2>• Partition-key rank lookups
-  <color:#96DDF2>• Clickable account links
-  <color:#96DDF2>• Comma-formatted balances
-  <color:#0BE784>• 24h ranking change indicators
+  <color:#0BE784>Multi-Threshold:
+  <color:#96DDF2>• 10K-1M XLM selector
+  <color:#96DDF2>• Smart query strategy
+  <color:#96DDF2>• Partition-key lookups
+  <color:#96DDF2>• Clickable links
+  <color:#0BE784>• 24h rank changes
 end note
 
 note right of QueryBuilderAPI #231B3D
@@ -120,23 +115,11 @@ note right of QueryBuilderAPI #231B3D
   <color:#96DDF2>• Orphan Accounts
   <color:#96DDF2>• Failed Stages
   <color:#96DDF2>• HVA Accounts
-  <color:#96DDF2>• Recent Changes
   
-  <color:#0BE784>Custom Filter Builder:
+  <color:#0BE784>Custom Builder:
   <color:#96DDF2>• Multi-column AND logic
-  <color:#96DDF2>• Network-aware filtering
-  <color:#96DDF2>• Adaptive max_scan:
-  <color:#96DDF2>  10x dense, 100x sparse
+  <color:#96DDF2>• Adaptive max_scan
   <color:#96DDF2>• Result limits: 50-500
-  <color:#0BE784>• Comma-formatted numbers
-end note
-
-note right of LineageAPI #231B3D
-  <color:#0BE784>Optimized Hierarchy:
-  <color:#96DDF2>• No full table scans
-  <color:#96DDF2>• In-memory lineage sets
-  <color:#96DDF2>• Efficient parent/child lookup
-  <color:#96DDF2>• Prevents Cassandra timeouts
 end note
 
 @enduml

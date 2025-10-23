@@ -18,6 +18,8 @@ skinparam note {
 
 title <color:#0BE784>Astra DB (Cassandra) Schema
 
+top to bottom direction
+
 class StellarAccountSearchCache {
   <color:#0BE784>+ stellar_account (PK)
   <color:#0BE784>+ network_name (PK)
@@ -43,10 +45,11 @@ class StellarCreatorAccountLineage {
   + is_hva
   + tags
   + status
-  + retry_count
   + num_child_accounts
+  + pipeline_source
+  + processing_started_at
   --
-  <color:#01C176>Lineage data with HVA flag
+  <color:#01C176>Lineage + HVA flag
 }
 
 class StellarAccountStageExecution {
@@ -63,18 +66,6 @@ class StellarAccountStageExecution {
   <color:#01C176>Pipeline tracking
 }
 
-class ManagementCronHealth {
-  <color:#0BE784>+ id (PK)
-  <color:#0BE784>+ created_at (PK)
-  <color:#0BE784>+ cron_name (CK)
-  <color:#96DDF2>+ status
-  + execution_time_ms
-  + error_message
-  + updated_at
-  --
-  <color:#01C176>Health monitoring
-}
-
 class HVAStandingChange {
   <color:#0BE784>+ stellar_account (PK)
   <color:#0BE784>+ change_time (CK)
@@ -84,19 +75,17 @@ class HVAStandingChange {
   + old_balance
   + new_balance
   + rank_change
-  + balance_change_pct
   + network_name
   + xlm_threshold
   + created_at
   --
-  <color:#01C176>Multi-threshold ranking history
+  <color:#01C176>Multi-threshold ranking
 }
 
 class BigQueryPipelineConfig {
   <color:#0BE784>+ config_id (PK)
   <color:#96DDF2>+ bigquery_enabled
   + cost_limit_usd
-  + size_limit_mb
   + pipeline_mode
   + hva_threshold
   + hva_supported_thresholds
@@ -105,7 +94,7 @@ class BigQueryPipelineConfig {
   + created_at
   + updated_at
   --
-  <color:#01C176>Admin-configurable settings
+  <color:#01C176>Admin settings
 }
 
 note right of StellarAccountSearchCache #231B3D
@@ -118,34 +107,36 @@ note right of StellarAccountSearchCache #231B3D
 end note
 
 note right of StellarCreatorAccountLineage #231B3D
-  <color:#0BE784>Data Source:
-  <color:#96DDF2>Primary: <color:#0BE784>BigQuery Pipeline
-  <color:#96DDF2>• Account data (comma-formatted)
+  <color:#0BE784>Dual Pipeline:
+  <color:#96DDF2>Primary: <color:#0BE784>BigQuery
+  <color:#96DDF2>• Account data
   <color:#96DDF2>• Assets
   <color:#96DDF2>• Creator info
   <color:#96DDF2>• Child accounts
   <color:#96DDF2>• HVA tagging
   
-  <color:#96DDF2>Educational: API Pipeline
+  <color:#96DDF2>Fallback: <color:#96DDF2>API Pipeline
 end note
 
 note right of HVAStandingChange #231B3D
-  <color:#0BE784>Multi-Threshold Tracking:
-  <color:#96DDF2>• Tracks ranking per threshold
+  <color:#0BE784>Multi-Threshold:
+  <color:#96DDF2>• Tracks per threshold
   <color:#96DDF2>• xlm_threshold column
-  <color:#96DDF2>• Network-aware filtering
-  <color:#96DDF2>• Event types: ENTERED, EXITED,
-  <color:#96DDF2>  RANK_UP, RANK_DOWN
+  <color:#96DDF2>• Network filtering
+  <color:#96DDF2>• Event types: ENTERED,
+  <color:#96DDF2>  EXITED, RANK_UP,
+  <color:#96DDF2>  RANK_DOWN
   
   <color:#0BE784>480x storage efficiency
 end note
 
 note right of BigQueryPipelineConfig #231B3D
-  <color:#0BE784>Dynamic Configuration:
-  <color:#96DDF2>• Default HVA threshold: 100K XLM
+  <color:#0BE784>Dynamic Config:
+  <color:#96DDF2>• Default: 100K XLM
   <color:#96DDF2>• Supported thresholds:
-  <color:#96DDF2>  10K, 50K, 100K, 500K, 750K, 1M
-  <color:#96DDF2>• Admins can customize list
+  <color:#96DDF2>  10K, 50K, 100K,
+  <color:#96DDF2>  500K, 750K, 1M
+  <color:#96DDF2>• Admin customizable
 end note
 
 @enduml
