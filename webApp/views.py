@@ -602,12 +602,13 @@ def dashboard_view(request):
                 else:
                     stale_count += 1
                 
-                # Check if stuck (using model-defined thresholds)
-                age_minutes = (datetime.utcnow() - record.updated_at).total_seconds() / 60
-                # Use 5-minute threshold for core statuses (PENDING, PROCESSING), 30 min for others
-                threshold = STUCK_THRESHOLD_MINUTES if record.status in STUCK_STATUSES else 30
-                if age_minutes > threshold:
-                    stuck_count += 1
+                # Check if stuck - ONLY for active processing statuses (not completed ones)
+                # Only PENDING and PROCESSING can be "stuck" - completed records should not be counted
+                if record.status in STUCK_STATUSES:
+                    age_minutes = (datetime.utcnow() - record.updated_at).total_seconds() / 60
+                    # Use model-defined threshold (5 minutes for PENDING/PROCESSING)
+                    if age_minutes > STUCK_THRESHOLD_MINUTES:
+                        stuck_count += 1
         
         db_stats['fresh_accounts'] = fresh_count
         db_stats['stale_accounts'] = stale_count
