@@ -126,6 +126,91 @@
           {% include "radialTidyTreeApp/radial_tidy_tree_partial.html" %}
         </div>
 
+        <!-- Filter Controls -->
+        <div class="filter-controls" style="background: rgba(15, 15, 35, 0.8); border: 1px solid #00ffff; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+          <h6 style="color: #00ffff; margin-bottom: 10px;">
+            <i class="fas fa-filter"></i> Account Filters
+          </h6>
+          <b-row>
+            <b-col md="4">
+              <label style="color: #ccc; font-size: 0.9em;">XLM Balance Range:</label>
+              <b-row>
+                <b-col cols="6">
+                  <b-input-group size="sm" prepend="Min">
+                    <b-form-input 
+                      v-model.number="filters.xlmBalanceMin" 
+                      type="number" 
+                      min="0" 
+                      step="100"
+                      placeholder="0"
+                      @input="applyFilters"
+                    ></b-form-input>
+                  </b-input-group>
+                </b-col>
+                <b-col cols="6">
+                  <b-input-group size="sm" prepend="Max">
+                    <b-form-input 
+                      v-model.number="filters.xlmBalanceMax" 
+                      type="number" 
+                      min="0" 
+                      step="100"
+                      placeholder="∞"
+                      @input="applyFilters"
+                    ></b-form-input>
+                  </b-input-group>
+                </b-col>
+              </b-row>
+            </b-col>
+            <b-col md="4">
+              <label style="color: #ccc; font-size: 0.9em;">Asset Count Range:</label>
+              <b-row>
+                <b-col cols="6">
+                  <b-input-group size="sm" prepend="Min">
+                    <b-form-input 
+                      v-model.number="filters.assetCountMin" 
+                      type="number" 
+                      min="0" 
+                      step="1"
+                      placeholder="0"
+                      @input="applyFilters"
+                    ></b-form-input>
+                  </b-input-group>
+                </b-col>
+                <b-col cols="6">
+                  <b-input-group size="sm" prepend="Max">
+                    <b-form-input 
+                      v-model.number="filters.assetCountMax" 
+                      type="number" 
+                      min="0" 
+                      step="1"
+                      placeholder="∞"
+                      @input="applyFilters"
+                    ></b-form-input>
+                  </b-input-group>
+                </b-col>
+              </b-row>
+            </b-col>
+            <b-col md="4">
+              <label style="color: #ccc; font-size: 0.9em;">Display Options:</label>
+              <b-form-checkbox 
+                v-model="filters.issuersOnly" 
+                @change="applyFilters"
+                style="color: #00ffff; margin-top: 5px;"
+              >
+                Show Issuers Only
+              </b-form-checkbox>
+              <b-button 
+                size="sm" 
+                variant="outline-warning" 
+                @click="resetFilters"
+                style="margin-top: 5px;"
+              >
+                <i class="fas fa-redo"></i> Reset Filters
+              </b-button>
+            </b-col>
+          </b-row>
+        </div>
+
         <div>
           <b-card no-body class="bv-tabs">
             <b-tabs card @input="onTabChange">
@@ -139,8 +224,11 @@
                     {% verbatim %}{{ lineageError }}{% endverbatim %}
                   </div>
                   <div v-else-if="account_lineage_data && account_lineage_data.length > 0">
+                    <div v-if="filteredLineageData.length !== account_lineage_data.length" class="alert alert-info" style="font-size: 0.9em; padding: 8px; margin-bottom: 10px;">
+                      Showing {% verbatim %}{{ filteredLineageData.length }}{% endverbatim %} of {% verbatim %}{{ account_lineage_data.length }}{% endverbatim %} accounts (filters active)
+                    </div>
                     <b-table
-                      :items="account_lineage_data"
+                      :items="filteredLineageData"
                       :fields="lineageTableFields"
                       striped
                       small
@@ -251,11 +339,11 @@
                   </div>
                   <div v-else-if="siblings_data && siblings_data.length > 0">
                     <div class="alert alert-info" style="margin-bottom: 15px;">
-                      <strong>{% verbatim %}{{ siblings_data.length }}{% endverbatim %} sibling accounts</strong> found alongside the direct lineage path. 
+                      <strong>{% verbatim %}{{ filteredSiblingsData.length }}{% endverbatim %} sibling accounts</strong> {% verbatim %}{{ filteredSiblingsData.length !== siblings_data.length ? '(filtered from ' + siblings_data.length + ')' : '' }}{% endverbatim %} found alongside the direct lineage path. 
                       These are other accounts created by the same creators in the lineage chain.
                     </div>
                     <b-table
-                      :items="siblings_data"
+                      :items="filteredSiblingsData"
                       :fields="lineageTableFields"
                       striped
                       small
@@ -319,7 +407,26 @@
                       <template #cell(status)="row">
                         {% verbatim %}<b-badge 
                           :variant="getLineageStatusVariant(row.item.status)"
+                          :style="row.item.status === 'FAILED' ? 'cursor: pointer;' : ''"
+                          :title="row.item.status === 'FAILED' ? 'Click to retry' : ''"
+                          @click="row.item.status === 'FAILED' ? retryFailedAccount(row.item) : null"
                         >{{ row.item.status }}</b-badge>{% endverbatim %}
+                      </template>
+                      <template #cell(refresh)="row">
+                        <b-button 
+                          size="sm" 
+                          variant="warning" 
+                          @click="refreshAccountEnrichment(row.item)" 
+                          title="Refresh enrichment data (balance, home_domain, flags, assets)"
+                          :disabled="row.item.status === 'PENDING' || row.item.status === 'PROCESSING'"
+                        >
+                          <i class="fas fa-sync-alt"></i>
+                        </b-button>
+                      </template>
+                      <template #cell(actions)="row">
+                        <b-button size="sm" variant="info" @click="showLineageJson(row.item)" title="View JSON">
+                          <i class="fas fa-code"></i>
+                        </b-button>
                       </template>
                     </b-table>
                   </div>
@@ -571,6 +678,14 @@
           request_status_data: parsedRequestStatus,
           account_lineage_data: parsedAccountLineage,
           siblings_data: [],  // NEW: Separate array for sibling accounts
+          // Filter properties
+          filters: {
+            xlmBalanceMin: null,
+            xlmBalanceMax: null,
+            assetCountMin: null,
+            assetCountMax: null,
+            issuersOnly: false
+          },
           pending_accounts_data: parsedPendingAccounts,
           pendingAccountsInterval: null,
           stage_executions_data: { stages: [] },
@@ -620,7 +735,49 @@
           tomlLoading: false,
           tomlError: null
         },
+        computed: {
+          // Filtered lineage data based on user-selected filters
+          filteredLineageData() {
+            return this.filterAccounts(this.account_lineage_data);
+          },
+          // Filtered siblings data based on user-selected filters
+          filteredSiblingsData() {
+            return this.filterAccounts(this.siblings_data);
+          }
+        },
       methods: {
+        // Helper method to filter accounts based on current filters
+        filterAccounts(accounts) {
+          if (!accounts || accounts.length === 0) {
+            return accounts;
+          }
+          
+          return accounts.filter(account => {
+            // Filter by XLM balance range
+            if (this.filters.xlmBalanceMin !== null && this.filters.xlmBalanceMin !== '' && account.xlm_balance < this.filters.xlmBalanceMin) {
+              return false;
+            }
+            if (this.filters.xlmBalanceMax !== null && this.filters.xlmBalanceMax !== '' && account.xlm_balance > this.filters.xlmBalanceMax) {
+              return false;
+            }
+            
+            // Filter by asset count range
+            const assetCount = account.assets ? account.assets.length : 0;
+            if (this.filters.assetCountMin !== null && this.filters.assetCountMin !== '' && assetCount < this.filters.assetCountMin) {
+              return false;
+            }
+            if (this.filters.assetCountMax !== null && this.filters.assetCountMax !== '' && assetCount > this.filters.assetCountMax) {
+              return false;
+            }
+            
+            // Filter by issuers only
+            if (this.filters.issuersOnly && assetCount === 0) {
+              return false;
+            }
+            
+            return true;
+          });
+        },
         async search() {
           // Set 'loading' to true to show a loading indicator
           this.loading = true;
@@ -874,11 +1031,13 @@
             if (response.ok) {
               const data = await response.json();
               
-              // Transform sibling data into hierarchical lineage format
-              // NOTE: For now, we'll keep the old format for compatibility
-              // TODO: Update D3 visualization to render siblings with white links
-              const lineageWithSiblings = this.transformSiblingsToLineage(data);
-              this.account_lineage_data = lineageWithSiblings;
+              // Transform sibling data - this updates account_lineage_data, siblings_data, 
+              // and returns ALL accounts for D3 tree visualization
+              const allAccountsForTree = this.transformSiblingsToLineage(data);
+              
+              // Build D3 tree from ALL accounts (lineage + siblings)
+              const treeData = this.buildTreeFromLineage(allAccountsForTree);
+              this.tree_data = treeData;
               
               // Store raw sibling data for future enhancements
               this.siblingsData = data;
@@ -895,11 +1054,12 @@
         },
         transformSiblingsToLineage(siblingsData) {
           // Transform sibling API response into SEPARATE arrays for:
-          // 1. account_lineage_data: ONLY direct lineage path
+          // 1. account_lineage_data: ONLY direct lineage path (ordered root → searched)
           // 2. siblings_data: ONLY sibling accounts
-          // Also builds tree structure with child_accounts for visualization
+          // Returns: ALL accounts (lineage + siblings) for D3 tree visualization
           
-          const lineageAccounts = [];
+          const allAccounts = [];
+          const lineageAccountsMap = {};
           const siblingAccounts = [];
           const { lineage_path, all_account_data, siblings_by_creator } = siblingsData;
           const lineagePathSet = new Set(lineage_path);
@@ -938,23 +1098,46 @@
               is_issuer: accountData.is_issuer || false
             };
             
+            // Add to ALL accounts for tree visualization
+            allAccounts.push(record);
+            
             // SEPARATE into different arrays based on whether it's in lineage path
             if (isInLineagePath) {
-              lineageAccounts.push(record);
+              lineageAccountsMap[accountAddr] = record;
             } else {
               siblingAccounts.push(record);
             }
           });
           
-          console.log('[transformSiblingsToLineage] Direct lineage:', lineageAccounts.length);
-          console.log('[transformSiblingsToLineage] Siblings:', siblingAccounts.length);
+          // Sort lineage accounts by their order in lineage_path (root → searched account)
+          const lineageAccountsSorted = lineage_path
+            .map(addr => lineageAccountsMap[addr])
+            .filter(record => record !== undefined);
           
-          // Update both arrays in Vue data
-          this.account_lineage_data = lineageAccounts;
+          console.log('[transformSiblingsToLineage] Direct lineage:', lineageAccountsSorted.length);
+          console.log('[transformSiblingsToLineage] Siblings:', siblingAccounts.length);
+          console.log('[transformSiblingsToLineage] All accounts for tree:', allAccounts.length);
+          
+          // Update separate tab data
+          this.account_lineage_data = lineageAccountsSorted;
           this.siblings_data = siblingAccounts;
           
-          // Return lineage accounts for backward compatibility with buildTreeFromLineage()
-          return lineageAccounts;
+          // Return ALL accounts (lineage + siblings) for D3 tree visualization
+          return allAccounts;
+        },
+        // NEW: Filter methods for XLM balance, asset count, and issuers only
+        applyFilters() {
+          // Filters are applied via Vue reactivity when user changes filter inputs
+          // The tables will automatically update because they watch account_lineage_data and siblings_data
+          console.log('[applyFilters] Filters updated:', this.filters);
+        },
+        resetFilters() {
+          this.filters.xlmBalanceMin = null;
+          this.filters.xlmBalanceMax = null;
+          this.filters.assetCountMin = null;
+          this.filters.assetCountMax = null;
+          this.filters.issuersOnly = false;
+          console.log('[resetFilters] All filters reset');
         },
         async fetchServerLogs() {
           try {
