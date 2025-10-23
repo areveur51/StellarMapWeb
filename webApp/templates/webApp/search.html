@@ -713,19 +713,14 @@
               this.highlightedAccountLineage = lineageJSON;
             }
             
-            // IMPORTANT: Skip tree building if using the new filtering system (window.unfilteredTreeData exists)
-            // The filtered tree is already built by fetchAccountLineage()
-            // Only build tree here for legacy code paths (old lineage API without filters)
-            if (!window.unfilteredTreeData) {
-              // Transform lineage data to tree structure and update visualization (legacy path)
-              this.buildTreeFromLineage();
-            }
+            // Transform lineage data to tree structure and update visualization
+            this.buildTreeFromLineage();
           } else {
             this.highlightedAccountLineage = '';
           }
         },
-        buildTreeFromLineage(accountData = null) {
-          // Use provided accountData or fall back to this.account_lineage_data
+        buildTreeFromLineage(accountData) {
+          // Use provided accountData parameter or fall back to this.account_lineage_data
           const dataToUse = accountData || this.account_lineage_data;
           
           if (!dataToUse || dataToUse.length === 0) {
@@ -905,14 +900,7 @@
               // and returns ALL accounts for D3 tree visualization
               const allAccountsForTree = this.transformSiblingsToLineage(data);
               
-              // Store unfiltered data globally for tree filters
-              window.unfilteredTreeData = allAccountsForTree;
-              
-              // Debug: Log data being passed to buildTreeFromLineage
-              console.log('[fetchAccountLineage] allAccountsForTree count:', allAccountsForTree.length);
-              console.log('[fetchAccountLineage] First 3 accounts:', allAccountsForTree.slice(0, 3));
-              
-              // Build D3 tree from all accounts (buildTreeFromLineage handles rendering internally)
+              // Build the tree and trigger visualization (tree rendering happens in buildTreeFromLineage)
               this.buildTreeFromLineage(allAccountsForTree);
               
               // Store raw sibling data for future enhancements

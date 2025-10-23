@@ -292,58 +292,15 @@
         }
     }
     
-    // Filter tree accounts based on criteria
+    // DISABLED: Filter tree accounts - will be replaced with color muting approach
     window.filterTreeAccounts = function(accounts) {
-        if (!accounts || accounts.length === 0) return accounts;
-        
-        return accounts.filter(account => {
-            // XLM Balance filters
-            if (window.treeFilters.xlmMin !== null && account.xlm_balance < window.treeFilters.xlmMin) {
-                return false;
-            }
-            if (window.treeFilters.xlmMax !== null && account.xlm_balance > window.treeFilters.xlmMax) {
-                return false;
-            }
-            
-            // Asset Count filters
-            const assetCount = account.assets ? account.assets.length : 0;
-            if (window.treeFilters.assetMin !== null && assetCount < window.treeFilters.assetMin) {
-                return false;
-            }
-            if (window.treeFilters.assetMax !== null && assetCount > window.treeFilters.assetMax) {
-                return false;
-            }
-            
-            // Issuers Only filter
-            if (window.treeFilters.issuersOnly && assetCount === 0) {
-                return false;
-            }
-            
-            return true;
-        });
+        return accounts; // Pass through for now - filtering disabled
     };
     
-    // Apply tree filters and re-render
+    // DISABLED: Apply tree filters - will be replaced with color muting approach
     function applyTreeFilters() {
-        if (!window.unfilteredTreeData) return;
-        
-        // Filter the accounts
-        const filteredAccounts = window.filterTreeAccounts(window.unfilteredTreeData);
-        
-        // Store filtered data as current tree data
-        window.currentTreeData = filteredAccounts;
-        
-        // Update filter status indicator
-        updateFilterStatus(filteredAccounts.length, window.unfilteredTreeData.length);
-        
-        // Re-render the tree
-        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
-            renderRadialTree(filteredAccounts);
-        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
-            renderTidyTree(filteredAccounts);
-        }
-        
-        console.log(`Tree filters applied: ${filteredAccounts.length} / ${window.unfilteredTreeData.length} accounts shown`);
+        console.log('Tree filters temporarily disabled - will implement color muting approach');
+        return;
     }
     
     // Update filter status indicator
