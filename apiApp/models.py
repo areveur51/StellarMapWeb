@@ -135,7 +135,7 @@ class SchedulerConfig(django_models.Model):
     
     # Batch Processing
     batch_limit = django_models.IntegerField(
-        default=6,
+        default=9,
         help_text="Maximum number of PENDING accounts to process per scheduled run (slow continuous retrieval)"
     )
     
