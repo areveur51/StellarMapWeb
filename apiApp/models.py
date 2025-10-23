@@ -82,12 +82,18 @@ class BigQueryPipelineConfig(django_models.Model):
         help_text="Enable/disable the API-only pipeline for consistent PENDING record processing"
     )
     api_pipeline_batch_size = django_models.IntegerField(
-        default=3,
-        help_text="Number of accounts to process per API pipeline run (default: 3 for slow continuous retrieval)"
+        default=9,
+        help_text="Number of accounts to process per API pipeline run (default: 9 for continuous retrieval)"
     )
     api_pipeline_interval_seconds = django_models.IntegerField(
-        default=120,
-        help_text="Time between API pipeline runs in seconds (default: 120 = 2 minutes)"
+        default=180,
+        help_text="Time between API pipeline runs in seconds (default: 180 = 3 minutes)"
+    )
+    
+    # BigQuery Pipeline Interval
+    bigquery_pipeline_interval_seconds = django_models.IntegerField(
+        default=300,
+        help_text="Time between BigQuery pipeline runs in seconds (default: 300 = 5 minutes)"
     )
 
     # Metadata

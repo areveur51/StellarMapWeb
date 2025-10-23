@@ -26,36 +26,34 @@ class Command(BaseCommand):
             action='store_true',
             help='Run in continuous loop (for production deployment)'
         )
-        parser.add_argument(
-            '--api-interval',
-            type=int,
-            default=120,
-            help='Interval in seconds between API pipeline runs (default: 120)'
-        )
-        parser.add_argument(
-            '--bigquery-interval',
-            type=int,
-            default=300,
-            help='Interval in seconds between BigQuery pipeline runs (default: 300)'
-        )
 
     def handle(self, *args, **options):
         loop = options['loop']
-        api_interval = options['api_interval']
-        bigquery_interval = options['bigquery_interval']
+
+        # Load configuration from database
+        config = self._load_config()
+        if not config:
+            self.stdout.write(self.style.ERROR('Failed to load configuration'))
+            return
+
+        api_interval = config.api_pipeline_interval_seconds
+        bigquery_interval = config.bigquery_pipeline_interval_seconds
+        api_batch = config.api_pipeline_batch_size
+        bigquery_batch = config.batch_size
 
         self.stdout.write(self.style.SUCCESS(
             f'\n{"="*60}\n'
             f'Unified Pipeline Runner\n'
             f'{"="*60}\n'
             f'Loop Mode: {loop}\n'
-            f'API Interval: {api_interval}s\n'
-            f'BigQuery Interval: {bigquery_interval}s\n'
+            f'Pipeline Mode: {config.pipeline_mode}\n'
+            f'API Interval: {api_interval}s (batch: {api_batch})\n'
+            f'BigQuery Interval: {bigquery_interval}s (batch: {bigquery_batch})\n'
             f'{"="*60}\n'
         ))
 
         if loop:
-            self._run_continuous_loop(api_interval, bigquery_interval)
+            self._run_continuous_loop()
         else:
             self._run_single_iteration()
 
@@ -96,30 +94,33 @@ class Command(BaseCommand):
             return
 
         pipeline_mode = config.pipeline_mode
+        api_batch = config.api_pipeline_batch_size
+        bigquery_batch = config.batch_size
         
         self.stdout.write(self.style.SUCCESS(
             f'\nPipeline Mode: {pipeline_mode}'
         ))
 
         if pipeline_mode == 'API_ONLY':
-            self.stdout.write(self.style.SUCCESS('Running API Pipeline only...'))
-            call_command('api_pipeline', limit=3)
+            self.stdout.write(self.style.SUCCESS(f'Running API Pipeline only (batch: {api_batch})...'))
+            call_command('api_pipeline', limit=api_batch)
         
         elif pipeline_mode == 'BIGQUERY_ONLY':
-            self.stdout.write(self.style.SUCCESS('Running BigQuery Pipeline only...'))
-            call_command('bigquery_pipeline', limit=100)
+            self.stdout.write(self.style.SUCCESS(f'Running BigQuery Pipeline only (batch: {bigquery_batch})...'))
+            call_command('bigquery_pipeline', limit=bigquery_batch)
         
         elif pipeline_mode == 'BIGQUERY_WITH_API_FALLBACK':
-            self.stdout.write(self.style.SUCCESS('Running BigQuery Pipeline (API fallback enabled)...'))
-            call_command('bigquery_pipeline', limit=100)
+            self.stdout.write(self.style.SUCCESS(f'Running BigQuery Pipeline (batch: {bigquery_batch}, API fallback enabled)...'))
+            call_command('bigquery_pipeline', limit=bigquery_batch)
 
-    def _run_continuous_loop(self, api_interval, bigquery_interval):
+    def _run_continuous_loop(self):
         """Run pipelines continuously based on configuration."""
         last_api_run = 0
         last_bigquery_run = 0
 
         while True:
             try:
+                # Reload config each iteration to pick up changes
                 config = self._load_config()
                 if not config:
                     self.stdout.write(self.style.ERROR('No configuration found, sleeping...'))
@@ -127,39 +128,43 @@ class Command(BaseCommand):
                     continue
 
                 pipeline_mode = config.pipeline_mode
+                api_interval = config.api_pipeline_interval_seconds
+                bigquery_interval = config.bigquery_pipeline_interval_seconds
+                api_batch = config.api_pipeline_batch_size
+                bigquery_batch = config.batch_size
                 current_time = time.time()
 
                 if pipeline_mode == 'API_ONLY':
                     if current_time - last_api_run >= api_interval:
                         self.stdout.write(self.style.SUCCESS(
-                            f'\n[{self._get_timestamp()}] Running API Pipeline...'
+                            f'\n[{self._get_timestamp()}] Running API Pipeline (batch: {api_batch})...'
                         ))
-                        call_command('api_pipeline', limit=3)
+                        call_command('api_pipeline', limit=api_batch)
                         last_api_run = current_time
 
                 elif pipeline_mode == 'BIGQUERY_ONLY':
                     if current_time - last_bigquery_run >= bigquery_interval:
                         self.stdout.write(self.style.SUCCESS(
-                            f'\n[{self._get_timestamp()}] Running BigQuery Pipeline...'
+                            f'\n[{self._get_timestamp()}] Running BigQuery Pipeline (batch: {bigquery_batch})...'
                         ))
-                        call_command('bigquery_pipeline', limit=100)
+                        call_command('bigquery_pipeline', limit=bigquery_batch)
                         last_bigquery_run = current_time
 
                 elif pipeline_mode == 'BIGQUERY_WITH_API_FALLBACK':
                     # Run BigQuery pipeline at bigquery_interval
                     if current_time - last_bigquery_run >= bigquery_interval:
                         self.stdout.write(self.style.SUCCESS(
-                            f'\n[{self._get_timestamp()}] Running BigQuery Pipeline...'
+                            f'\n[{self._get_timestamp()}] Running BigQuery Pipeline (batch: {bigquery_batch})...'
                         ))
-                        call_command('bigquery_pipeline', limit=100)
+                        call_command('bigquery_pipeline', limit=bigquery_batch)
                         last_bigquery_run = current_time
                     
                     # Also run API pipeline at api_interval for fallback
                     if current_time - last_api_run >= api_interval:
                         self.stdout.write(self.style.SUCCESS(
-                            f'\n[{self._get_timestamp()}] Running API Pipeline (fallback)...'
+                            f'\n[{self._get_timestamp()}] Running API Pipeline (batch: {api_batch}, fallback)...'
                         ))
-                        call_command('api_pipeline', limit=3)
+                        call_command('api_pipeline', limit=api_batch)
                         last_api_run = current_time
 
                 # Sleep for a short interval
