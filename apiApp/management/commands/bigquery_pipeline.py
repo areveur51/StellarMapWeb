@@ -23,6 +23,7 @@ from apiApp.model_loader import StellarCreatorAccountLineage, BigQueryPipelineCo
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
 from apiApp.helpers.env import EnvHelpers
 from apiApp.helpers.api_rate_limiter import APIRateLimiter
+from apiApp.helpers.queue_sync import QueueSynchronizer
 import sentry_sdk
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,14 @@ class Command(BaseCommand):
                 'Please configure GOOGLE_APPLICATION_CREDENTIALS_JSON.'
             ))
             return
+        
+        # Sync Search Cache PENDING accounts to Lineage (Queue Synchronizer)
+        self.stdout.write('\n[Queue Sync] Syncing Search Cache → Lineage...')
+        sync_result = QueueSynchronizer.sync_pending_to_lineage(network='public', max_accounts=limit)
+        if sync_result['promoted'] > 0:
+            self.stdout.write(self.style.SUCCESS(
+                f"[Queue Sync] ✓ Promoted {sync_result['promoted']} accounts from Search Cache to Lineage"
+            ))
         
         pending_accounts = self._get_pending_accounts(limit)
         
@@ -384,6 +393,14 @@ class Command(BaseCommand):
             
             account_obj.status = 'FAILED'
             account_obj.save()
+            
+            # Sync error status back to Search Cache
+            QueueSynchronizer.sync_status_back_to_cache(
+                stellar_account=account_obj.stellar_account,
+                network_name=account_obj.network_name,
+                status='FAILED'
+            )
+            
             return False
     
     def _fetch_horizon_account_data(self, account):
@@ -666,6 +683,19 @@ class Command(BaseCommand):
             account_obj.pipeline_source = 'BIGQUERY_WITH_API_FALLBACK' if used_api_fallback else 'BIGQUERY'
             account_obj.processing_started_at = None
             account_obj.save()
+            
+            # Sync status back to Search Cache (if record exists there)
+            QueueSynchronizer.sync_status_back_to_cache(
+                stellar_account=account_obj.stellar_account,
+                network_name=account_obj.network_name,
+                status='BIGQUERY_COMPLETE',
+                cached_json={
+                    'xlm_balance': float(account_obj.xlm_balance or 0),
+                    'creator_account': account_obj.stellar_creator_account,
+                    'home_domain': account_obj.home_domain,
+                    'pipeline_source': account_obj.pipeline_source,
+                }
+            )
             
             # Detect and record HVA standing changes for ALL supported thresholds
             try:
