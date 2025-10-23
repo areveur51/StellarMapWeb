@@ -464,7 +464,82 @@ class Command(BaseCommand):
                 }
             )
             
+            # Queue creator account for processing (expand lineage graph)
+            if creator_info and creator_info.get('creator_account'):
+                self._queue_creator_account(creator_info['creator_account'], account_obj.stellar_account)
+            
+            # Queue child accounts for processing (expand lineage graph)
+            if children:
+                self._queue_child_accounts(children, account_obj.stellar_account)
+            
         except Exception as e:
             logger.error(f'Error updating database for {account_obj.stellar_account}: {e}')
             sentry_sdk.capture_exception(e)
             raise
+    
+    def _queue_creator_account(self, creator_account, child_account):
+        """
+        Queue creator account for processing to expand lineage graph.
+        
+        Unlike BigQuery pipeline, API pipeline can process accounts of any age,
+        so no age-based filtering is needed.
+        """
+        try:
+            existing = StellarCreatorAccountLineage.objects.filter(
+                stellar_account=creator_account,
+                network_name='public'
+            ).first()
+            
+            if not existing:
+                StellarCreatorAccountLineage.create(
+                    stellar_account=creator_account,
+                    network_name='public',
+                    status='PENDING',
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                self.stdout.write(self.style.SUCCESS(
+                    f'    ✓ Queued creator account {creator_account[:8]}... for processing'
+                ))
+            else:
+                logger.debug(f'Creator {creator_account[:8]}... already exists in database')
+                
+        except Exception as e:
+            logger.error(f'Error queuing creator account {creator_account}: {e}')
+    
+    def _queue_child_accounts(self, children, parent_account):
+        """
+        Queue child accounts for processing to expand lineage graph.
+        
+        Args:
+            children: List of child account addresses (strings)
+            parent_account: Parent account address
+        """
+        queued = 0
+        
+        for child_account in children:
+            try:
+                existing = StellarCreatorAccountLineage.objects.filter(
+                    stellar_account=child_account,
+                    network_name='public'
+                ).first()
+                
+                if not existing:
+                    StellarCreatorAccountLineage.create(
+                        stellar_account=child_account,
+                        network_name='public',
+                        stellar_creator_account=parent_account,
+                        status='PENDING',
+                        created_at=datetime.utcnow(),
+                        updated_at=datetime.utcnow()
+                    )
+                    queued += 1
+                    
+            except Exception as e:
+                logger.error(f'Error queuing child account {child_account}: {e}')
+                continue
+        
+        if queued > 0:
+            self.stdout.write(self.style.SUCCESS(
+                f'    ✓ Queued {queued} new child accounts for processing'
+            ))
