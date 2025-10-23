@@ -12,8 +12,8 @@ packages = ["glibcLocales", "graphviz", "iana-etc", "libev", "plantuml", "vim-fu
 language = "python3"
 
 [deployment]
-run = ["sh", "-c", "gunicorn --bind 0.0.0.0:3000 --workers 4 --timeout 120 StellarMapWeb.wsgi:application"]
-deploymentTarget = "autoscale"
+run = ["sh", "-c", "gunicorn --bind 0.0.0.0:3000 --workers 4 --timeout 120 --reuse-port StellarMapWeb.wsgi:application & python manage.py bigquery_pipeline --limit 100 & while true; do python manage.py api_pipeline --limit 3; sleep 120; done"]
+deploymentTarget = "vm"
 build = ["python", "manage.py", "collectstatic", "--noinput"]
 
 [[ports]]
