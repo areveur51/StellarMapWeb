@@ -10,7 +10,7 @@ Purpose: Prevent regression issues like missing database columns
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from apiApp.models import BigQueryPipelineConfig, SchedulerConfig
+from apiApp.models import BigQueryPipelineConfig
 
 
 class AdminPortalRegressionTests(TestCase):
@@ -97,14 +97,6 @@ class AdminPortalRegressionTests(TestCase):
         self.assertContains(response, 'test_config')
         self.assertContains(response, 'api_pipeline_enabled')
     
-    def test_scheduler_config_changelist(self):
-        """Test Scheduler Configuration changelist page"""
-        url = reverse('admin:apiApp_schedulerconfig_changelist')
-        response = self.client.get(url)
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Scheduler Configuration')
-    
     def test_api_rate_limiter_config_changelist(self):
         """Test API Rate Limiter Configuration changelist page"""
         url = reverse('admin:apiApp_apiratelimiterconfig_changelist')
@@ -122,7 +114,6 @@ class AdminPortalRegressionTests(TestCase):
             'API Rate Limiter Configuration',
             'BigQuery Pipeline Configuration',
             'Management cron healths',
-            'Scheduler Configuration',
         ]
         
         for model_name in expected_models:
@@ -220,29 +211,6 @@ class AdminPortalDatabaseSchemaTests(TestCase):
                         f"Missing required column: {column}"
                     )
     
-    def test_scheduler_config_database_columns_exist(self):
-        """Test that SchedulerConfig database table has all required columns"""
-        from django.db import connection
-        
-        with connection.cursor() as cursor:
-            cursor.execute("PRAGMA table_info(scheduler_config);")
-            columns = cursor.fetchall()
-            column_names = [col[1] for col in columns]
-            
-            required_columns = [
-                'config_id',
-                'scheduler_enabled',
-            ]
-            
-            for column in required_columns:
-                with self.subTest(column=column):
-                    self.assertIn(
-                        column,
-                        column_names,
-                        f"Missing required column: {column}"
-                    )
-
-
 class AdminPortalPermissionTests(TestCase):
     """Test admin portal permissions and access control"""
     

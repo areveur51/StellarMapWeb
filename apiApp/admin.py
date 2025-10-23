@@ -10,14 +10,10 @@ from .models import (
     ManagementCronHealth,
     StellarAccountStageExecution,
     BigQueryPipelineConfig,
-    SchedulerConfig,
     APIRateLimiterConfig,
 )
 from .helpers.sm_conn import CassandraConnectionsHelpers
 from .helpers.sm_enrichment import StellarMapEnrichmentHelper
-
-# Import SchedulerConfig admin registration
-from .admin_scheduler import SchedulerConfigAdmin
 
 # Environment-based admin selection
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
