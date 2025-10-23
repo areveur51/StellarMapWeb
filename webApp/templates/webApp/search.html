@@ -713,14 +713,22 @@
               this.highlightedAccountLineage = lineageJSON;
             }
             
-            // Transform lineage data to tree structure and update visualization
-            this.buildTreeFromLineage();
+            // IMPORTANT: Skip tree building if using the new filtering system (window.unfilteredTreeData exists)
+            // The filtered tree is already built by fetchAccountLineage()
+            // Only build tree here for legacy code paths (old lineage API without filters)
+            if (!window.unfilteredTreeData) {
+              // Transform lineage data to tree structure and update visualization (legacy path)
+              this.buildTreeFromLineage();
+            }
           } else {
             this.highlightedAccountLineage = '';
           }
         },
-        buildTreeFromLineage() {
-          if (!this.account_lineage_data || this.account_lineage_data.length === 0) {
+        buildTreeFromLineage(accountData = null) {
+          // Use provided accountData or fall back to this.account_lineage_data
+          const dataToUse = accountData || this.account_lineage_data;
+          
+          if (!dataToUse || dataToUse.length === 0) {
             return;
           }
           
@@ -728,7 +736,7 @@
           const accountMap = new Map();
           
           // First pass: create all nodes
-          this.account_lineage_data.forEach(record => {
+          dataToUse.forEach(record => {
             accountMap.set(record.stellar_account, {
               name: record.stellar_account,
               node_type: 'ISSUER',
@@ -743,7 +751,7 @@
           
           // Second pass: build the tree structure showing both directions
           let rootNode = null;
-          this.account_lineage_data.forEach(record => {
+          dataToUse.forEach(record => {
             const currentNode = accountMap.get(record.stellar_account);
             const creatorAccount = record.stellar_creator_account;
             
@@ -791,8 +799,8 @@
           });
           
           // Fallback to first account if still no root
-          if (!rootNode && this.account_lineage_data.length > 0) {
-            rootNode = accountMap.get(this.account_lineage_data[0].stellar_account);
+          if (!rootNode && dataToUse.length > 0) {
+            rootNode = accountMap.get(dataToUse[0].stellar_account);
           }
           
           // Update tree_data and trigger visualization
