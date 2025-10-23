@@ -982,9 +982,31 @@
           console.log('[transformSiblingsToLineage] Siblings:', siblingAccounts.length);
           console.log('[transformSiblingsToLineage] All accounts for tree:', allAccounts.length);
           
+          // Sort siblings by their creator's position in the lineage path
+          // Siblings with creators earlier in the lineage come first
+          const creatorIndexMap = {};
+          lineage_path.forEach((addr, index) => {
+            creatorIndexMap[addr] = index;
+          });
+          
+          const siblingAccountsSorted = siblingAccounts.sort((a, b) => {
+            const aCreatorIndex = creatorIndexMap[a.stellar_creator_account] ?? 9999;
+            const bCreatorIndex = creatorIndexMap[b.stellar_creator_account] ?? 9999;
+            
+            // Sort by creator position in lineage (ascending)
+            if (aCreatorIndex !== bCreatorIndex) {
+              return aCreatorIndex - bCreatorIndex;
+            }
+            
+            // If same creator, sort by account creation date (ascending)
+            const aDate = new Date(a.stellar_account_created_at || 0);
+            const bDate = new Date(b.stellar_account_created_at || 0);
+            return aDate - bDate;
+          });
+          
           // Update separate tab data
           this.account_lineage_data = lineageAccountsSorted;
-          this.siblings_data = siblingAccounts;
+          this.siblings_data = siblingAccountsSorted;
           
           // Return ALL accounts (lineage + siblings) for D3 tree visualization
           return allAccounts;
