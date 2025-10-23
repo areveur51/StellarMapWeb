@@ -60,6 +60,11 @@
     <div class="filter-control">
         <button class="zoom-btn" id="reset-filters-btn" onclick="resetTreeFilters()" style="width: 100%; font-size: 0.75em;">Reset Filters</button>
     </div>
+    <div class="filter-control" id="filter-status" style="display: none; border-top: none; padding-top: 5px;">
+        <span class="toggle-label" style="font-size: 0.75em; color: #0BE784;">
+            <span id="filter-status-text">Showing all nodes</span>
+        </span>
+    </div>
 </div>
 
 <script>
@@ -328,6 +333,9 @@
         // Store filtered data as current tree data
         window.currentTreeData = filteredAccounts;
         
+        // Update filter status indicator
+        updateFilterStatus(filteredAccounts.length, window.unfilteredTreeData.length);
+        
         // Re-render the tree
         if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
             renderRadialTree(filteredAccounts);
@@ -336,6 +344,19 @@
         }
         
         console.log(`Tree filters applied: ${filteredAccounts.length} / ${window.unfilteredTreeData.length} accounts shown`);
+    }
+    
+    // Update filter status indicator
+    function updateFilterStatus(filteredCount, totalCount) {
+        const statusElement = document.getElementById('filter-status');
+        const statusText = document.getElementById('filter-status-text');
+        
+        if (filteredCount < totalCount) {
+            statusElement.style.display = 'flex';
+            statusText.textContent = `Showing ${filteredCount} of ${totalCount} nodes`;
+        } else {
+            statusElement.style.display = 'none';
+        }
     }
     
     // Reset all tree filters
@@ -362,6 +383,9 @@
         document.getElementById('asset-min-filter').value = '';
         document.getElementById('asset-max-filter').value = '';
         document.getElementById('issuers-only-filter').checked = false;
+        
+        // Hide filter status indicator
+        document.getElementById('filter-status').style.display = 'none';
         
         // Re-render with unfiltered data
         if (window.unfilteredTreeData) {
