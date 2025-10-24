@@ -330,144 +330,31 @@ function renderRadialTree(jsonData) {
 
         // Get spacing multiplier from global variable (controlled by slider)
         const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
-        console.log('Radial tree rendering with spacing multiplier:', spacingMultiplier);
+        console.log('[Radial Tree] Rendering with spacing multiplier:', spacingMultiplier);
+        console.log('[Radial Tree] Using Mike Bostock approach: .size([2π, radius])');
         
-        // CRITICAL FIX: Use nodeSize instead of size to prevent angle rescaling
-        // This ensures our separation values actually spread siblings properly
+        // Use Mike Bostock's proven approach from https://gist.github.com/mbostock/4063550
+        // Key: .size([2 * Math.PI, radius]) ensures siblings naturally spread around full 360° arc
         const tree = d3.tree()
-            .nodeSize([0.1 * spacingMultiplier, radius / 10])  // [angle step, radial step]
+            .size([2 * Math.PI, radius * 0.9])  // Full circle, 90% of radius for inner content
             .separation((a, b) => {
-                // Siblings need MUCH more separation to avoid clustering
-                const isSibling = a.parent === b.parent;
-                
-                if (isSibling && a.parent) {
-                    // For siblings, use LARGE separation values to spread them out
-                    const siblingCount = a.parent.children ? a.parent.children.length : 1;
-                    
-                    // Much larger base + boost for many siblings
-                    if (siblingCount > 50) {
-                        return 20;  // Huge spread for 50+ siblings
-                    } else if (siblingCount > 20) {
-                        return 15;  // Large spread for 20-50 siblings
-                    } else if (siblingCount > 10) {
-                        return 10;  // Medium spread for 10-20 siblings
-                    } else {
-                        return 6;   // Base spread for <10 siblings
-                    }
-                } else {
-                    // Non-siblings (different parents) need less separation
-                    return 4;
-                }
+                // Mike Bostock's separation formula adapted for our data
+                // Siblings (same parent) get smaller separation, non-siblings get more
+                return (a.parent === b.parent ? 1 : 2) / (a.depth + 1);
             });
 
         const root = d3.hierarchy(processedData);
-        console.log('Tree has', root.children ? root.children.length : 0, 'children');
+        console.log('[Radial Tree] Tree has', root.children ? root.children.length : 0, 'children');
 
+        // Run D3 tree layout - with .size([2π, radius]), angles are already distributed 0 to 2π
         tree(root);
         
-        // Normalize angles to fit in [0, 2π] range after nodeSize layout
         const descendants = root.descendants();
-        if (descendants.length > 0) {
-            const minX = d3.min(descendants, d => d.x);
-            const maxX = d3.max(descendants, d => d.x);
-            const xRange = maxX - minX;
-            descendants.forEach(d => {
-                // Normalize to [0, 2π]
-                d.x = ((d.x - minX) / xRange) * 2 * Math.PI;
-            });
-        }
+        console.log('[Radial Tree] Layout complete - angles naturally span 0 to 2π');
+        console.log('[Radial Tree] Total nodes:', descendants.length);
         
-        // CRITICAL FIX: Parent-clustered sibling angle allocation
-        // Instead of uniform distribution, we cluster siblings by parent in contiguous wedges
-        // to maintain visual grouping while preventing overlap.
-        
-        function redistributeSiblingClusters(descendants) {
-            // Collect all parents with siblings (>10 threshold)
-            const parentClusters = [];
-            descendants.forEach(node => {
-                if (node.children && node.children.length > 0) {
-                    const siblings = node.children.filter(child => child.data && child.data.is_sibling);
-                    if (siblings.length > 10) {
-                        parentClusters.push({
-                            parent: node,
-                            siblings: siblings,
-                            centerAngle: node.x,  // Parent's angle from D3 layout
-                            depth: node.depth
-                        });
-                    }
-                }
-            });
-            
-            if (parentClusters.length === 0) return;
-            
-            // Sort clusters by depth (lineage order) then angle for consistent arrangement
-            parentClusters.sort((a, b) => {
-                if (a.depth !== b.depth) return a.depth - b.depth;
-                return a.centerAngle - b.centerAngle;
-            });
-            
-            console.log(`[Sibling Clustering] Found ${parentClusters.length} parent clusters`);
-            
-            // Calculate minimum angular spacing based on estimated label width and radius
-            // For 56-char Stellar addresses, need ~100px width at radius ~450px
-            // With 200+ siblings, we prioritize readability over perfect clustering
-            const minAnglePerSibling = 0.10;  // ~5.7° minimum spacing for readable labels
-            const interClusterPadding = 0.12;  // ~6.9° gap between parent clusters for clear visual separation
-            
-            // Calculate required wedge width for each cluster
-            let totalRequiredAngle = 0;
-            parentClusters.forEach(cluster => {
-                cluster.wedgeWidth = Math.max(
-                    minAnglePerSibling * cluster.siblings.length,
-                    minAnglePerSibling * 2  // Minimum wedge even for few siblings
-                );
-                totalRequiredAngle += cluster.wedgeWidth;
-            });
-            
-            // Add padding between clusters
-            totalRequiredAngle += interClusterPadding * (parentClusters.length - 1);
-            
-            // Scale factor if total exceeds 2π (normalize to fit)
-            const availableAngle = 2 * Math.PI;
-            const scaleFactor = totalRequiredAngle > availableAngle 
-                ? availableAngle / totalRequiredAngle 
-                : 1.0;
-            
-            console.log(`[Sibling Clustering] Total required: ${(totalRequiredAngle * 180 / Math.PI).toFixed(1)}°, Scale: ${scaleFactor.toFixed(2)}`);
-            
-            // Allocate contiguous wedges sequentially around the circle
-            let currentAngle = 0;
-            parentClusters.forEach((cluster, clusterIdx) => {
-                const scaledWidth = cluster.wedgeWidth * scaleFactor;
-                const wedgeStart = currentAngle;
-                const wedgeEnd = currentAngle + scaledWidth;
-                
-                console.log(`  Cluster ${clusterIdx}: Parent ${cluster.parent.data.stellar_account?.substring(0, 8) || cluster.parent.data.name} with ${cluster.siblings.length} siblings, wedge [${(wedgeStart * 180 / Math.PI).toFixed(1)}° - ${(wedgeEnd * 180 / Math.PI).toFixed(1)}°]`);
-                
-                // Distribute siblings evenly within this wedge using LINEAR INTERPOLATION
-                // to utilize the FULL allocated wedge space (wedgeStart to wedgeEnd)
-                cluster.siblings.forEach((sibling, idx) => {
-                    // Calculate slot angle: divide the full wedge evenly among siblings
-                    const slotAngle = (wedgeEnd - wedgeStart) / cluster.siblings.length;
-                    
-                    // Place sibling at the center of its slot for even distribution
-                    // This ensures siblings use the FULL wedge from edge to edge
-                    const siblingAngle = wedgeStart + slotAngle * (idx + 0.5);
-                    sibling.x = siblingAngle;
-                    
-                    // Debug first 2 siblings of each cluster
-                    if (idx < 2) {
-                        console.log(`    Sibling ${idx}: ${sibling.data.stellar_account?.substring(0, 8) || sibling.data.name} at ${(siblingAngle * 180 / Math.PI).toFixed(1)}° (slot: ${(slotAngle * 180 / Math.PI).toFixed(2)}°)`);
-                    }
-                });
-                
-                // Move to next cluster (add padding)
-                currentAngle = wedgeEnd + (interClusterPadding * scaleFactor);
-            });
-        }
-        
-        // Apply parent-clustered redistribution
-        redistributeSiblingClusters(descendants);
+        // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
+        // around the full 360° circle, so no manual redistribution needed!
 
         // Debug counter for logging
         let linkCounter = 0;
