@@ -719,8 +719,9 @@
               this.highlightedAccountLineage = lineageJSON;
             }
             
-            // Transform lineage data to tree structure and update visualization
-            this.buildTreeFromLineage();
+            // DO NOT rebuild tree here - tree building is handled by fetchAccountLineage()
+            // which includes ALL accounts (lineage + siblings), not just lineage data
+            // Rebuilding here would exclude siblings from visualization
           } else {
             this.highlightedAccountLineage = '';
           }
