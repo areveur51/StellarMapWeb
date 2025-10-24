@@ -457,10 +457,10 @@
         const assetMinSlider = document.getElementById('asset-min-slider');
         const assetMaxSlider = document.getElementById('asset-max-slider');
         
-        issuerMinSlider.step = increment;
-        issuerMaxSlider.step = increment;
-        assetMinSlider.step = increment;
-        assetMaxSlider.step = increment;
+        if (issuerMinSlider) issuerMinSlider.setAttribute('step', increment);
+        if (issuerMaxSlider) issuerMaxSlider.setAttribute('step', increment);
+        if (assetMinSlider) assetMinSlider.setAttribute('step', increment);
+        if (assetMaxSlider) assetMaxSlider.setAttribute('step', increment);
         
         console.log('Slider increments updated to:', increment);
     }
