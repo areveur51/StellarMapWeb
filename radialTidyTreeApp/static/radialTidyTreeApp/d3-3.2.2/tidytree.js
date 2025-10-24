@@ -409,9 +409,10 @@ function renderRadialTree(jsonData) {
             console.log(`[Sibling Clustering] Found ${parentClusters.length} parent clusters`);
             
             // Calculate minimum angular spacing based on estimated label width and radius
-            // Assuming ~80px label width at radius ~400px: minAngle ≈ 80/400 = 0.2 rad ≈ 11.5°
-            const minAnglePerSibling = 0.06;  // ~3.4° minimum spacing, tuned for readability
-            const interClusterPadding = 0.08;  // ~4.6° gap between parent clusters for visual separation
+            // For 56-char Stellar addresses, need ~100px width at radius ~450px
+            // With 200+ siblings, we prioritize readability over perfect clustering
+            const minAnglePerSibling = 0.10;  // ~5.7° minimum spacing for readable labels
+            const interClusterPadding = 0.12;  // ~6.9° gap between parent clusters for clear visual separation
             
             // Calculate required wedge width for each cluster
             let totalRequiredAngle = 0;
