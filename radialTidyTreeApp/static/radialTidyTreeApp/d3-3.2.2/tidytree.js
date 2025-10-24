@@ -332,10 +332,12 @@ function renderRadialTree(jsonData) {
         const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
         console.log('Radial tree rendering with spacing multiplier:', spacingMultiplier);
         
+        // CRITICAL FIX: Use nodeSize instead of size to prevent angle rescaling
+        // This ensures our separation values actually spread siblings properly
         const tree = d3.tree()
-            .size([2 * Math.PI, radius])
+            .nodeSize([0.1 * spacingMultiplier, radius / 10])  // [angle step, radial step]
             .separation((a, b) => {
-                // CRITICAL FIX: Siblings need MUCH more separation to avoid clustering
+                // Siblings need MUCH more separation to avoid clustering
                 const isSibling = a.parent === b.parent;
                 
                 if (isSibling && a.parent) {
@@ -344,17 +346,17 @@ function renderRadialTree(jsonData) {
                     
                     // Much larger base + boost for many siblings
                     if (siblingCount > 50) {
-                        return 15 * spacingMultiplier;  // Huge spread for 50+ siblings
+                        return 20;  // Huge spread for 50+ siblings
                     } else if (siblingCount > 20) {
-                        return 10 * spacingMultiplier;  // Large spread for 20-50 siblings
+                        return 15;  // Large spread for 20-50 siblings
                     } else if (siblingCount > 10) {
-                        return 7 * spacingMultiplier;   // Medium spread for 10-20 siblings
+                        return 10;  // Medium spread for 10-20 siblings
                     } else {
-                        return 5 * spacingMultiplier;   // Base spread for <10 siblings
+                        return 6;   // Base spread for <10 siblings
                     }
                 } else {
                     // Non-siblings (different parents) need less separation
-                    return 3 * spacingMultiplier;
+                    return 4;
                 }
             });
 
@@ -362,6 +364,18 @@ function renderRadialTree(jsonData) {
         console.log('Tree has', root.children ? root.children.length : 0, 'children');
 
         tree(root);
+        
+        // Normalize angles to fit in [0, 2π] range after nodeSize layout
+        const descendants = root.descendants();
+        if (descendants.length > 0) {
+            const minX = d3.min(descendants, d => d.x);
+            const maxX = d3.max(descendants, d => d.x);
+            const xRange = maxX - minX;
+            descendants.forEach(d => {
+                // Normalize to [0, 2π]
+                d.x = ((d.x - minX) / xRange) * 2 * Math.PI;
+            });
+        }
 
         // Debug counter for logging
         let linkCounter = 0;
@@ -369,7 +383,16 @@ function renderRadialTree(jsonData) {
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
-            .attr('class', 'link')
+            .attr('class', d => {
+                // CRITICAL: Use CSS classes for persistent styling
+                let classes = ['link'];
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    classes.push('link-lineage');  // Persistent red lineage class
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    classes.push('link-sibling');  // Gray sibling class
+                }
+                return classes.join(' ');
+            })
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
                 .radius(d => d.y))
@@ -399,6 +422,22 @@ function renderRadialTree(jsonData) {
             .style('opacity', d => {
                 // More prominent lineage path
                 return (d.target.data && d.target.data.is_lineage_path) ? 0.9 : 0.5;
+            })
+            .on('mouseover', function(event, d) {
+                // Add green glow ONLY to non-lineage links on hover
+                if (!d.target.data || !d.target.data.is_lineage_path) {
+                    d3.select(this)
+                        .style('filter', 'drop-shadow(0 0 4px #00ff00)')
+                        .style('stroke-width', '3px');
+                }
+            })
+            .on('mouseout', function(event, d) {
+                // Remove green glow from non-lineage links
+                if (!d.target.data || !d.target.data.is_lineage_path) {
+                    d3.select(this)
+                        .style('filter', 'none')
+                        .style('stroke-width', d.target.data && d.target.data.is_sibling ? '1.5px' : '1.5px');
+                }
             });
 
         const node = g.selectAll('.node')
