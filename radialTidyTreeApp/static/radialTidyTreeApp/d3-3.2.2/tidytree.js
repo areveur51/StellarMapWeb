@@ -410,8 +410,8 @@ function renderRadialTree(jsonData) {
             
             // Calculate minimum angular spacing based on estimated label width and radius
             // Assuming ~80px label width at radius ~400px: minAngle ≈ 80/400 = 0.2 rad ≈ 11.5°
-            const minAnglePerSibling = 0.035;  // ~2° minimum spacing, tuned for readability
-            const interClusterPadding = 0.05;  // ~3° gap between parent clusters
+            const minAnglePerSibling = 0.06;  // ~3.4° minimum spacing, tuned for readability
+            const interClusterPadding = 0.08;  // ~4.6° gap between parent clusters for visual separation
             
             // Calculate required wedge width for each cluster
             let totalRequiredAngle = 0;
