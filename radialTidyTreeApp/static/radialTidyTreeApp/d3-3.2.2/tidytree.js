@@ -444,15 +444,20 @@ function renderRadialTree(jsonData) {
                 
                 console.log(`  Cluster ${clusterIdx}: Parent ${cluster.parent.data.stellar_account?.substring(0, 8) || cluster.parent.data.name} with ${cluster.siblings.length} siblings, wedge [${(wedgeStart * 180 / Math.PI).toFixed(1)}° - ${(wedgeEnd * 180 / Math.PI).toFixed(1)}°]`);
                 
-                // Distribute siblings evenly within this wedge
+                // Distribute siblings evenly within this wedge using LINEAR INTERPOLATION
+                // to utilize the FULL allocated wedge space (wedgeStart to wedgeEnd)
                 cluster.siblings.forEach((sibling, idx) => {
-                    // Evenly space within the wedge, centered
-                    const siblingAngle = wedgeStart + (scaledWidth * (idx + 0.5) / cluster.siblings.length);
+                    // Calculate slot angle: divide the full wedge evenly among siblings
+                    const slotAngle = (wedgeEnd - wedgeStart) / cluster.siblings.length;
+                    
+                    // Place sibling at the center of its slot for even distribution
+                    // This ensures siblings use the FULL wedge from edge to edge
+                    const siblingAngle = wedgeStart + slotAngle * (idx + 0.5);
                     sibling.x = siblingAngle;
                     
                     // Debug first 2 siblings of each cluster
                     if (idx < 2) {
-                        console.log(`    Sibling ${idx}: ${sibling.data.stellar_account?.substring(0, 8) || sibling.data.name} at ${(siblingAngle * 180 / Math.PI).toFixed(1)}°`);
+                        console.log(`    Sibling ${idx}: ${sibling.data.stellar_account?.substring(0, 8) || sibling.data.name} at ${(siblingAngle * 180 / Math.PI).toFixed(1)}° (slot: ${(slotAngle * 180 / Math.PI).toFixed(2)}°)`);
                     }
                 });
                 
