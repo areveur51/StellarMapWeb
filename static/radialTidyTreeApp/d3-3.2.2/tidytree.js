@@ -164,7 +164,7 @@ function makeTree(data) {
             .attr("transform", d => `translate(${source.y0},${source.x0})`)
             .attr("fill-opacity", 0)
             .attr("stroke-opacity", 0)
-            .on("click", d => {
+            .on("click", (event, d) => {
                 d.children = d.children ? null : d._children;
                 update(d)
 
@@ -249,6 +249,9 @@ function makeTree(data) {
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
     try {
+        // Store data globally so slider can re-render
+        window.currentTreeData = jsonData;
+        
         const existingSvg = document.querySelector('#tree');
         if (existingSvg) {
             existingSvg.innerHTML = '';
@@ -297,35 +300,237 @@ function renderRadialTree(jsonData) {
             
         svg.selectAll('*').remove();
 
+        // Create main group for zoom/pan transformations
         const g = svg.append('g')
             .attr('transform', `translate(${size / 2},${size / 2})`);
+        
+        // Set up D3 zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .on('zoom', (event) => {
+                g.attr('transform', `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`);
+            });
+        
+        // Apply zoom to SVG
+        svg.call(zoom);
+        
+        // Store zoom and SVG in global scope for zoom controls
+        window.zoomBehavior = zoom;
+        window.svg = svg;
+        
+        // Reset zoom function for "Fit to Window" button
+        window.resetZoom = function() {
+            svg.transition().duration(750)
+                .call(zoom.transform, d3.zoomIdentity);
+        };
 
         const breadcrumbContainer = svg.append('g')
             .attr('class', 'breadcrumb-container')
             .attr('transform', 'translate(20, 20)');
 
+        // Get spacing multiplier from global variable (controlled by slider)
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        console.log('Radial tree rendering with spacing multiplier:', spacingMultiplier);
+        
+        // CRITICAL FIX: Use nodeSize instead of size to prevent angle rescaling
+        // This ensures our separation values actually spread siblings properly
         const tree = d3.tree()
-            .size([2 * Math.PI, radius])
+            .nodeSize([0.1 * spacingMultiplier, radius / 10])  // [angle step, radial step]
             .separation((a, b) => {
-                return (a.parent === b.parent ? 3 : 4) / (a.depth + 1);
+                // Siblings need MUCH more separation to avoid clustering
+                const isSibling = a.parent === b.parent;
+                
+                if (isSibling && a.parent) {
+                    // For siblings, use LARGE separation values to spread them out
+                    const siblingCount = a.parent.children ? a.parent.children.length : 1;
+                    
+                    // Much larger base + boost for many siblings
+                    if (siblingCount > 50) {
+                        return 20;  // Huge spread for 50+ siblings
+                    } else if (siblingCount > 20) {
+                        return 15;  // Large spread for 20-50 siblings
+                    } else if (siblingCount > 10) {
+                        return 10;  // Medium spread for 10-20 siblings
+                    } else {
+                        return 6;   // Base spread for <10 siblings
+                    }
+                } else {
+                    // Non-siblings (different parents) need less separation
+                    return 4;
+                }
             });
 
         const root = d3.hierarchy(processedData);
         console.log('Tree has', root.children ? root.children.length : 0, 'children');
 
         tree(root);
+        
+        // Normalize angles to fit in [0, 2π] range after nodeSize layout
+        const descendants = root.descendants();
+        if (descendants.length > 0) {
+            const minX = d3.min(descendants, d => d.x);
+            const maxX = d3.max(descendants, d => d.x);
+            const xRange = maxX - minX;
+            descendants.forEach(d => {
+                // Normalize to [0, 2π]
+                d.x = ((d.x - minX) / xRange) * 2 * Math.PI;
+            });
+        }
+        
+        // CRITICAL FIX: Parent-clustered sibling angle allocation
+        // Instead of uniform distribution, we cluster siblings by parent in contiguous wedges
+        // to maintain visual grouping while preventing overlap.
+        
+        function redistributeSiblingClusters(descendants) {
+            // Collect all parents with siblings (>10 threshold)
+            const parentClusters = [];
+            descendants.forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    const siblings = node.children.filter(child => child.data && child.data.is_sibling);
+                    if (siblings.length > 10) {
+                        parentClusters.push({
+                            parent: node,
+                            siblings: siblings,
+                            centerAngle: node.x,  // Parent's angle from D3 layout
+                            depth: node.depth
+                        });
+                    }
+                }
+            });
+            
+            if (parentClusters.length === 0) return;
+            
+            // Sort clusters by depth (lineage order) then angle for consistent arrangement
+            parentClusters.sort((a, b) => {
+                if (a.depth !== b.depth) return a.depth - b.depth;
+                return a.centerAngle - b.centerAngle;
+            });
+            
+            console.log(`[Sibling Clustering] Found ${parentClusters.length} parent clusters`);
+            
+            // Calculate minimum angular spacing based on estimated label width and radius
+            // For 56-char Stellar addresses, need ~100px width at radius ~450px
+            // With 200+ siblings, we prioritize readability over perfect clustering
+            const minAnglePerSibling = 0.10;  // ~5.7° minimum spacing for readable labels
+            const interClusterPadding = 0.12;  // ~6.9° gap between parent clusters for clear visual separation
+            
+            // Calculate required wedge width for each cluster
+            let totalRequiredAngle = 0;
+            parentClusters.forEach(cluster => {
+                cluster.wedgeWidth = Math.max(
+                    minAnglePerSibling * cluster.siblings.length,
+                    minAnglePerSibling * 2  // Minimum wedge even for few siblings
+                );
+                totalRequiredAngle += cluster.wedgeWidth;
+            });
+            
+            // Add padding between clusters
+            totalRequiredAngle += interClusterPadding * (parentClusters.length - 1);
+            
+            // Scale factor if total exceeds 2π (normalize to fit)
+            const availableAngle = 2 * Math.PI;
+            const scaleFactor = totalRequiredAngle > availableAngle 
+                ? availableAngle / totalRequiredAngle 
+                : 1.0;
+            
+            console.log(`[Sibling Clustering] Total required: ${(totalRequiredAngle * 180 / Math.PI).toFixed(1)}°, Scale: ${scaleFactor.toFixed(2)}`);
+            
+            // Allocate contiguous wedges sequentially around the circle
+            let currentAngle = 0;
+            parentClusters.forEach((cluster, clusterIdx) => {
+                const scaledWidth = cluster.wedgeWidth * scaleFactor;
+                const wedgeStart = currentAngle;
+                const wedgeEnd = currentAngle + scaledWidth;
+                
+                console.log(`  Cluster ${clusterIdx}: Parent ${cluster.parent.data.stellar_account?.substring(0, 8) || cluster.parent.data.name} with ${cluster.siblings.length} siblings, wedge [${(wedgeStart * 180 / Math.PI).toFixed(1)}° - ${(wedgeEnd * 180 / Math.PI).toFixed(1)}°]`);
+                
+                // Distribute siblings evenly within this wedge using LINEAR INTERPOLATION
+                // to utilize the FULL allocated wedge space (wedgeStart to wedgeEnd)
+                cluster.siblings.forEach((sibling, idx) => {
+                    // Calculate slot angle: divide the full wedge evenly among siblings
+                    const slotAngle = (wedgeEnd - wedgeStart) / cluster.siblings.length;
+                    
+                    // Place sibling at the center of its slot for even distribution
+                    // This ensures siblings use the FULL wedge from edge to edge
+                    const siblingAngle = wedgeStart + slotAngle * (idx + 0.5);
+                    sibling.x = siblingAngle;
+                    
+                    // Debug first 2 siblings of each cluster
+                    if (idx < 2) {
+                        console.log(`    Sibling ${idx}: ${sibling.data.stellar_account?.substring(0, 8) || sibling.data.name} at ${(siblingAngle * 180 / Math.PI).toFixed(1)}° (slot: ${(slotAngle * 180 / Math.PI).toFixed(2)}°)`);
+                    }
+                });
+                
+                // Move to next cluster (add padding)
+                currentAngle = wedgeEnd + (interClusterPadding * scaleFactor);
+            });
+        }
+        
+        // Apply parent-clustered redistribution
+        redistributeSiblingClusters(descendants);
 
+        // Debug counter for logging
+        let linkCounter = 0;
+        
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
-            .attr('class', 'link')
+            .attr('class', d => {
+                // CRITICAL: Use CSS classes for persistent styling
+                let classes = ['link'];
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    classes.push('link-lineage');  // Persistent red lineage class
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    classes.push('link-sibling');  // Gray sibling class
+                }
+                return classes.join(' ');
+            })
             .attr('d', d3.linkRadial()
                 .angle(d => d.x)
                 .radius(d => d.y))
-            .style('stroke', '#3f2c70')
-            .style('stroke-width', '1.5px')
+            .style('stroke', d => {
+                // Debug: Log link metadata for first 5 links
+                if (linkCounter < 5) {
+                    console.log('[Radial Link Color]', 
+                        'target:', d.target.data.stellar_account || d.target.data.name,
+                        'is_lineage_path:', d.target.data.is_lineage_path,
+                        'is_sibling:', d.target.data.is_sibling);
+                    linkCounter++;
+                }
+                
+                // Color coding: Red for direct lineage path, Gray for siblings
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    return '#ff3366';  // Red for direct lineage path
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    return '#888888';  // Gray for siblings
+                }
+                return '#3f2c70';  // Default cyberpunk purple
+            })
+            .style('stroke-width', d => {
+                // Thicker lines for lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
             .style('fill', 'none')
-            .style('opacity', 0.6);
+            .style('opacity', d => {
+                // More prominent lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? 0.9 : 0.5;
+            })
+            .on('mouseover', function(event, d) {
+                // Add green glow ONLY to non-lineage links on hover
+                if (!d.target.data || !d.target.data.is_lineage_path) {
+                    d3.select(this)
+                        .style('filter', 'drop-shadow(0 0 4px #00ff00)')
+                        .style('stroke-width', '3px');
+                }
+            })
+            .on('mouseout', function(event, d) {
+                // Remove green glow from non-lineage links
+                if (!d.target.data || !d.target.data.is_lineage_path) {
+                    d3.select(this)
+                        .style('filter', 'none')
+                        .style('stroke-width', d.target.data && d.target.data.is_sibling ? '1.5px' : '1.5px');
+                }
+            });
 
         const node = g.selectAll('.node')
             .data(root.descendants())
@@ -337,11 +542,36 @@ function renderRadialTree(jsonData) {
             });
 
         node.append('circle')
-            .attr('r', 5)
+            .attr('r', d => d.data.is_searched_account ? 7 : 5)  // Larger for searched account
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', '#3f2c70')
-            .style('stroke', d => d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C')
-            .style('stroke-width', '2px')
+            .style('fill', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#1a1a2e';  // Dark background color (muted)
+                }
+                return '#3f2c70';  // Normal cyberpunk purple
+            })
+            .style('stroke', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#2a2a3e';  // Slightly lighter dark (muted)
+                }
+                // Cyan glow for searched account
+                if (d.data.is_searched_account) {
+                    return '#00ffff';  // Cyan for searched account
+                }
+                // Yellow for assets, green for issuers
+                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+            })
+            .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2px')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.2;  // Very dim for filtered nodes
+                }
+                return 1;  // Normal visibility
+            })
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none')
             .on('mouseover', function(event, d) { showTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTooltip(); });
 
@@ -361,7 +591,14 @@ function renderRadialTree(jsonData) {
             .style('fill', 'white')
             .style('font-size', '13px')
             .style('font-weight', '500')
-            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)');
+            .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.15;  // Very dim text for filtered nodes
+                }
+                return 1;  // Normal visibility
+            });
 
         let tooltip = d3.select('body').select('.tooltip');
         if (tooltip.empty()) {
@@ -462,22 +699,470 @@ function renderRadialTree(jsonData) {
             if (d.data.node_type === 'ASSET') {
                 tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
                 tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
-                tooltipHTML += '<b>Balance:</b> ' + (d.data.balance || '0') + '<br>';
+                tooltipHTML += '<b>Balance:</b> ' + (parseFloat(d.data.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
             } else {
                 tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
                 tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
-                tooltipHTML += '<b>XLM Balance:</b> ' + (d.data.xlm_balance || '0') + '<br>';
+                tooltipHTML += '<b>XLM Balance:</b> ' + (parseFloat(d.data.xlm_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
                 tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
             }
             tooltip.html(tooltipHTML)
                 .style('background', backgroundColor)
                 .style('color', textColor)
-                .style('opacity', 1)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
+                .style('opacity', 1);
+            
+            // Smart positioning to prevent tooltip from going off-screen
+            const tooltipNode = tooltip.node();
+            const tooltipRect = tooltipNode.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
+            let left = event.clientX + 10;
+            let top = event.clientY - 28;
+            
+            // Check right edge - if tooltip goes off-screen, show on left side of cursor
+            if (left + tooltipRect.width > viewportWidth) {
+                left = event.clientX - tooltipRect.width - 10;
+            }
+            
+            // Check left edge - ensure tooltip doesn't go off left side
+            if (left < 0) {
+                left = 10;
+            }
+            
+            // Check bottom edge - if tooltip goes off-screen, show above cursor
+            if (top + tooltipRect.height > viewportHeight) {
+                top = event.clientY - tooltipRect.height - 10;
+            }
+            
+            // Check top edge - ensure tooltip doesn't go off top
+            if (top < 0) {
+                top = event.clientY + 20;
+            }
+            
+            // Convert to page coordinates by adding scroll offsets
+            tooltip.style('left', (left + window.scrollX) + 'px')
+                .style('top', (top + window.scrollY) + 'px');
         }
 
         function hideTooltip() {
+            tooltip.style('opacity', 0);
+            
+            // CRITICAL FIX: Don't reset ALL links - restore based on their type
+            link.each(function(d) {
+                const linkElement = d3.select(this);
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    // Restore red lineage links
+                    linkElement
+                        .style('stroke', '#ff3366')
+                        .style('stroke-width', '2.5px')
+                        .style('opacity', 0.9)
+                        .style('filter', 'none');  // Remove any hover effects
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    // Restore gray sibling links
+                    linkElement
+                        .style('stroke', '#888888')
+                        .style('stroke-width', '1.5px')
+                        .style('opacity', 0.5)
+                        .style('filter', 'none');
+                } else {
+                    // Restore default purple links
+                    linkElement
+                        .style('stroke', '#3f2c70')
+                        .style('stroke-width', '1.5px')
+                        .style('opacity', 0.6)
+                        .style('filter', 'none');
+                }
+            });
+            
+            breadcrumbContainer.selectAll('*').remove();
+        }
+
+        console.log('Radial tree rendered successfully');
+        
+    } catch (error) {
+        console.error('Error rendering radial tree:', error);
+        
+        const svg = d3.select('#tree');
+        if (!svg.empty()) {
+            svg.selectAll('*').remove();
+            svg.append('text')
+                .attr('x', 400)
+                .attr('y', 400)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '16px')
+                .style('fill', '#666')
+                .text('Tree visualization unavailable');
+        }
+    }
+}
+
+// Global function to render left-to-right tidy tree with data
+function renderTidyTree(jsonData) {
+    try {
+        // Store data globally so slider can re-render
+        window.currentTreeData = jsonData;
+        
+        const existingSvg = document.querySelector('#tree');
+        if (existingSvg) {
+            existingSvg.innerHTML = '';
+        }
+
+        let processedData;
+        if (jsonData && typeof jsonData === 'object') {
+            if (jsonData.name || jsonData.children || jsonData.stellar_account) {
+                processedData = jsonData;
+            } else {
+                processedData = {
+                    name: jsonData.stellar_account || 'Root Node',
+                    node_type: jsonData.node_type || 'ACCOUNT',
+                    created: jsonData.created || new Date().toISOString(),
+                    children: jsonData.children || []
+                };
+            }
+        } else {
+            processedData = {
+                name: 'Sample Root',
+                node_type: 'ACCOUNT',
+                created: '2015-09-30 13:15:54',
+                children: []
+            };
+        }
+
+        console.log('Processing tidy tree data:', processedData);
+
+        const container = document.querySelector('.visualization-container') || document.body;
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || window.innerWidth;
+        const height = containerRect.height || window.innerHeight;
+
+        const margin = {top: 20, right: 250, bottom: 20, left: 60};  // Increased right margin to prevent text overflow
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        
+        // Use 70% of width to leave room for text labels
+        const treeWidth = innerWidth * 0.7;
+
+        const svg = d3.select('#tree')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
+            
+        svg.selectAll('*').remove();
+
+        // Create main group for zoom/pan transformations
+        const g = svg.append('g')
+            .attr('transform', `translate(${margin.left},${margin.top})`);
+        
+        // Set up D3 zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .on('zoom', (event) => {
+                g.attr('transform', `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+            });
+        
+        // Apply zoom to SVG
+        svg.call(zoom);
+        
+        // Store zoom and SVG in global scope for zoom controls
+        window.zoomBehavior = zoom;
+        window.svg = svg;
+        
+        // Reset zoom function for "Fit to Window" button
+        window.resetZoom = function() {
+            svg.transition().duration(750)
+                .call(zoom.transform, d3.zoomIdentity);
+        };
+
+        const breadcrumbContainer = svg.append('g')
+            .attr('class', 'breadcrumb-container')
+            .attr('transform', 'translate(20, 20)');
+
+        const root = d3.hierarchy(processedData);
+        console.log('Tidy tree has', root.children ? root.children.length : 0, 'children');
+        console.log('Tree depth:', root.height);
+
+        // Get spacing multiplier from global variable (controlled by slider)
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        console.log('Tidy tree rendering with spacing multiplier:', spacingMultiplier);
+        
+        // Use nodeSize instead of size to let tree expand naturally based on separation
+        const nodeHeight = 25 * spacingMultiplier;  // Base height per node, scaled by multiplier
+        const tree = d3.tree()
+            .nodeSize([nodeHeight, 100])  // [height, width] per node - height controls vertical spacing
+            .separation((a, b) => {
+                // Additional separation multiplier for siblings vs non-siblings
+                return a.parent === b.parent ? 1 : 1.2;
+            });
+
+        tree(root);
+        
+        // Get child spacing factors from global variables (configurable via UI)
+        const minChildSpacing = window.minChildSpacing || 0.6;
+        const maxChildSpacing = window.maxChildSpacing || 1.5;
+        
+        // Calculate dynamic horizontal positions based on child count
+        // More children = longer lines (spread further right), fewer children = shorter lines
+        const maxDepth = root.height || 1;
+        const baseSpacing = treeWidth / maxDepth;
+        
+        root.descendants().forEach(d => {
+            if (d.parent) {
+                const childCount = d.parent.children ? d.parent.children.length : 1;
+                // Scale factor based on child count with configurable min/max
+                const scaleFactor = Math.min(maxChildSpacing, Math.max(minChildSpacing, 0.5 + (childCount / 20)));
+                d.y = d.parent.y + (baseSpacing * scaleFactor);
+            } else {
+                d.y = 0;  // Root at origin
+            }
+        });
+
+        // Center the tree vertically by finding min/max coordinates
+        const descendants = root.descendants();
+        const minX = d3.min(descendants, d => d.x);
+        const maxX = d3.max(descendants, d => d.x);
+        const treeHeight = maxX - minX;
+        
+        // Center vertically, or align to top if tree is larger than viewport
+        const yOffset = treeHeight < innerHeight ? (innerHeight - treeHeight) / 2 - minX : -minX + 20;
+
+        const link = g.selectAll('.link')
+            .data(root.links())
+            .enter().append('path')
+            .attr('class', 'link')
+            .attr('d', d3.linkHorizontal()
+                .x(d => d.y)
+                .y(d => d.x + yOffset))
+            .style('stroke', d => {
+                // Color coding: Red for direct lineage path, Gray for siblings
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    return '#ff3366';  // Red for direct lineage path
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    return '#888888';  // Gray for siblings
+                }
+                return '#3f2c70';  // Default cyberpunk purple
+            })
+            .style('stroke-width', d => {
+                // Thicker lines for lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
+            .style('fill', 'none')
+            .style('opacity', d => {
+                // More prominent lineage path
+                return (d.target.data && d.target.data.is_lineage_path) ? 0.9 : 0.5;
+            });
+
+        const node = g.selectAll('.node')
+            .data(descendants)
+            .enter().append('g')
+            .attr('class', 'node')
+            .attr('transform', d => `translate(${d.y},${d.x + yOffset})`);
+
+        node.append('circle')
+            .attr('r', d => d.data.is_searched_account ? 8 : 6)  // Larger for searched account
+            .attr('data-node-type', d => d.data.node_type)
+            .style('fill', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#1a1a2e';  // Dark background color (muted)
+                }
+                return '#3f2c70';  // Normal cyberpunk purple
+            })
+            .style('stroke', d => {
+                // Check if node should be muted (filtered)
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return '#2a2a3e';  // Slightly lighter dark (muted)
+                }
+                // Cyan glow for searched account
+                if (d.data.is_searched_account) {
+                    return '#00ffff';  // Cyan for searched account
+                }
+                // Yellow for assets, green for issuers
+                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+            })
+            .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2.5px')
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.2;  // Very dim for filtered nodes
+                }
+                return 1;  // Normal visibility
+            })
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 10px #00ffff)' : 'none')
+            .on('mouseover', function(event, d) { showTidyTooltip(event, d); })
+            .on('mouseout', function(event, d) { hideTidyTooltip(); });
+
+        node.append('text')
+            .attr('dy', '0.31em')
+            .attr('x', d => d.children ? -14 : 14)  // Increased offset to prevent overlap with larger circles
+            .attr('text-anchor', d => d.children ? 'end' : 'start')
+            .text(d => {
+                if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
+                    return d.data.stellar_account.slice(-7);
+                }
+                return d.data.asset_code || d.data.name || 'Unnamed';
+            })
+            .style('fill', 'white')
+            .style('font-size', '13px')  // Reduced from 14px for less thickness
+            .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
+            .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
+            .style('letter-spacing', '0.5px')  // Slightly increased letter spacing for clarity
+            .style('opacity', d => {
+                // Reduce opacity for muted nodes
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
+                    return 0.15;  // Very dim text for filtered nodes
+                }
+                return 1;  // Normal visibility
+            });
+
+        let tooltip = d3.select('body').select('.tooltip');
+        if (tooltip.empty()) {
+            tooltip = d3.select('body').append('div')
+                .attr('class', 'tooltip')
+                .style('opacity', 0)
+                .style('position', 'absolute')
+                .style('color', 'black')
+                .style('padding', '10px')
+                .style('border-radius', '6px')
+                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
+                .style('font', '12px sans-serif')
+                .style('width', '250px')
+                .style('word-wrap', 'break-word')
+                .style('pointer-events', 'none')
+                .style('z-index', '1000');
+        }
+
+        function getPathToRoot(node) {
+            const path = [];
+            let current = node;
+            while (current) {
+                path.unshift(current);
+                current = current.parent;
+            }
+            return path;
+        }
+
+        function showTidyTooltip(event, d) {
+            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
+            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
+            
+            const pathToRoot = getPathToRoot(d);
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
+            }
+            
+            link.style('stroke', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? '3px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
+                return pathLinks.has(linkId) ? 1 : 0.3;
+            });
+
+            breadcrumbContainer.selectAll('*').remove();
+            
+            let xOffset = 0;
+            pathToRoot.forEach((node, i) => {
+                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
+                let breadcrumbText;
+                if (node.data.stellar_account && node.data.node_type === 'ISSUER') {
+                    breadcrumbText = node.data.stellar_account.slice(-7);
+                } else {
+                    breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
+                }
+                const textWidth = breadcrumbText.length * 7;
+                
+                breadcrumbContainer.append('rect')
+                    .attr('x', xOffset)
+                    .attr('y', 0)
+                    .attr('width', textWidth + 20)
+                    .attr('height', 25)
+                    .attr('fill', breadcrumbColor)
+                    .attr('rx', 4);
+                
+                breadcrumbContainer.append('text')
+                    .attr('x', xOffset + 10)
+                    .attr('y', 17)
+                    .text(breadcrumbText)
+                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold');
+                
+                xOffset += textWidth + 25;
+                
+                if (i < pathToRoot.length - 1) {
+                    breadcrumbContainer.append('text')
+                        .attr('x', xOffset)
+                        .attr('y', 17)
+                        .text('>')
+                        .style('fill', 'white')
+                        .style('font-size', '14px')
+                        .style('font-weight', 'bold');
+                    xOffset += 20;
+                }
+            });
+            
+            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
+            if (d.data.node_type === 'ASSET') {
+                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
+                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
+                tooltipHTML += '<b>Balance:</b> ' + (parseFloat(d.data.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
+            } else {
+                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
+                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
+                tooltipHTML += '<b>XLM Balance:</b> ' + (parseFloat(d.data.xlm_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
+                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
+            }
+            tooltip.html(tooltipHTML)
+                .style('background', backgroundColor)
+                .style('color', textColor)
+                .style('opacity', 1);
+            
+            // Smart positioning to prevent tooltip from going off-screen
+            const tooltipNode = tooltip.node();
+            const tooltipRect = tooltipNode.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
+            let left = event.clientX + 10;
+            let top = event.clientY - 28;
+            
+            // Check right edge - if tooltip goes off-screen, show on left side of cursor
+            if (left + tooltipRect.width > viewportWidth) {
+                left = event.clientX - tooltipRect.width - 10;
+            }
+            
+            // Check left edge - ensure tooltip doesn't go off left side
+            if (left < 0) {
+                left = 10;
+            }
+            
+            // Check bottom edge - if tooltip goes off-screen, show above cursor
+            if (top + tooltipRect.height > viewportHeight) {
+                top = event.clientY - tooltipRect.height - 10;
+            }
+            
+            // Check top edge - ensure tooltip doesn't go off top
+            if (top < 0) {
+                top = event.clientY + 20;
+            }
+            
+            // Convert to page coordinates by adding scroll offsets
+            tooltip.style('left', (left + window.scrollX) + 'px')
+                .style('top', (top + window.scrollY) + 'px');
+        }
+
+        function hideTidyTooltip() {
             tooltip.style('opacity', 0);
             
             link.style('stroke', '#3f2c70')
@@ -487,10 +1172,10 @@ function renderRadialTree(jsonData) {
             breadcrumbContainer.selectAll('*').remove();
         }
 
-        console.log('Radial tree rendered successfully');
+        console.log('Tidy tree rendered successfully');
         
     } catch (error) {
-        console.error('Error rendering radial tree:', error);
+        console.error('Error rendering tidy tree:', error);
         
         const svg = d3.select('#tree');
         if (!svg.empty()) {
