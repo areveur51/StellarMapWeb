@@ -335,8 +335,20 @@ function renderRadialTree(jsonData) {
         const tree = d3.tree()
             .size([2 * Math.PI, radius])
             .separation((a, b) => {
-                const baseSeparation = (a.parent === b.parent ? 3 : 4) / (a.depth + 1);
-                return baseSeparation * spacingMultiplier;
+                // CRITICAL FIX: Don't divide by depth! That makes siblings overlap at deeper levels.
+                // Instead, use a constant separation that's adjusted by the number of siblings.
+                const isSibling = a.parent === b.parent;
+                
+                if (isSibling && a.parent) {
+                    // For siblings, increase separation based on sibling count
+                    const siblingCount = a.parent.children ? a.parent.children.length : 1;
+                    // Base separation of 1.5, with a boost for many siblings
+                    const siblingBoost = Math.min(siblingCount / 10, 2);  // Up to 2x boost for 20+ siblings
+                    return (1.5 + siblingBoost) * spacingMultiplier;
+                } else {
+                    // Non-siblings (different parents) need less separation
+                    return 2 * spacingMultiplier;
+                }
             });
 
         const root = d3.hierarchy(processedData);

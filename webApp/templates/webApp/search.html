@@ -967,11 +967,6 @@
             const isInLineagePath = lineagePathSet.has(accountAddr);
             const isSearchedAccount = accountAddr === lineage_path[lineage_path.length - 1];
             
-            // Debug: Check if siblings have assets
-            if (!isInLineagePath && accountData.assets && accountData.assets.length > 0) {
-              console.log('[transformSiblingsToLineage] SIBLING with assets:', accountAddr.substring(0, 8), 'has', accountData.assets.length, 'assets');
-            }
-            
             // Check if this account is a creator with children in siblings_by_creator
             const childAccounts = siblings_by_creator[accountAddr] || [];
             

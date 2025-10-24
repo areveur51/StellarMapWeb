@@ -2144,15 +2144,6 @@ def lineage_with_siblings_api(request):
                 acct_addr = record.stellar_account
                 assets = extract_assets(record.horizon_accounts_json)
                 
-                # Debug: Log if this is a sibling with no assets
-                is_sibling = acct_addr not in lineage_path_set
-                if is_sibling and len(assets) == 0 and record.horizon_accounts_json:
-                    logger = logging.getLogger(__name__)
-                    logger.info(f'Sibling {acct_addr[:8]} has horizon_json but no assets extracted')
-                elif is_sibling and len(assets) > 0:
-                    logger = logging.getLogger(__name__)
-                    logger.info(f'Sibling {acct_addr[:8]} HAS {len(assets)} assets!')
-                
                 all_account_data[acct_addr] = {
                     'stellar_account': record.stellar_account,
                     'stellar_creator_account': record.stellar_creator_account,
