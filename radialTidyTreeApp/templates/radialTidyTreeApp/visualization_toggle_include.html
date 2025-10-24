@@ -37,18 +37,28 @@
     <!-- Tree Filters -->
     <div class="filter-control">
         <span class="toggle-label" style="font-size: 0.8em;">XLM Balance:</span>
-        <div style="display: flex; gap: 5px; margin-top: 3px;">
-            <input type="number" id="xlm-min-filter" class="filter-input" placeholder="Min" min="0" step="100" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
-            <span style="color: #666;">to</span>
-            <input type="number" id="xlm-max-filter" class="filter-input" placeholder="Max" min="0" step="100" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+        <div style="margin-top: 3px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
+                <span>Min: <span id="xlm-min-value">0</span></span>
+                <span>Max: <span id="xlm-max-value">∞</span></span>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <input type="range" id="xlm-min-slider" class="spacing-slider" min="0" max="100000" step="1000" value="0" style="flex: 1;">
+                <input type="range" id="xlm-max-slider" class="spacing-slider" min="0" max="100000" step="1000" value="100000" style="flex: 1;">
+            </div>
         </div>
     </div>
     <div class="filter-control">
         <span class="toggle-label" style="font-size: 0.8em;">Asset Balance:</span>
-        <div style="display: flex; gap: 5px; margin-top: 3px;">
-            <input type="number" id="asset-min-filter" class="filter-input" placeholder="Min" min="0" step="0.01" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
-            <span style="color: #666;">to</span>
-            <input type="number" id="asset-max-filter" class="filter-input" placeholder="Max" min="0" step="0.01" style="width: 60px; padding: 2px 4px; font-size: 0.75em;">
+        <div style="margin-top: 3px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
+                <span>Min: <span id="asset-min-value">0</span></span>
+                <span>Max: <span id="asset-max-value">∞</span></span>
+            </div>
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <input type="range" id="asset-min-slider" class="spacing-slider" min="0" max="10000" step="100" value="0" style="flex: 1;">
+                <input type="range" id="asset-max-slider" class="spacing-slider" min="0" max="10000" step="100" value="10000" style="flex: 1;">
+            </div>
         </div>
     </div>
     <div class="filter-control">
@@ -296,17 +306,30 @@
     // Returns true if node should be MUTED (dimmed/blended into background)
     window.shouldMuteNode = function(node) {
         // No filters active - show everything normally
-        if (!window.treeFilters.xlmMin && !window.treeFilters.xlmMax && 
-            !window.treeFilters.assetMin && !window.treeFilters.assetMax && 
+        // IMPORTANT: Use explicit null checks, not falsy checks, because 0 is a valid filter value
+        if (window.treeFilters.xlmMin === null && window.treeFilters.xlmMax === null && 
+            window.treeFilters.assetMin === null && window.treeFilters.assetMax === null && 
             !window.treeFilters.issuersOnly) {
             return false;
         }
         
-        // Skip asset nodes - only filter account nodes
+        // Handle ASSET nodes (yellow nodes) - they have a 'balance' field for the asset itself
         if (node.node_type === 'ASSET') {
+            // Asset nodes are filtered by their own balance (not XLM balance)
+            const assetBalance = parseFloat(node.balance) || 0;
+            
+            if (window.treeFilters.assetMin !== null && assetBalance < window.treeFilters.assetMin) {
+                return true;
+            }
+            if (window.treeFilters.assetMax !== null && assetBalance > window.treeFilters.assetMax) {
+                return true;
+            }
+            
+            // Asset nodes are not affected by XLM balance or Issuers Only filters
             return false;
         }
         
+        // Handle ISSUER nodes (account nodes)
         // XLM Balance filters
         const xlmBalance = node.xlm_balance || 0;
         if (window.treeFilters.xlmMin !== null && xlmBalance < window.treeFilters.xlmMin) {
@@ -316,7 +339,7 @@
             return true;
         }
         
-        // Asset Balance filters (sum of all asset balances)
+        // Asset Balance filters (sum of all asset balances held by this account)
         let totalAssetBalance = 0;
         if (node.assets && node.assets.length > 0) {
             totalAssetBalance = node.assets.reduce((sum, asset) => {
@@ -366,6 +389,13 @@
         }
     }
     
+    // Format number for display
+    function formatFilterValue(value, isInfinity) {
+        if (isInfinity) return '∞';
+        if (value >= 1000) return (value / 1000).toFixed(0) + 'k';
+        return value.toString();
+    }
+    
     // Reset all tree filters
     function resetTreeFilters() {
         // Clear filter values
@@ -384,11 +414,21 @@
         localStorage.removeItem('treeFilter_assetMax');
         localStorage.removeItem('treeFilter_issuersOnly');
         
-        // Reset UI inputs
-        document.getElementById('xlm-min-filter').value = '';
-        document.getElementById('xlm-max-filter').value = '';
-        document.getElementById('asset-min-filter').value = '';
-        document.getElementById('asset-max-filter').value = '';
+        // Reset UI sliders to default positions
+        const xlmMinSlider = document.getElementById('xlm-min-slider');
+        const xlmMaxSlider = document.getElementById('xlm-max-slider');
+        const assetMinSlider = document.getElementById('asset-min-slider');
+        const assetMaxSlider = document.getElementById('asset-max-slider');
+        
+        xlmMinSlider.value = 0;
+        xlmMaxSlider.value = xlmMaxSlider.max;
+        assetMinSlider.value = 0;
+        assetMaxSlider.value = assetMaxSlider.max;
+        
+        document.getElementById('xlm-min-value').textContent = '0';
+        document.getElementById('xlm-max-value').textContent = '∞';
+        document.getElementById('asset-min-value').textContent = '0';
+        document.getElementById('asset-max-value').textContent = '∞';
         document.getElementById('issuers-only-filter').checked = false;
         
         // Hide filter status indicator
@@ -407,25 +447,27 @@
         console.log('Tree filters reset');
     }
     
-    // Initialize filter controls with event listeners (start with empty filters)
+    // Initialize filter controls with range sliders
     function initializeTreeFilters() {
-        const xlmMinInput = document.getElementById('xlm-min-filter');
-        const xlmMaxInput = document.getElementById('xlm-max-filter');
-        const assetMinInput = document.getElementById('asset-min-filter');
-        const assetMaxInput = document.getElementById('asset-max-filter');
+        const xlmMinSlider = document.getElementById('xlm-min-slider');
+        const xlmMaxSlider = document.getElementById('xlm-max-slider');
+        const assetMinSlider = document.getElementById('asset-min-slider');
+        const assetMaxSlider = document.getElementById('asset-max-slider');
         const issuersOnlyCheckbox = document.getElementById('issuers-only-filter');
         
-        // Initialize with empty values (filters disabled by default)
-        xlmMinInput.value = '';
-        xlmMaxInput.value = '';
-        assetMinInput.value = '';
-        assetMaxInput.value = '';
-        issuersOnlyCheckbox.checked = false;
+        const xlmMinValue = document.getElementById('xlm-min-value');
+        const xlmMaxValue = document.getElementById('xlm-max-value');
+        const assetMinValue = document.getElementById('asset-min-value');
+        const assetMaxValue = document.getElementById('asset-max-value');
         
-        // Add event listeners
-        xlmMinInput.addEventListener('input', function() {
-            const value = parseFloat(this.value);
-            window.treeFilters.xlmMin = isNaN(value) || this.value === '' ? null : value;
+        // XLM Min slider
+        xlmMinSlider.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            const isAtMin = value === parseInt(this.min);
+            
+            xlmMinValue.textContent = formatFilterValue(value, isAtMin);
+            window.treeFilters.xlmMin = isAtMin ? null : value;
+            
             if (window.treeFilters.xlmMin !== null) {
                 localStorage.setItem('treeFilter_xlmMin', window.treeFilters.xlmMin);
             } else {
@@ -434,9 +476,14 @@
             applyTreeFilters();
         });
         
-        xlmMaxInput.addEventListener('input', function() {
-            const value = parseFloat(this.value);
-            window.treeFilters.xlmMax = isNaN(value) || this.value === '' ? null : value;
+        // XLM Max slider
+        xlmMaxSlider.addEventListener('input', function() {
+            const value = parseInt(this.value);
+            const isAtMax = value === parseInt(this.max);
+            
+            xlmMaxValue.textContent = formatFilterValue(value, isAtMax);
+            window.treeFilters.xlmMax = isAtMax ? null : value;
+            
             if (window.treeFilters.xlmMax !== null) {
                 localStorage.setItem('treeFilter_xlmMax', window.treeFilters.xlmMax);
             } else {
@@ -445,9 +492,14 @@
             applyTreeFilters();
         });
         
-        assetMinInput.addEventListener('input', function() {
+        // Asset Min slider
+        assetMinSlider.addEventListener('input', function() {
             const value = parseInt(this.value);
-            window.treeFilters.assetMin = isNaN(value) || this.value === '' ? null : value;
+            const isAtMin = value === parseInt(this.min);
+            
+            assetMinValue.textContent = formatFilterValue(value, isAtMin);
+            window.treeFilters.assetMin = isAtMin ? null : value;
+            
             if (window.treeFilters.assetMin !== null) {
                 localStorage.setItem('treeFilter_assetMin', window.treeFilters.assetMin);
             } else {
@@ -456,9 +508,14 @@
             applyTreeFilters();
         });
         
-        assetMaxInput.addEventListener('input', function() {
+        // Asset Max slider
+        assetMaxSlider.addEventListener('input', function() {
             const value = parseInt(this.value);
-            window.treeFilters.assetMax = isNaN(value) || this.value === '' ? null : value;
+            const isAtMax = value === parseInt(this.max);
+            
+            assetMaxValue.textContent = formatFilterValue(value, isAtMax);
+            window.treeFilters.assetMax = isAtMax ? null : value;
+            
             if (window.treeFilters.assetMax !== null) {
                 localStorage.setItem('treeFilter_assetMax', window.treeFilters.assetMax);
             } else {
@@ -467,6 +524,7 @@
             applyTreeFilters();
         });
         
+        // Issuers Only checkbox
         issuersOnlyCheckbox.addEventListener('change', function() {
             window.treeFilters.issuersOnly = this.checked;
             localStorage.setItem('treeFilter_issuersOnly', window.treeFilters.issuersOnly);
