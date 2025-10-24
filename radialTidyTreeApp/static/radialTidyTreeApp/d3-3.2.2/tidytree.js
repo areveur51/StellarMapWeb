@@ -282,43 +282,32 @@ function renderRadialTree(jsonData) {
 
         // Pre-analyze tree to calculate optimal radius based on node density
         const tempRoot = d3.hierarchy(processedData);
-        const descendants = tempRoot.descendants();
+        const tempDescendants = tempRoot.descendants();
         
-        // Count nodes at each depth level
-        const nodesPerDepth = {};
-        let maxDepth = 0;
-        descendants.forEach(d => {
-            nodesPerDepth[d.depth] = (nodesPerDepth[d.depth] || 0) + 1;
-            maxDepth = Math.max(maxDepth, d.depth);
-        });
+        // Count total nodes and max depth
+        const totalNodes = tempDescendants.length;
+        const maxDepth = d3.max(tempDescendants, d => d.depth) || 1;
         
-        // Calculate minimum radius needed for the densest level
-        // For 56-char Stellar addresses, we need ~100px circumferential space per label
-        // Circumference at depth d: 2πr, where r = (d / maxDepth) * radius
-        // Required: nodesAtDepth * 100px ≤ 2π * (d / maxDepth) * radius
-        let minRadius = 300; // Minimum baseline radius
+        // Simple radius calculation: more nodes = larger radius
+        // Base formula: ensure ~100px circumferential space per node at the widest ring
+        const labelWidth = 100; // pixels per label
+        const nodesAtMaxDepth = tempDescendants.filter(d => d.depth === maxDepth).length || 1;
         
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            const nodeCount = nodesPerDepth[depth] || 0;
-            if (nodeCount > 0) {
-                // Calculate radius needed for this depth level
-                // labelWidth * nodeCount = circumference at this depth
-                // 100 * nodeCount = 2π * (depth / maxDepth) * radius
-                const labelWidth = 100; // px per label
-                const requiredRadius = (labelWidth * nodeCount * maxDepth) / (2 * Math.PI * depth);
-                minRadius = Math.max(minRadius, requiredRadius);
-            }
-        }
+        // Calculate minimum radius needed: circumference / (2π) = radius
+        // circumference = nodesAtMaxDepth * labelWidth
+        let calculatedRadius = (nodesAtMaxDepth * labelWidth) / (2 * Math.PI);
         
-        console.log(`[Radial Tree] Node density analysis:`, nodesPerDepth);
-        console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${descendants.length}`);
-        console.log(`[Radial Tree] Calculated minimum radius: ${minRadius.toFixed(0)}px`);
+        // Apply constraints
+        calculatedRadius = Math.max(300, calculatedRadius); // Minimum 300px
+        calculatedRadius = Math.min(2000, calculatedRadius); // Maximum 2000px
+        calculatedRadius = Math.floor(calculatedRadius); // Round to integer
         
-        // Use calculated radius, but cap at reasonable limits
-        const calculatedRadius = Math.min(minRadius * 1.1, 2000); // 10% padding, max 2000px
+        console.log(`[Radial Tree] Total nodes: ${totalNodes}, Max depth: ${maxDepth}`);
+        console.log(`[Radial Tree] Nodes at max depth: ${nodesAtMaxDepth}`);
+        console.log(`[Radial Tree] Calculated radius: ${calculatedRadius}px`);
         
         // Set canvas size based on radius
-        const size = (calculatedRadius + 150) * 2; // Add margin for labels
+        const size = Math.floor((calculatedRadius + 150) * 2); // Add margin for labels
         const radius = calculatedRadius;
 
         const treeContainer = d3.select('#tree');
