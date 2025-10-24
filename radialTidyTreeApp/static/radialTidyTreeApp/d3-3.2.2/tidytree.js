@@ -377,37 +377,91 @@ function renderRadialTree(jsonData) {
             });
         }
         
-        // CRITICAL FIX: Post-layout sibling angle override to prevent clustering
-        // D3's tree layout allocates angular wedges hierarchically, so all siblings
-        // inherit their parent's narrow wedge. We override sibling angles to 
-        // distribute them evenly around the FULL 2π circumference.
-        descendants.forEach(node => {
-            if (node.children && node.children.length > 0) {
-                // Separate lineage vs sibling children
-                const siblings = node.children.filter(child => 
-                    child.data && child.data.is_sibling
-                );
-                
-                // If this parent has many siblings (>10), override their angles
-                if (siblings.length > 10) {
-                    console.log(`[Sibling Override] Parent ${node.data.stellar_account || node.data.name} has ${siblings.length} siblings - redistributing around full arc`);
-                    
-                    // Calculate uniform angular spacing for siblings
-                    siblings.forEach((sibling, idx) => {
-                        // Distribute evenly around full 2π circle
-                        const angle = (2 * Math.PI * idx) / siblings.length;
-                        
-                        // Override angle while preserving radial depth
-                        sibling.x = angle;
-                        
-                        // Debug first few
-                        if (idx < 3) {
-                            console.log(`  Sibling ${idx}/${siblings.length}: ${sibling.data.stellar_account || sibling.data.name} angle=${(angle * 180 / Math.PI).toFixed(1)}°`);
-                        }
-                    });
+        // CRITICAL FIX: Parent-clustered sibling angle allocation
+        // Instead of uniform distribution, we cluster siblings by parent in contiguous wedges
+        // to maintain visual grouping while preventing overlap.
+        
+        function redistributeSiblingClusters(descendants) {
+            // Collect all parents with siblings (>10 threshold)
+            const parentClusters = [];
+            descendants.forEach(node => {
+                if (node.children && node.children.length > 0) {
+                    const siblings = node.children.filter(child => child.data && child.data.is_sibling);
+                    if (siblings.length > 10) {
+                        parentClusters.push({
+                            parent: node,
+                            siblings: siblings,
+                            centerAngle: node.x,  // Parent's angle from D3 layout
+                            depth: node.depth
+                        });
+                    }
                 }
-            }
-        });
+            });
+            
+            if (parentClusters.length === 0) return;
+            
+            // Sort clusters by depth (lineage order) then angle for consistent arrangement
+            parentClusters.sort((a, b) => {
+                if (a.depth !== b.depth) return a.depth - b.depth;
+                return a.centerAngle - b.centerAngle;
+            });
+            
+            console.log(`[Sibling Clustering] Found ${parentClusters.length} parent clusters`);
+            
+            // Calculate minimum angular spacing based on estimated label width and radius
+            // Assuming ~80px label width at radius ~400px: minAngle ≈ 80/400 = 0.2 rad ≈ 11.5°
+            const minAnglePerSibling = 0.035;  // ~2° minimum spacing, tuned for readability
+            const interClusterPadding = 0.05;  // ~3° gap between parent clusters
+            
+            // Calculate required wedge width for each cluster
+            let totalRequiredAngle = 0;
+            parentClusters.forEach(cluster => {
+                cluster.wedgeWidth = Math.max(
+                    minAnglePerSibling * cluster.siblings.length,
+                    minAnglePerSibling * 2  // Minimum wedge even for few siblings
+                );
+                totalRequiredAngle += cluster.wedgeWidth;
+            });
+            
+            // Add padding between clusters
+            totalRequiredAngle += interClusterPadding * (parentClusters.length - 1);
+            
+            // Scale factor if total exceeds 2π (normalize to fit)
+            const availableAngle = 2 * Math.PI;
+            const scaleFactor = totalRequiredAngle > availableAngle 
+                ? availableAngle / totalRequiredAngle 
+                : 1.0;
+            
+            console.log(`[Sibling Clustering] Total required: ${(totalRequiredAngle * 180 / Math.PI).toFixed(1)}°, Scale: ${scaleFactor.toFixed(2)}`);
+            
+            // Allocate contiguous wedges sequentially around the circle
+            let currentAngle = 0;
+            parentClusters.forEach((cluster, clusterIdx) => {
+                const scaledWidth = cluster.wedgeWidth * scaleFactor;
+                const wedgeStart = currentAngle;
+                const wedgeEnd = currentAngle + scaledWidth;
+                
+                console.log(`  Cluster ${clusterIdx}: Parent ${cluster.parent.data.stellar_account?.substring(0, 8) || cluster.parent.data.name} with ${cluster.siblings.length} siblings, wedge [${(wedgeStart * 180 / Math.PI).toFixed(1)}° - ${(wedgeEnd * 180 / Math.PI).toFixed(1)}°]`);
+                
+                // Distribute siblings evenly within this wedge
+                cluster.siblings.forEach((sibling, idx) => {
+                    // Evenly space within the wedge, centered
+                    const siblingAngle = wedgeStart + (scaledWidth * (idx + 0.5) / cluster.siblings.length);
+                    sibling.x = siblingAngle;
+                    
+                    // Debug first 2 siblings of each cluster
+                    if (idx < 2) {
+                        console.log(`    Sibling ${idx}: ${sibling.data.stellar_account?.substring(0, 8) || sibling.data.name} at ${(siblingAngle * 180 / Math.PI).toFixed(1)}°`);
+                    }
+                });
+                
+                // Move to next cluster (add padding)
+                currentAngle = wedgeEnd + (interClusterPadding * scaleFactor);
+            });
+        }
+        
+        // Apply parent-clustered redistribution
+        redistributeSiblingClusters(descendants);
 
         // Debug counter for logging
         let linkCounter = 0;
