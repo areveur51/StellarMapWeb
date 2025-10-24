@@ -733,6 +733,9 @@
             return;
           }
           
+          console.log('[buildTreeFromLineage] Building tree with', dataToUse.length, 'accounts');
+          console.log('[buildTreeFromLineage] Sample account:', dataToUse[0]);
+          
           // Build a map of accounts for easy lookup
           const accountMap = new Map();
           
@@ -777,6 +780,7 @@
             
             // Build descendant chain (downward): add child accounts created by this account
             if (record.child_accounts && record.child_accounts.length > 0) {
+              console.log('[buildTreeFromLineage] Account', record.stellar_account?.substring(0, 8), 'has', record.child_accounts.length, 'children');
               record.child_accounts.forEach(childAccount => {
                 if (accountMap.has(childAccount)) {
                   const childNode = accountMap.get(childAccount);
@@ -784,6 +788,8 @@
                   if (!currentNode.children.some(child => child.stellar_account === childNode.stellar_account)) {
                     currentNode.children.push(childNode);
                   }
+                } else {
+                  console.log('[buildTreeFromLineage] Child account', childAccount?.substring(0, 8), 'not in accountMap');
                 }
               });
             }
