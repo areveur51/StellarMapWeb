@@ -543,6 +543,12 @@
     
     // Wait for shared visualization component to load, then check if we need to restore tidy mode
     window.addEventListener('DOMContentLoaded', function() {
+        // Initialize tree filters from the included visualization controls
+        if (typeof initializeTreeFilters === 'function') {
+            initializeTreeFilters();
+            console.log('DOMContentLoaded: Initialized tree filters');
+        }
+        
         // Check saved visualization mode
         const savedMode = localStorage.getItem('visualizationMode') || 'radial';
         
@@ -740,6 +746,11 @@
               home_domain: record.home_domain || '',
               xlm_balance: record.xlm_balance || 0,
               creator_account: record.stellar_creator_account || '',
+              // Preserve sibling metadata flags for D3 visualization color coding
+              is_lineage_path: record.is_lineage_path || false,
+              is_sibling: record.is_sibling || false,
+              is_searched_account: record.is_searched_account || false,
+              is_issuer: record.is_issuer || false,
               children: []
             });
           });
@@ -802,7 +813,7 @@
           if (rootNode) {
             this.tree_data = rootNode;
             
-            // Trigger tree rendering if renderRadialTree function exists
+            // Trigger tree rendering based on current mode
             this.$nextTick(() => {
               // Ensure spacing multiplier is loaded from localStorage before rendering
               const savedSpacing = localStorage.getItem('nodeSpacingMultiplier');
@@ -814,7 +825,15 @@
               // Update currentTreeData for slider re-renders
               window.currentTreeData = this.tree_data;
               
-              if (typeof renderRadialTree === 'function') {
+              // Store unfiltered data for filter reset functionality
+              window.unfilteredTreeData = this.tree_data;
+              
+              // Check current visualization mode and render accordingly
+              const currentMode = window.currentMode || localStorage.getItem('visualizationMode') || 'radial';
+              
+              if (currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                renderTidyTree(this.tree_data);
+              } else if (typeof renderRadialTree === 'function') {
                 renderRadialTree(this.tree_data);
               }
             });
