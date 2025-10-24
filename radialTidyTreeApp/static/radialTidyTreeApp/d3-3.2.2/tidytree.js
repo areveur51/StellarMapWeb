@@ -376,6 +376,38 @@ function renderRadialTree(jsonData) {
                 d.x = ((d.x - minX) / xRange) * 2 * Math.PI;
             });
         }
+        
+        // CRITICAL FIX: Post-layout sibling angle override to prevent clustering
+        // D3's tree layout allocates angular wedges hierarchically, so all siblings
+        // inherit their parent's narrow wedge. We override sibling angles to 
+        // distribute them evenly around the FULL 2π circumference.
+        descendants.forEach(node => {
+            if (node.children && node.children.length > 0) {
+                // Separate lineage vs sibling children
+                const siblings = node.children.filter(child => 
+                    child.data && child.data.is_sibling
+                );
+                
+                // If this parent has many siblings (>10), override their angles
+                if (siblings.length > 10) {
+                    console.log(`[Sibling Override] Parent ${node.data.stellar_account || node.data.name} has ${siblings.length} siblings - redistributing around full arc`);
+                    
+                    // Calculate uniform angular spacing for siblings
+                    siblings.forEach((sibling, idx) => {
+                        // Distribute evenly around full 2π circle
+                        const angle = (2 * Math.PI * idx) / siblings.length;
+                        
+                        // Override angle while preserving radial depth
+                        sibling.x = angle;
+                        
+                        // Debug first few
+                        if (idx < 3) {
+                            console.log(`  Sibling ${idx}/${siblings.length}: ${sibling.data.stellar_account || sibling.data.name} angle=${(angle * 180 / Math.PI).toFixed(1)}°`);
+                        }
+                    });
+                }
+            }
+        });
 
         // Debug counter for logging
         let linkCounter = 0;

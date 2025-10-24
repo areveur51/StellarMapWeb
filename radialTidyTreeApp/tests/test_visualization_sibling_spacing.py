@@ -176,6 +176,54 @@ class TestVisualizationSiblingSpacing:
         # Must check is_lineage_path flag
         assert 'is_lineage_path' in hidetooltip_body, \
             "hideTooltip must check is_lineage_path to restore correct colors"
+    
+    def test_post_layout_sibling_angle_override_exists(self):
+        """
+        CRITICAL REGRESSION TEST: Verify post-layout sibling angle override exists
+        
+        BUG FIX: D3's tree layout allocates angular wedges hierarchically, 
+        causing 200+ siblings to cluster within their parent's narrow wedge.
+        Post-layout override redistributes siblings evenly around full 2π arc.
+        """
+        with open('radialTidyTreeApp/static/radialTidyTreeApp/d3-3.2.2/tidytree.js', 'r') as f:
+            content = f.read()
+        
+        # Must have post-layout sibling override logic
+        assert 'Post-layout sibling angle override' in content or 'sibling angle override' in content.lower(), \
+            "Must have post-layout sibling angle override to prevent clustering"
+        
+        # Must check is_sibling flag
+        assert 'is_sibling' in content, \
+            "Must filter siblings using is_sibling flag"
+        
+        # Must calculate uniform angular spacing (2π / count)
+        assert '2 * Math.PI' in content, \
+            "Must calculate angles using 2π for full circumference"
+        
+        # Must override sibling.x with new angle
+        assert 'sibling.x' in content or 'child.x' in content, \
+            "Must override node x coordinate (angle) for siblings"
+    
+    def test_sibling_override_threshold_reasonable(self):
+        """
+        Verify sibling override threshold is reasonable (>10 siblings)
+        
+        For small sibling counts (<10), D3's layout is acceptable.
+        For large counts (>10), we need manual override.
+        """
+        with open('radialTidyTreeApp/static/radialTidyTreeApp/d3-3.2.2/tidytree.js', 'r') as f:
+            content = f.read()
+        
+        import re
+        
+        # Find the threshold check
+        threshold_match = re.search(r'siblings\.length\s*>\s*(\d+)', content)
+        
+        assert threshold_match, "Must have sibling count threshold check"
+        
+        threshold = int(threshold_match.group(1))
+        assert 5 <= threshold <= 20, \
+            f"Threshold {threshold} should be between 5-20 for optimal balance"
 
 
 @pytest.mark.django_db 
