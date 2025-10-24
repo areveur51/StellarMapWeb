@@ -137,6 +137,45 @@ class TestVisualizationSiblingSpacing:
         # Gray color for siblings
         assert '#888888' in content, \
             "Sibling links must use gray color #888888"
+    
+    def test_hidetooltip_preserves_lineage_colors(self):
+        """
+        CRITICAL REGRESSION TEST: Verify hideTooltip() function preserves lineage link colors
+        
+        BUG FIX: hideTooltip() was resetting ALL links to purple (#3f2c70),
+        overwriting red lineage links. This test ensures hideTooltip() now
+        correctly restores each link type to its proper color.
+        """
+        with open('radialTidyTreeApp/static/radialTidyTreeApp/d3-3.2.2/tidytree.js', 'r') as f:
+            content = f.read()
+        
+        # hideTooltip must NOT have a blanket link.style('stroke', '#3f2c70') 
+        # that resets all links to purple
+        assert 'function hideTooltip()' in content, \
+            "hideTooltip function must exist"
+        
+        # Extract hideTooltip function
+        import re
+        hidetooltip_match = re.search(
+            r'function hideTooltip\(\)\s*{([^}]+(?:{[^}]*}[^}]*)*)}',
+            content,
+            re.DOTALL
+        )
+        
+        assert hidetooltip_match, "Could not extract hideTooltip function"
+        hidetooltip_body = hidetooltip_match.group(1)
+        
+        # Must use link.each() to restore individual link colors
+        assert 'link.each(' in hidetooltip_body or 'linkElement' in hidetooltip_body, \
+            "hideTooltip must use link.each() to preserve lineage colors, not blanket reset"
+        
+        # Must restore red color for lineage links
+        assert '#ff3366' in hidetooltip_body, \
+            "hideTooltip must restore red color (#ff3366) for lineage links"
+        
+        # Must check is_lineage_path flag
+        assert 'is_lineage_path' in hidetooltip_body, \
+            "hideTooltip must check is_lineage_path to restore correct colors"
 
 
 @pytest.mark.django_db 

@@ -657,9 +657,32 @@ function renderRadialTree(jsonData) {
         function hideTooltip() {
             tooltip.style('opacity', 0);
             
-            link.style('stroke', '#3f2c70')
-                .style('stroke-width', '1.5px')
-                .style('opacity', 0.6);
+            // CRITICAL FIX: Don't reset ALL links - restore based on their type
+            link.each(function(d) {
+                const linkElement = d3.select(this);
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    // Restore red lineage links
+                    linkElement
+                        .style('stroke', '#ff3366')
+                        .style('stroke-width', '2.5px')
+                        .style('opacity', 0.9)
+                        .style('filter', 'none');  // Remove any hover effects
+                } else if (d.target.data && d.target.data.is_sibling) {
+                    // Restore gray sibling links
+                    linkElement
+                        .style('stroke', '#888888')
+                        .style('stroke-width', '1.5px')
+                        .style('opacity', 0.5)
+                        .style('filter', 'none');
+                } else {
+                    // Restore default purple links
+                    linkElement
+                        .style('stroke', '#3f2c70')
+                        .style('stroke-width', '1.5px')
+                        .style('opacity', 0.6)
+                        .style('filter', 'none');
+                }
+            });
             
             breadcrumbContainer.selectAll('*').remove();
         }
