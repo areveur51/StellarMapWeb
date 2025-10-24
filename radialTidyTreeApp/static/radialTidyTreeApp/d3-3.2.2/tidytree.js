@@ -335,19 +335,26 @@ function renderRadialTree(jsonData) {
         const tree = d3.tree()
             .size([2 * Math.PI, radius])
             .separation((a, b) => {
-                // CRITICAL FIX: Don't divide by depth! That makes siblings overlap at deeper levels.
-                // Instead, use a constant separation that's adjusted by the number of siblings.
+                // CRITICAL FIX: Siblings need MUCH more separation to avoid clustering
                 const isSibling = a.parent === b.parent;
                 
                 if (isSibling && a.parent) {
-                    // For siblings, increase separation based on sibling count
+                    // For siblings, use LARGE separation values to spread them out
                     const siblingCount = a.parent.children ? a.parent.children.length : 1;
-                    // Base separation of 1.5, with a boost for many siblings
-                    const siblingBoost = Math.min(siblingCount / 10, 2);  // Up to 2x boost for 20+ siblings
-                    return (1.5 + siblingBoost) * spacingMultiplier;
+                    
+                    // Much larger base + boost for many siblings
+                    if (siblingCount > 50) {
+                        return 15 * spacingMultiplier;  // Huge spread for 50+ siblings
+                    } else if (siblingCount > 20) {
+                        return 10 * spacingMultiplier;  // Large spread for 20-50 siblings
+                    } else if (siblingCount > 10) {
+                        return 7 * spacingMultiplier;   // Medium spread for 10-20 siblings
+                    } else {
+                        return 5 * spacingMultiplier;   // Base spread for <10 siblings
+                    }
                 } else {
                     // Non-siblings (different parents) need less separation
-                    return 2 * spacingMultiplier;
+                    return 3 * spacingMultiplier;
                 }
             });
 
@@ -364,7 +371,15 @@ function renderRadialTree(jsonData) {
                 .angle(d => d.x)
                 .radius(d => d.y))
             .style('stroke', d => {
-                // Color coding: Red for direct lineage path, White for siblings
+                // Debug: Log link metadata for first 5 links
+                if (link.size() < 5) {
+                    console.log('[Radial Link Color]', 
+                        'target:', d.target.data.stellar_account || d.target.data.name,
+                        'is_lineage_path:', d.target.data.is_lineage_path,
+                        'is_sibling:', d.target.data.is_sibling);
+                }
+                
+                // Color coding: Red for direct lineage path, Gray for siblings
                 if (d.target.data && d.target.data.is_lineage_path) {
                     return '#ff3366';  // Red for direct lineage path
                 } else if (d.target.data && d.target.data.is_sibling) {
