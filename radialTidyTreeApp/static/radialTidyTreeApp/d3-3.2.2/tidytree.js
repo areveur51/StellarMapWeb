@@ -363,6 +363,9 @@ function renderRadialTree(jsonData) {
 
         tree(root);
 
+        // Debug counter for logging
+        let linkCounter = 0;
+        
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
@@ -372,11 +375,12 @@ function renderRadialTree(jsonData) {
                 .radius(d => d.y))
             .style('stroke', d => {
                 // Debug: Log link metadata for first 5 links
-                if (link.size() < 5) {
+                if (linkCounter < 5) {
                     console.log('[Radial Link Color]', 
                         'target:', d.target.data.stellar_account || d.target.data.name,
                         'is_lineage_path:', d.target.data.is_lineage_path,
                         'is_sibling:', d.target.data.is_sibling);
+                    linkCounter++;
                 }
                 
                 // Color coding: Red for direct lineage path, Gray for siblings
