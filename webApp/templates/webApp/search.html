@@ -797,6 +797,8 @@
             
             // Add ASSET nodes as children of this ISSUER node
             if (record.assets && record.assets.length > 0) {
+              console.log('[buildTreeFromLineage] Adding', record.assets.length, 'assets to account', record.stellar_account?.substring(0, 8), 
+                         'is_sibling:', record.is_sibling, 'is_lineage:', record.is_lineage_path);
               record.assets.forEach(asset => {
                 currentNode.children.push({
                   name: asset.asset_code,
