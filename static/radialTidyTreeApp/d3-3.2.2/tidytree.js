@@ -246,6 +246,11 @@ function makeTree(data) {
     return svg.node();
 }
 
+// Fixed standard sizes following Mike Bostock's canonical pattern
+const RADIAL_NODE_SIZE = 5;  // Fixed node circle radius (px)
+const RADIAL_TEXT_SIZE = 12; // Fixed text font size (px)
+const RADIAL_COMPACTNESS = 0.7;  // Depth multiplier to shorten child lines (0.7 = 30% shorter)
+
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
     try {
@@ -292,34 +297,30 @@ function renderRadialTree(jsonData) {
             maxDepth = Math.max(maxDepth, d.depth);
         });
         
-        // Calculate radius where labels TOUCH (edge-to-edge) at EVERY depth level
-        // At depth d, the radial distance is: (d / maxDepth) × radius
-        // Circumference at depth d: 2π × (d / maxDepth) × radius
-        // For labels to TOUCH: nodesAtDepth × labelWidth = circumference
-        // So: radius = (nodesAtDepth × labelWidth × maxDepth) / (2π × d)
-        
-        const labelWidth = 70; // pixels per node label (edge-to-edge spacing)
-        let minRadius = 300; // absolute minimum
+        // Calculate compact radius following Bostock's pattern
+        // Use smaller label width for standard sizes, and apply compactness factor
+        const labelWidth = 50; // pixels per node label (compact spacing)
+        let minRadius = 200; // reduced absolute minimum for compactness
         
         for (let depth = 1; depth <= maxDepth; depth++) {
             const nodeCount = nodesPerDepth[depth] || 0;
             if (nodeCount > 0) {
-                // Calculate exact radius for nodes to touch at this depth
+                // Calculate radius and apply compactness factor to shorten child lines
                 const requiredRadius = (nodeCount * labelWidth * maxDepth) / (2 * Math.PI * depth);
-                minRadius = Math.max(minRadius, requiredRadius);
+                minRadius = Math.max(minRadius, requiredRadius * RADIAL_COMPACTNESS);
             }
         }
         
-        // Use exact calculation (no padding) so nodes touch
+        // Use calculated radius for compact tree
         const calculatedRadius = Math.floor(minRadius);
         
         console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
         console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
-        console.log(`[Radial Tree] Calculated radius for touching nodes: ${calculatedRadius}px`);
-        console.log(`[Radial Tree] Node size: ${window.nodeSize || 8}px, Text size: ${window.textSize || 16}px`);
+        console.log(`[Radial Tree] Calculated compact radius: ${calculatedRadius}px`);
+        console.log(`[Radial Tree] Standard sizes - Node: ${RADIAL_NODE_SIZE}px, Text: ${RADIAL_TEXT_SIZE}px, Compactness: ${RADIAL_COMPACTNESS}`);
         
         // Set canvas size based on radius to fit whole tree on screen
-        const size = Math.floor((calculatedRadius + 200) * 2); // Add margin for labels
+        const size = Math.floor((calculatedRadius + 150) * 2); // Reduced margin for compact layout
         const radius = calculatedRadius;
 
         const treeContainer = d3.select('#tree');
@@ -368,14 +369,13 @@ function renderRadialTree(jsonData) {
         console.log('[Radial Tree] Rendering with spacing multiplier:', spacingMultiplier);
         console.log('[Radial Tree] Using Mike Bostock approach: .size([2π, radius])');
         
-        // Use Mike Bostock's proven approach from https://gist.github.com/mbostock/4063550
+        // Use Mike Bostock's canonical approach from https://gist.github.com/mbostock/4063550
         // Key: .size([2 * Math.PI, radius]) ensures siblings naturally spread around full 360° arc
         const tree = d3.tree()
-            .size([2 * Math.PI, radius * 0.9])  // Full circle, 90% of radius for inner content
+            .size([2 * Math.PI, radius * 0.85])  // Full circle, compact inner content
             .separation((a, b) => {
-                // Mike Bostock's separation formula adapted for our data
-                // Siblings (same parent) get smaller separation, non-siblings get more
-                return (a.parent === b.parent ? 1 : 2) / (a.depth + 1);
+                // Bostock's separation formula: siblings closer, non-siblings farther
+                return (a.parent === b.parent ? 1 : 2) / a.depth;
             });
 
         const root = d3.hierarchy(processedData);
@@ -465,8 +465,8 @@ function renderRadialTree(jsonData) {
 
         node.append('circle')
             .attr('r', d => {
-                const baseSize = window.nodeSize || 10;
-                return d.data.is_searched_account ? baseSize + 2 : baseSize;
+                // Fixed standard size with slight increase for searched account
+                return d.data.is_searched_account ? RADIAL_NODE_SIZE + 1.5 : RADIAL_NODE_SIZE;
             })
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', d => {
@@ -514,7 +514,7 @@ function renderRadialTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', (window.textSize || 18) + 'px')
+            .style('font-size', RADIAL_TEXT_SIZE + 'px')
             .style('font-weight', '500')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .style('opacity', d => {
@@ -887,8 +887,8 @@ function renderTidyTree(jsonData) {
 
         node.append('circle')
             .attr('r', d => {
-                const baseSize = window.nodeSize || 10;
-                return d.data.is_searched_account ? baseSize + 2 : baseSize;
+                // Fixed standard size with slight increase for searched account
+                return d.data.is_searched_account ? RADIAL_NODE_SIZE + 1.5 : RADIAL_NODE_SIZE;
             })
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', d => {
@@ -933,7 +933,7 @@ function renderTidyTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', (window.textSize || 18) + 'px')
+            .style('font-size', RADIAL_TEXT_SIZE + 'px')
             .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
             .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
             .style('letter-spacing', '0.5px')  // Slightly increased letter spacing for clarity
