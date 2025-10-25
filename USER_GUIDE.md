@@ -915,33 +915,33 @@ The Django admin portal provides advanced configuration for BigQuery pipeline se
 - Fine-tune timeout values for performance
 - Enable/disable specific pipeline features
 
-### Scheduler Configuration
+### API Rate Limiter Configuration
 
-![Scheduler Configuration Panel](docs/screenshots/admin-scheduler-config.png)
+![API Rate Limiter Panel](docs/screenshots/admin-api-rate-limiter.png)
 
-**Scheduler Settings:**
-- **Enable/Disable Scheduler** - Turn automated processing on/off
-- **Cron Schedule** - Set execution frequency (*/15 * * * * = every 15 minutes)
-- **Batch Limit** - Number of PENDING accounts to process per run (17 default)
-- **Run on Startup** - Execute pipeline immediately when deployed
+**Rate Limiting Settings:**
+- **Rate Limits** - Control API request rates to prevent abuse
+- **Horizon API Limits** - Configure limits for Stellar Horizon API calls
+- **Stellar Expert Limits** - Set request limits for Stellar Expert API
+- **Custom Rules** - Define rate limits per endpoint or IP address
 
-**Common Schedules:**
-- `*/15 * * * *` - Every 15 minutes (recommended)
-- `*/30 * * * *` - Every 30 minutes
-- `*/5 * * * *` - Every 5 minutes (for testing)
-- `0 * * * *` - Once per hour at midnight
+**Configuration Options:**
+- **Requests per second** - Maximum API calls per second
+- **Requests per minute** - Maximum API calls per minute
+- **Burst allowance** - Temporary spike tolerance
+- **Cooldown period** - Time to wait after hitting limits
 
 **Monitoring:**
-- **Last run at** - Timestamp of last successful execution
-- **Last run status** - SUCCESS, FAILED, or other status
-- **Last run processed** - Number of accounts processed
-- **Last run failed** - Number of failures
+- **Current usage** - Real-time API call statistics
+- **Rate limit hits** - Track when limits are reached
+- **Blocked requests** - Monitor rejected API calls
+- **Performance metrics** - Response times and throughput
 
 **Best Practices:**
-- Start with scheduler disabled for manual testing
-- Use 15-30 minute intervals for production
-- Monitor "Last run processed" to ensure progress
-- Adjust batch limit based on processing time
+- Set conservative limits to start
+- Monitor usage patterns before adjusting
+- Use burst allowance for legitimate traffic spikes
+- Review blocked requests for potential issues
 
 ---
 

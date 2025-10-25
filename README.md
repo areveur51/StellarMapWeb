@@ -214,8 +214,8 @@ python manage.py test
 ![BigQuery Configuration](docs/screenshots/admin-bigquery-config.png)
 *Advanced pipeline configuration with cost limits, mode selection, and timeout controls*
 
-![Scheduler Configuration](docs/screenshots/admin-scheduler-config.png)
-*Cron scheduler management with batch limits and monitoring statistics*
+![API Rate Limiter](docs/screenshots/admin-api-rate-limiter.png)
+*API rate limiting configuration and monitoring controls*
 
 ---
 
