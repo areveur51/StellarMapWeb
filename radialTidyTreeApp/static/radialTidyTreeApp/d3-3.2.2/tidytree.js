@@ -395,29 +395,6 @@ function renderRadialTree(jsonData) {
         // Debug counter for logging
         let linkCounter = 0;
         
-        // Create smooth curved radial link generator for fluid lineage paths
-        function curvedRadialLink(d) {
-            const sourceAngle = d.source.x;
-            const sourceRadius = d.source.y;
-            const targetAngle = d.target.x;
-            const targetRadius = d.target.y;
-            
-            // Convert polar to cartesian
-            const sourceX = sourceRadius * Math.cos(sourceAngle - Math.PI / 2);
-            const sourceY = sourceRadius * Math.sin(sourceAngle - Math.PI / 2);
-            const targetX = targetRadius * Math.cos(targetAngle - Math.PI / 2);
-            const targetY = targetRadius * Math.sin(targetAngle - Math.PI / 2);
-            
-            // Create a smooth curved path using quadratic bezier
-            // Control point is offset towards the midpoint for fluid curves
-            const midRadius = (sourceRadius + targetRadius) / 2;
-            const midAngle = (sourceAngle + targetAngle) / 2;
-            const controlX = midRadius * Math.cos(midAngle - Math.PI / 2);
-            const controlY = midRadius * Math.sin(midAngle - Math.PI / 2);
-            
-            return `M${sourceX},${sourceY} Q${controlX},${controlY} ${targetX},${targetY}`;
-        }
-        
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
@@ -431,7 +408,9 @@ function renderRadialTree(jsonData) {
                 }
                 return classes.join(' ');
             })
-            .attr('d', curvedRadialLink)
+            .attr('d', d3.linkRadial()
+                .angle(d => d.x)
+                .radius(d => d.y))
             .style('stroke', d => {
                 // Debug: Log link metadata for first 5 links
                 if (linkCounter < 5) {
