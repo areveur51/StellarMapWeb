@@ -280,34 +280,45 @@ function renderRadialTree(jsonData) {
 
         console.log('Processing tree data:', processedData);
 
-        // Pre-analyze tree to calculate optimal radius based on node density
+        // Pre-analyze tree to calculate optimal radius where nodes TOUCH but DON'T OVERLAP
         const tempRoot = d3.hierarchy(processedData);
         const tempDescendants = tempRoot.descendants();
         
-        // Count total nodes and max depth
-        const totalNodes = tempDescendants.length;
-        const maxDepth = d3.max(tempDescendants, d => d.depth) || 1;
+        // Count nodes at each depth level
+        const nodesPerDepth = {};
+        let maxDepth = 0;
+        tempDescendants.forEach(d => {
+            nodesPerDepth[d.depth] = (nodesPerDepth[d.depth] || 0) + 1;
+            maxDepth = Math.max(maxDepth, d.depth);
+        });
         
-        // Simple radius calculation: more nodes = larger radius
-        // Base formula: ensure ~100px circumferential space per node at the widest ring
-        const labelWidth = 100; // pixels per label
-        const nodesAtMaxDepth = tempDescendants.filter(d => d.depth === maxDepth).length || 1;
+        // Calculate minimum radius where labels touch (not overlap) at EVERY depth level
+        // At depth d, the radial distance is: (d / maxDepth) × radius
+        // Circumference at depth d: 2π × (d / maxDepth) × radius
+        // Required: nodesAtDepth × labelWidth ≤ circumference
+        // So: radius ≥ (nodesAtDepth × labelWidth × maxDepth) / (2π × d)
         
-        // Calculate minimum radius needed: circumference / (2π) = radius
-        // circumference = nodesAtMaxDepth * labelWidth
-        let calculatedRadius = (nodesAtMaxDepth * labelWidth) / (2 * Math.PI);
+        const labelWidth = 80; // pixels per label (reduced for smaller nodes)
+        let minRadius = 300; // absolute minimum
         
-        // Apply constraints
-        calculatedRadius = Math.max(300, calculatedRadius); // Minimum 300px
-        calculatedRadius = Math.min(2000, calculatedRadius); // Maximum 2000px
-        calculatedRadius = Math.floor(calculatedRadius); // Round to integer
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            const nodeCount = nodesPerDepth[depth] || 0;
+            if (nodeCount > 0) {
+                // Calculate radius needed for nodes to JUST TOUCH at this depth
+                const requiredRadius = (nodeCount * labelWidth * maxDepth) / (2 * Math.PI * depth);
+                minRadius = Math.max(minRadius, requiredRadius);
+            }
+        }
         
-        console.log(`[Radial Tree] Total nodes: ${totalNodes}, Max depth: ${maxDepth}`);
-        console.log(`[Radial Tree] Nodes at max depth: ${nodesAtMaxDepth}`);
-        console.log(`[Radial Tree] Calculated radius: ${calculatedRadius}px`);
+        // Round up to ensure no overlap
+        const calculatedRadius = Math.ceil(minRadius);
         
-        // Set canvas size based on radius
-        const size = Math.floor((calculatedRadius + 150) * 2); // Add margin for labels
+        console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
+        console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
+        console.log(`[Radial Tree] Calculated radius for touching nodes: ${calculatedRadius}px`);
+        
+        // Set canvas size based on radius to fit whole tree on screen
+        const size = Math.floor((calculatedRadius + 200) * 2); // Add margin for labels
         const radius = calculatedRadius;
 
         const treeContainer = d3.select('#tree');
