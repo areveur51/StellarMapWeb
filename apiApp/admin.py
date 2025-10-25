@@ -473,18 +473,46 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
             'description': format_html(
                 '<div style="background:#d1ecf1;border-left:4px solid #17a2b8;padding:12px;margin:10px 0;color:#333;">'
                 '<strong>📋 PIPELINE MODES:</strong><br><br>'
-                '<strong>1. BIGQUERY_WITH_API_FALLBACK</strong> (RECOMMENDED)<br>'
-                '• Tries BigQuery first for fast, comprehensive data<br>'
-                '• Falls back to Horizon/Stellar Expert APIs if cost blocked<br>'
-                '• Best balance of speed and cost control<br><br>'
-                '<strong>2. BIGQUERY_ONLY</strong><br>'
-                '• Uses only BigQuery (no API fallback)<br>'
+                
+                '<div style="background:#d4edda;border:2px solid #28a745;padding:8px;margin:8px 0;border-radius:4px;">'
+                '<strong>✅ FREE OPTIONS (RECOMMENDED):</strong><br><br>'
+                
+                '<strong>1. SDK_ONLY</strong> 🆓 <span style="color:#28a745;font-weight:bold;">(RECOMMENDED - 100% FREE)</span><br>'
+                '• Uses native Stellar SDK with async concurrent processing (3-5 accounts at once)<br>'
+                '• <span style="color:#28a745;font-weight:bold;">Completely free - no BigQuery costs!</span><br>'
+                '• Fast and efficient with rate limiting (3600 req/hour)<br>'
+                '• Ideal for continuous background processing<br><br>'
+                
+                '<strong>2. API_ONLY</strong> 🆓 <span style="color:#28a745;font-weight:bold;">(100% FREE)</span><br>'
+                '• Uses Horizon/Stellar Expert APIs with sequential processing<br>'
+                '• <span style="color:#28a745;font-weight:bold;">Completely free - no BigQuery costs!</span><br>'
+                '• Slower than SDK but reliable fallback<br>'
+                '• Subject to API rate limits (0.5s-1s delays)<br>'
+                '</div><br>'
+                
+                '<div style="background:#fff3cd;border:2px solid #ffc107;padding:8px;margin:8px 0;border-radius:4px;">'
+                '<strong>⚠️ BIGQUERY OPTIONS (COST MONEY):</strong><br><br>'
+                
+                '<strong>3. BIGQUERY_WITH_API_FALLBACK</strong> 💰<br>'
+                '• <span style="color:#dc3545;font-weight:bold;">⚠️ COSTS $0.18-0.71 per query!</span><br>'
+                '• Tries BigQuery first for fast historical data<br>'
+                '• Falls back to free APIs if cost limits exceeded<br>'
+                '• Use only if you need comprehensive historical data quickly<br><br>'
+                
+                '<strong>4. BIGQUERY_ONLY</strong> 💰💰 <span style="color:#dc3545;font-weight:bold;">(HIGH COST - NOT RECOMMENDED)</span><br>'
+                '• <span style="color:#dc3545;font-weight:bold;">⚠️ COSTS $0.18-0.71+ per query!</span><br>'
+                '• Uses only BigQuery (no free API fallback)<br>'
                 '• Fails if query exceeds cost limits<br>'
-                '• Use for batch processing with high cost limits<br><br>'
-                '<strong>3. API_ONLY</strong><br>'
-                '• Uses only Horizon/Stellar Expert APIs (no BigQuery)<br>'
-                '• Slower but completely free<br>'
-                '• Subject to API rate limits<br>'
+                '• <span style="color:#dc3545;font-weight:bold;">Use with extreme caution - can get expensive!</span><br>'
+                '</div><br>'
+                
+                '<div style="background:#f8d7da;border:2px solid #dc3545;padding:8px;margin:8px 0;border-radius:4px;">'
+                '<strong>💡 RECOMMENDATION:</strong><br>'
+                '• <strong>For most users:</strong> Use <strong>SDK_ONLY</strong> (free, fast, efficient)<br>'
+                '• <strong>For fallback:</strong> Use <strong>API_ONLY</strong> (free, reliable)<br>'
+                '• <strong>For historical queries:</strong> Use <strong>BIGQUERY_WITH_API_FALLBACK</strong> (costs money but has safeguards)<br>'
+                '• <strong>AVOID:</strong> <strong>BIGQUERY_ONLY</strong> unless you have specific high-cost-limit use cases<br>'
+                '</div>'
                 '</div>'
             )
         }),
