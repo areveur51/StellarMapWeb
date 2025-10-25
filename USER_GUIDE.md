@@ -61,10 +61,10 @@ Shows the complete creation hierarchy:
 - **Child Accounts** - Accounts created by the target account
 
 ### 2. Real-Time Data
-Data is fetched from multiple sources:
-- **Horizon API** - Official Stellar API
-- **Stellar Expert** - Enhanced account metadata
-- **Google BigQuery** - Fast bulk queries for recent accounts (<1 year old)
+Data is fetched from multiple sources using a triple-pipeline architecture:
+- **SDK Pipeline** - Free, fast concurrent processing using stellar-sdk (RECOMMENDED)
+- **API Pipeline** - Free, reliable sequential processing using Horizon API + Stellar Expert
+- **BigQuery Pipeline** - Fast bulk queries for historical data (costs $0.18-0.71 per query)
 
 ### 3. Interactive Tree Diagrams
 - **Radial Layout** - Circular tree emanating from center
@@ -112,11 +112,12 @@ Data is fetched from multiple sources:
   - Stuck Records Alert - Shows accounts stuck in processing
   - Pipeline Failures - Displays failed stage executions
   
-- **BigQuery Cost Tracking**
-  - Cost Limit per query ($0.17)
-  - Size Limit (2 GB max data scanned)
-  - Estimated monthly cost (7-day average)
-  - Pipeline mode indicator
+- **Triple-Pipeline Metrics**
+  - SDK Pipeline (free, concurrent) - Recommended for most users
+  - API Pipeline (free, sequential) - Reliable fallback
+  - BigQuery Pipeline (costs money) - Fast bulk historical data
+  - Cost Limit per query ($0.18-0.71)
+  - Pipeline mode indicator (SDK_ONLY recommended)
 
 - **Database Health**
   - Total Accounts in cache
@@ -130,7 +131,7 @@ Data is fetched from multiple sources:
 
 **How to Use:**
 1. Check alerts first - address any stuck records or failures
-2. Monitor BigQuery costs to stay within budget
+2. Monitor triple-pipeline metrics to see which pipeline is processing accounts
 3. Review database health to ensure system is running smoothly
 4. Click "View in Admin" buttons for detailed information
 5. Use this page as your system health overview
@@ -138,7 +139,8 @@ Data is fetched from multiple sources:
 **Quick Actions:**
 - Click any "View in Admin" button to see detailed records
 - Monitor stuck records count - if high, check cron jobs
-- Track BigQuery costs to prevent overages
+- Check which pipeline is doing the work (SDK recommended)
+- Track BigQuery costs if using paid pipeline
 
 ---
 
@@ -868,9 +870,10 @@ Each account shows:
 - **HVA Badge** - If balance >1M XLM
 
 ### Pipeline Modes
-1. **BIGQUERY_WITH_API_FALLBACK** - Use BigQuery first, fallback to API
-2. **API_ONLY** - Only use Horizon API and Stellar Expert
-3. **BIGQUERY_ONLY** - Only use BigQuery (may fail if limits exceeded)
+1. **SDK_ONLY** - Use only SDK Pipeline (free, concurrent) - RECOMMENDED ⭐
+2. **API_ONLY** - Use only API Pipeline (free, sequential)
+3. **BIGQUERY_WITH_API_FALLBACK** - Use BigQuery first, fallback to API (costs money)
+4. **BIGQUERY_ONLY** - Only use BigQuery (may fail if limits exceeded, costs money)
 
 ### HVA Ranking System
 - **Event-based tracking** - Only records meaningful changes
@@ -893,16 +896,16 @@ All data stored in Astra DB (Cassandra):
 
 ## Admin Portal Configuration
 
-The Django admin portal provides advanced configuration for BigQuery pipeline settings and scheduler control. Access it at `/admin/` (requires authentication).
+The Django admin portal provides advanced configuration for triple-pipeline settings and scheduler control. Access it at `/admin/` (requires authentication).
 
-### BigQuery Pipeline Configuration
+### Triple-Pipeline Configuration
 
 ![BigQuery Configuration Panel](docs/screenshots/admin-bigquery-config.png)
 
 **Configuration Options:**
-- **Cost Limit** ($0.17 per query) - Control BigQuery spending
-- **Size Limit** (2 GB) - Limit data scanned per query
-- **Pipeline Mode** - BIGQUERY_WITH_API_FALLBACK, API_ONLY, or BIGQUERY_ONLY
+- **Pipeline Mode** - SDK_ONLY (recommended), API_ONLY, BIGQUERY_WITH_API_FALLBACK, or BIGQUERY_ONLY
+- **Cost Limit** ($0.18-0.71 per query) - Control BigQuery spending
+- **Size Limit** (145 GB) - Limit data scanned per query
 - **Age Limits** - Restrict queries by account age
 - **API Server Selection** - Choose Horizon API server (mainnet/testnet)
 - **Stage Timeouts** - Control pipeline stage execution limits
