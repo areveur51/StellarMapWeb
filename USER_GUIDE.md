@@ -872,8 +872,9 @@ Each account shows:
 ### Pipeline Modes
 1. **SDK_ONLY** - Use only SDK Pipeline (free, concurrent) - RECOMMENDED ⭐
 2. **API_ONLY** - Use only API Pipeline (free, sequential)
-3. **BIGQUERY_WITH_API_FALLBACK** - Use BigQuery first, fallback to API (costs money)
-4. **BIGQUERY_ONLY** - Only use BigQuery (may fail if limits exceeded, costs money)
+3. **API_AND_SDK** - Run BOTH pipelines simultaneously (free, maximum throughput) 🆓🆓
+4. **BIGQUERY_WITH_API_FALLBACK** - Use BigQuery first, fallback to API (costs money)
+5. **BIGQUERY_ONLY** - Only use BigQuery (may fail if limits exceeded, costs money)
 
 ### HVA Ranking System
 - **Event-based tracking** - Only records meaningful changes
@@ -903,7 +904,7 @@ The Django admin portal provides advanced configuration for triple-pipeline sett
 ![BigQuery Configuration Panel](docs/screenshots/admin-bigquery-config.png)
 
 **Configuration Options:**
-- **Pipeline Mode** - SDK_ONLY (recommended), API_ONLY, BIGQUERY_WITH_API_FALLBACK, or BIGQUERY_ONLY
+- **Pipeline Mode** - SDK_ONLY (recommended), API_ONLY, API_AND_SDK (dual pipeline), BIGQUERY_WITH_API_FALLBACK, or BIGQUERY_ONLY
 - **Cost Limit** ($0.18-0.71 per query) - Control BigQuery spending
 - **Size Limit** (145 GB) - Limit data scanned per query
 - **Age Limits** - Restrict queries by account age

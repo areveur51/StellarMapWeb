@@ -147,7 +147,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS apiApp_bigquerypipelineconfig (
     bigquery_enabled BOOLEAN DEFAULT 1,
     cost_limit_usd REAL DEFAULT 0.71,
     size_limit_mb REAL DEFAULT 148900.0,
-    pipeline_mode VARCHAR(50) DEFAULT \"BIGQUERY_WITH_API_FALLBACK\",
+    pipeline_mode VARCHAR(50) DEFAULT \"SDK_ONLY\",
     instant_query_max_age_days INTEGER DEFAULT 365,
     api_fallback_enabled BOOLEAN DEFAULT 1,
     horizon_max_operations INTEGER DEFAULT 200,

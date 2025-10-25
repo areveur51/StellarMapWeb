@@ -127,10 +127,11 @@ end note
 
 note top of Orchestrator #231B3D
   <color:#0BE784><b>Pipeline Mode Selection:</b></color>
-  <color:#96DDF2>1. <color:#0BE784><b>SDK_ONLY</b></color> - Recommended (free)
+  <color:#96DDF2>1. <color:#0BE784><b>SDK_ONLY</b></color> - Recommended (free & fast)
   <color:#96DDF2>2. API_ONLY - Reliable fallback (free)
-  <color:#96DDF2>3. BIGQUERY_WITH_API_FALLBACK - Costs $
-  <color:#96DDF2>4. BIGQUERY_ONLY - Costs $
+  <color:#96DDF2>3. <color:#0BE784><b>API_AND_SDK</b></color> - Both pipelines (free, max throughput)
+  <color:#96DDF2>4. BIGQUERY_WITH_API_FALLBACK - Costs $
+  <color:#96DDF2>5. BIGQUERY_ONLY - Costs $
   <color:#96DDF2>
   <color:#96DDF2>Default: SDK_ONLY (free & fast)
 end note

@@ -163,6 +163,12 @@ python manage.py bigquery_pipeline --limit 100
 - Run SDK Pipeline continuously for best free performance
 - Use API Pipeline as fallback if needed
 
+**For Maximum Throughput (FREE):**
+- Set pipeline mode to `API_AND_SDK` in admin panel
+- Run BOTH SDK and API pipelines simultaneously
+- Best for high-volume processing with redundancy
+- 100% free - no BigQuery costs
+
 **For Bulk Historical Data (COSTS MONEY):**
 - Set pipeline mode to `BIGQUERY_WITH_API_FALLBACK`
 - Run BigQuery Pipeline on-demand for bulk processing
