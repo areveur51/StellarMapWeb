@@ -8,6 +8,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes (October 25, 2025)
 - **Stellar SDK Pipeline**: New async pipeline using native stellar-sdk for free, concurrent processing (3-5 accounts at once)
+- **Critical network bug fix**: SDK Pipeline now respects --network argument (was hardcoded to public)
 - **Documentation Updated**: Removed references to deleted `admin-scheduler-config.png` screenshot
 - **Admin Screenshots**: Updated documentation to reflect current admin panel screenshots (admin-bigquery-config.png, admin-api-rate-limiter.png)
 - **Filter Sliders**: Corrected filter ranges - Asset Max (1M-50M), Min sliders for issuer/asset (0-100K)
