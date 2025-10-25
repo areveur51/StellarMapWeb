@@ -403,6 +403,10 @@ function renderRadialTree(jsonData) {
         
         console.log('[Lineage-First Layout] Found', lineageChain.length, 'lineage nodes');
         
+        // Store original angles from D3 layout BEFORE we modify anything
+        const originalAngles = new Map();
+        descendants.forEach(d => originalAngles.set(d, d.x));
+        
         if (lineageChain.length > 1) {
             // FIBONACCI SPIRAL: Use golden angle for natural, organic spacing
             // Golden angle ≈ 137.508° (2π / φ², where φ is the golden ratio)
@@ -459,21 +463,39 @@ function renderRadialTree(jsonData) {
                            'r=' + node.y.toFixed(1) + 'px');
             });
             
-            // Shift non-lineage nodes to avoid lineage sector
-            // Distribute them in remaining angular space (lineageSectorEnd to lineageSectorStart + 2π)
+            // Position non-lineage nodes (siblings/children) to fan out as groups from their parent
             const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
-            const availableAngle = 2 * Math.PI - lineageSectorSize;
             
-            console.log('[Lineage-First Layout] Repositioning', nonLineageNodes.length, 
-                       'non-lineage nodes in', (availableAngle * 180 / Math.PI).toFixed(1), '° of space');
+            // Find max depth of all nodes to determine safe radius cap
+            const maxDepth = Math.max(...descendants.map(d => d.depth));
+            const maxSafeRadius = radius * 0.9; // Cap all nodes at 90% of circle to stay inside
             
-            // Map original angles to new space (avoiding lineage sector)
+            console.log('[Lineage-First Layout] Positioning', nonLineageNodes.length, 
+                       'non-lineage nodes to fan out from parents, radius cap:', maxSafeRadius.toFixed(1), 'px');
+            
+            // Position each non-lineage node relative to its parent's (possibly repositioned) angle
             nonLineageNodes.forEach(node => {
-                // Original angle from D3 layout (0 to 2π)
-                const originalAngle = node.x;
-                // Map to available space, wrapping around lineage sector
-                const mappedAngle = lineageSectorEnd + (originalAngle / (2 * Math.PI)) * availableAngle;
-                node.x = mappedAngle % (2 * Math.PI);
+                if (node.parent) {
+                    // Calculate angular offset from parent in original D3 layout
+                    const originalParentAngle = originalAngles.get(node.parent);
+                    const originalNodeAngle = originalAngles.get(node);
+                    let angularOffset = originalNodeAngle - originalParentAngle;
+                    
+                    // Normalize offset to [-π, π]
+                    while (angularOffset > Math.PI) angularOffset -= 2 * Math.PI;
+                    while (angularOffset < -Math.PI) angularOffset += 2 * Math.PI;
+                    
+                    // Position child relative to parent's NEW angle (which may have been repositioned)
+                    node.x = (node.parent.x + angularOffset) % (2 * Math.PI);
+                    if (node.x < 0) node.x += 2 * Math.PI;
+                } else {
+                    // Root node or orphan - use original angle
+                    node.x = originalAngles.get(node);
+                }
+                
+                // Cap radius to keep nodes inside circle boundary
+                const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
+                node.y = Math.min(node.y, depthRatio * maxSafeRadius);
             });
             
             console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
