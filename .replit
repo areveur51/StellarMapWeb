@@ -49,10 +49,6 @@ args = "Django Server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "API Pipeline"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "SDK Pipeline"
 
 [[workflows.workflow]]
@@ -77,17 +73,6 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
-
-[[workflows.workflow]]
-name = "API Pipeline"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "while true; do python manage.py api_pipeline --limit 3; sleep 120; done"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow]]
 name = "SDK Pipeline"
