@@ -27,13 +27,13 @@
     </div>
     <div class="spacing-control" id="node-size-control">
         <span class="toggle-label" style="font-size: 0.8em;">Node Size:</span>
-        <input type="range" id="node-size-slider" class="spacing-slider" min="4" max="15" step="1" value="8">
-        <span class="spacing-value" id="node-size-value">8px</span>
+        <input type="range" id="node-size-slider" class="spacing-slider" min="4" max="15" step="1" value="10">
+        <span class="spacing-value" id="node-size-value">10px</span>
     </div>
     <div class="spacing-control" id="text-size-control">
         <span class="toggle-label" style="font-size: 0.8em;">Text Size:</span>
-        <input type="range" id="text-size-slider" class="spacing-slider" min="10" max="24" step="1" value="16">
-        <span class="spacing-value" id="text-size-value">16px</span>
+        <input type="range" id="text-size-slider" class="spacing-slider" min="10" max="24" step="1" value="18">
+        <span class="spacing-value" id="text-size-value">18px</span>
     </div>
     <div class="zoom-controls">
         <span class="toggle-label" style="font-size: 0.8em;">Zoom:</span>
@@ -145,12 +145,12 @@
     // Global node size (persisted in localStorage)
     const savedNodeSize = localStorage.getItem('nodeSize');
     const parsedNodeSize = parseInt(savedNodeSize);
-    window.nodeSize = (!isNaN(parsedNodeSize) && parsedNodeSize >= 4 && parsedNodeSize <= 15) ? parsedNodeSize : 8;
+    window.nodeSize = (!isNaN(parsedNodeSize) && parsedNodeSize >= 4 && parsedNodeSize <= 15) ? parsedNodeSize : 10;
     
     // Global text size (persisted in localStorage)
     const savedTextSize = localStorage.getItem('textSize');
     const parsedTextSize = parseInt(savedTextSize);
-    window.textSize = (!isNaN(parsedTextSize) && parsedTextSize >= 10 && parsedTextSize <= 24) ? parsedTextSize : 16;
+    window.textSize = (!isNaN(parsedTextSize) && parsedTextSize >= 10 && parsedTextSize <= 24) ? parsedTextSize : 18;
     
     // Use window.currentTreeData for true global scope
     if (typeof window.currentTreeData === 'undefined') {

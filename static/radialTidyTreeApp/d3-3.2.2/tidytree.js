@@ -316,6 +316,7 @@ function renderRadialTree(jsonData) {
         console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
         console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
         console.log(`[Radial Tree] Calculated radius for touching nodes: ${calculatedRadius}px`);
+        console.log(`[Radial Tree] Node size: ${window.nodeSize || 8}px, Text size: ${window.textSize || 16}px`);
         
         // Set canvas size based on radius to fit whole tree on screen
         const size = Math.floor((calculatedRadius + 200) * 2); // Add margin for labels
@@ -464,7 +465,7 @@ function renderRadialTree(jsonData) {
 
         node.append('circle')
             .attr('r', d => {
-                const baseSize = window.nodeSize || 8;
+                const baseSize = window.nodeSize || 10;
                 return d.data.is_searched_account ? baseSize + 2 : baseSize;
             })
             .attr('data-node-type', d => d.data.node_type)
@@ -513,7 +514,7 @@ function renderRadialTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', (window.textSize || 16) + 'px')
+            .style('font-size', (window.textSize || 18) + 'px')
             .style('font-weight', '500')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .style('opacity', d => {
@@ -886,7 +887,7 @@ function renderTidyTree(jsonData) {
 
         node.append('circle')
             .attr('r', d => {
-                const baseSize = window.nodeSize || 8;
+                const baseSize = window.nodeSize || 10;
                 return d.data.is_searched_account ? baseSize + 2 : baseSize;
             })
             .attr('data-node-type', d => d.data.node_type)
@@ -932,7 +933,7 @@ function renderTidyTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', (window.textSize || 16) + 'px')
+            .style('font-size', (window.textSize || 18) + 'px')
             .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
             .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
             .style('letter-spacing', '0.5px')  // Slightly increased letter spacing for clarity
