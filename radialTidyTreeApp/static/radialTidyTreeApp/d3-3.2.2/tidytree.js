@@ -35,6 +35,11 @@ const animationDuration = 250;  // Time in ms to animate update
 End Chart Options
  */
 
+// Fixed standard sizes following Mike Bostock's canonical pattern
+const RADIAL_NODE_SIZE = 5;  // Fixed node circle radius (px)
+const RADIAL_TEXT_SIZE = 12; // Fixed text font size (px)
+const RADIAL_COMPACTNESS = 0.7;  // Depth multiplier to shorten child lines (0.7 = 30% shorter)
+
 /*
 End Globals
  */
@@ -171,7 +176,7 @@ function makeTree(data) {
             });
 
         nodeEnter.append("circle")
-            .attr("r", d => 10.5 / (d.depth + 1))
+            .attr("r", RADIAL_NODE_SIZE)
             .attr("fill", d => d._children ? "#555" : "#999")
             .attr("class", d => "depth_" + d.depth);
 
@@ -180,6 +185,7 @@ function makeTree(data) {
             .attr("dy", "0.31em")
             .attr("x", d => d._children ? -6 : 6)
             .attr("text-anchor", d => d._children ? "end" : "start")
+            .style("font-size", RADIAL_TEXT_SIZE + "px")
             .text(d => d.data.data.name)
             .clone(true).lower()
             .attr("stroke-linejoin", "round")
@@ -245,11 +251,6 @@ function makeTree(data) {
 
     return svg.node();
 }
-
-// Fixed standard sizes following Mike Bostock's canonical pattern
-const RADIAL_NODE_SIZE = 5;  // Fixed node circle radius (px)
-const RADIAL_TEXT_SIZE = 12; // Fixed text font size (px)
-const RADIAL_COMPACTNESS = 0.7;  // Depth multiplier to shorten child lines (0.7 = 30% shorter)
 
 // Global function to render radial tree with data
 function renderRadialTree(jsonData) {
@@ -372,7 +373,7 @@ function renderRadialTree(jsonData) {
         // Use Mike Bostock's canonical approach from https://gist.github.com/mbostock/4063550
         // Key: .size([2 * Math.PI, radius]) ensures siblings naturally spread around full 360° arc
         const tree = d3.tree()
-            .size([2 * Math.PI, radius * 0.85])  // Full circle, compact inner content
+            .size([2 * Math.PI, radius * 0.9])  // Full circle, use 90% for inner content + label space
             .separation((a, b) => {
                 // Bostock's separation formula: siblings closer, non-siblings farther
                 return (a.parent === b.parent ? 1 : 2) / a.depth;
