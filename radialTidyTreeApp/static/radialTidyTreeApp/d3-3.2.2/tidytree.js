@@ -463,7 +463,10 @@ function renderRadialTree(jsonData) {
             });
 
         node.append('circle')
-            .attr('r', d => d.data.is_searched_account ? 10 : 8)  // Increased size to fill space
+            .attr('r', d => {
+                const baseSize = window.nodeSize || 8;
+                return d.data.is_searched_account ? baseSize + 2 : baseSize;
+            })
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', d => {
                 // Check if node should be muted (filtered)
@@ -510,7 +513,7 @@ function renderRadialTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', '16px')
+            .style('font-size', (window.textSize || 16) + 'px')
             .style('font-weight', '500')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .style('opacity', d => {
@@ -882,7 +885,10 @@ function renderTidyTree(jsonData) {
             .attr('transform', d => `translate(${d.y},${d.x + yOffset})`);
 
         node.append('circle')
-            .attr('r', d => d.data.is_searched_account ? 10 : 8)  // Increased size to fill space
+            .attr('r', d => {
+                const baseSize = window.nodeSize || 8;
+                return d.data.is_searched_account ? baseSize + 2 : baseSize;
+            })
             .attr('data-node-type', d => d.data.node_type)
             .style('fill', d => {
                 // Check if node should be muted (filtered)
@@ -926,7 +932,7 @@ function renderTidyTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', '16px')  // Increased for better readability
+            .style('font-size', (window.textSize || 16) + 'px')
             .style('font-weight', '400')  // Reduced from 600 for better readability (normal weight)
             .style('text-shadow', '1px 1px 3px rgba(0,0,0,0.9)')  // Adjusted shadow for clarity
             .style('letter-spacing', '0.5px')  // Slightly increased letter spacing for clarity

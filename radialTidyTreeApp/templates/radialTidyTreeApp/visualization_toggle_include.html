@@ -25,6 +25,16 @@
         <input type="range" id="max-child-slider" class="spacing-slider" min="1" max="3" step="0.1" value="1.5">
         <span class="spacing-value" id="max-child-value">1.5x</span>
     </div>
+    <div class="spacing-control" id="node-size-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Node Size:</span>
+        <input type="range" id="node-size-slider" class="spacing-slider" min="4" max="15" step="1" value="8">
+        <span class="spacing-value" id="node-size-value">8px</span>
+    </div>
+    <div class="spacing-control" id="text-size-control">
+        <span class="toggle-label" style="font-size: 0.8em;">Text Size:</span>
+        <input type="range" id="text-size-slider" class="spacing-slider" min="10" max="24" step="1" value="16">
+        <span class="spacing-value" id="text-size-value">16px</span>
+    </div>
     <div class="zoom-controls">
         <span class="toggle-label" style="font-size: 0.8em;">Zoom:</span>
         <div class="zoom-buttons">
@@ -131,6 +141,16 @@
     const savedMaxChild = localStorage.getItem('maxChildSpacing');
     const parsedMaxChild = parseFloat(savedMaxChild);
     window.maxChildSpacing = (!isNaN(parsedMaxChild) && parsedMaxChild >= 1.0 && parsedMaxChild <= 3.0) ? parsedMaxChild : 1.5;
+    
+    // Global node size (persisted in localStorage)
+    const savedNodeSize = localStorage.getItem('nodeSize');
+    const parsedNodeSize = parseInt(savedNodeSize);
+    window.nodeSize = (!isNaN(parsedNodeSize) && parsedNodeSize >= 4 && parsedNodeSize <= 15) ? parsedNodeSize : 8;
+    
+    // Global text size (persisted in localStorage)
+    const savedTextSize = localStorage.getItem('textSize');
+    const parsedTextSize = parseInt(savedTextSize);
+    window.textSize = (!isNaN(parsedTextSize) && parsedTextSize >= 10 && parsedTextSize <= 24) ? parsedTextSize : 16;
     
     // Use window.currentTreeData for true global scope
     if (typeof window.currentTreeData === 'undefined') {
@@ -257,6 +277,62 @@
                     window.maxChildSpacing = newValue;
                     maxChildValue.textContent = window.maxChildSpacing.toFixed(1) + 'x';
                     localStorage.setItem('maxChildSpacing', window.maxChildSpacing);
+                    
+                    // Re-render tree
+                    if (window.currentTreeData) {
+                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            renderRadialTree(window.currentTreeData);
+                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            renderTidyTree(window.currentTreeData);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize node size slider
+        const nodeSizeSlider = document.getElementById('node-size-slider');
+        const nodeSizeValue = document.getElementById('node-size-value');
+        if (nodeSizeSlider && nodeSizeValue) {
+            nodeSizeSlider.value = window.nodeSize;
+            nodeSizeValue.textContent = window.nodeSize + 'px';
+            
+            nodeSizeSlider.addEventListener('input', function() {
+                const newValue = parseInt(this.value);
+                if (!isNaN(newValue) && newValue >= 4 && newValue <= 15) {
+                    window.nodeSize = newValue;
+                    nodeSizeValue.textContent = window.nodeSize + 'px';
+                    localStorage.setItem('nodeSize', window.nodeSize);
+                    
+                    console.log('Node size changed to:', window.nodeSize);
+                    
+                    // Re-render tree
+                    if (window.currentTreeData) {
+                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                            renderRadialTree(window.currentTreeData);
+                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                            renderTidyTree(window.currentTreeData);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Initialize text size slider
+        const textSizeSlider = document.getElementById('text-size-slider');
+        const textSizeValue = document.getElementById('text-size-value');
+        if (textSizeSlider && textSizeValue) {
+            textSizeSlider.value = window.textSize;
+            textSizeValue.textContent = window.textSize + 'px';
+            
+            textSizeSlider.addEventListener('input', function() {
+                const newValue = parseInt(this.value);
+                if (!isNaN(newValue) && newValue >= 10 && newValue <= 24) {
+                    window.textSize = newValue;
+                    textSizeValue.textContent = window.textSize + 'px';
+                    localStorage.setItem('textSize', window.textSize);
+                    
+                    console.log('Text size changed to:', window.textSize);
                     
                     // Re-render tree
                     if (window.currentTreeData) {
