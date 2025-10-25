@@ -41,7 +41,14 @@ The StellarMapWeb application features a **triple-pipeline architecture** that p
 - **API Pipeline:** Continuously processes any PENDING records as reliable fallback
 - **BigQuery Pipeline:** Optional for bulk historical data (costs money, use with caution)
 - **Tracking fields** provide visibility into which pipeline processed each account
-- **Admin configuration** allows selecting pipeline mode (SDK_ONLY, API_ONLY, BIGQUERY modes)
+- **Admin configuration** allows selecting pipeline mode (SDK_ONLY, API_ONLY, API_AND_SDK, BIGQUERY modes)
+
+### Pipeline Mode Options
+1. **SDK_ONLY** - Use only SDK Pipeline (free, concurrent) - RECOMMENDED ⭐
+2. **API_ONLY** - Use only API Pipeline (free, sequential)
+3. **API_AND_SDK** - Run BOTH pipelines simultaneously (free, maximum throughput) 🆓🆓
+4. **BIGQUERY_WITH_API_FALLBACK** - Try BigQuery first, fall back to APIs if cost limits exceeded (costs money)
+5. **BIGQUERY_ONLY** - Only use BigQuery (may fail if limits exceeded, costs money)
 
 ## Implementation Details
 
@@ -99,7 +106,8 @@ python manage.py stellar_sdk_pipeline --network testnet
 - Uses native `stellar-sdk` with `ServerAsync` for efficiency
 
 **Recommended Configuration:**
-- Set pipeline mode to `SDK_ONLY` in admin panel
+- Set pipeline mode to `SDK_ONLY` in admin panel for single-pipeline operation
+- Or set to `API_AND_SDK` for dual-pipeline maximum throughput
 - Run continuously: `while true; do python manage.py stellar_sdk_pipeline --limit 10; sleep 180; done`
 - Best for continuous background processing
 
@@ -127,6 +135,7 @@ python manage.py api_pipeline --limit 5
 
 **Recommended Configuration:**
 - Use as fallback when SDK Pipeline is not available
+- Or run alongside SDK Pipeline (set mode to `API_AND_SDK` for dual-pipeline operation)
 - Run continuously: `while true; do python manage.py api_pipeline --limit 3; sleep 120; done`
 - Slower but very reliable (2-3 min per account)
 
