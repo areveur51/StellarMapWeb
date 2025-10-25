@@ -426,9 +426,10 @@ function renderRadialTree(jsonData) {
                            (anglePerNode * 180 / Math.PI).toFixed(1), '°');
             }
             
-            // Start at top of circle, centered
-            const lineageSectorStart = (Math.PI / 2) - (lineageSectorSize / 2);
-            const lineageSectorEnd = lineageSectorStart + lineageSectorSize;
+            // Center the spiral around 0 radians (top of circle)
+            // This ensures the median lineage node sits on the vertical axis
+            const lineageSectorStart = -(lineageSectorSize / 2);
+            const lineageSectorEnd = +(lineageSectorSize / 2);
             
             console.log('[Lineage-First Layout] Fibonacci sector:', 
                        (lineageSectorStart * 180 / Math.PI).toFixed(1), '° to',
