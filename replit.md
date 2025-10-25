@@ -7,6 +7,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
 # Recent Changes (October 25, 2025)
+- **Stellar SDK Pipeline**: New async pipeline using native stellar-sdk for free, concurrent processing (3-5 accounts at once)
 - **Documentation Updated**: Removed references to deleted `admin-scheduler-config.png` screenshot
 - **Admin Screenshots**: Updated documentation to reflect current admin panel screenshots (admin-bigquery-config.png, admin-api-rate-limiter.png)
 - **Filter Sliders**: Corrected filter ranges - Asset Max (1M-50M), Min sliders for issuer/asset (0-100K)
@@ -28,7 +29,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 ## Technical Implementation
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure.
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development, with a custom `DatabaseAppsRouter` and environment-aware model loading. Cassandra models use composite primary keys and are fully integrated with Django Admin.
-- **Dual-Pipeline Architecture**: Primary data collection via BigQuery-based pipeline with age restrictions and cost optimization (`BigQueryCostGuard`), and an API-based fast pipeline using Horizon API and Stellar Expert as fallback. Both pipelines automatically queue discovered creator and child accounts for continuous lineage graph expansion.
+- **Triple-Pipeline Architecture**: Three complementary data collection pipelines: (1) BigQuery pipeline for bulk historical data with cost optimization (`BigQueryCostGuard`), (2) API pipeline for reliable sequential processing using Horizon/Stellar Expert, and (3) **Stellar SDK Pipeline** for free, fast, concurrent async processing (3-5 accounts simultaneously). All pipelines automatically queue discovered creator and child accounts for continuous lineage graph expansion.
 - **Unified Pipeline Configuration**: All pipeline settings consolidated into `BigQueryPipelineConfig` model, configurable via the admin panel.
 - **Queue Synchronizer**: Automatic synchronization between Search Cache and Account Lineage tables to ensure all user searches are processed and data consistency is maintained.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.

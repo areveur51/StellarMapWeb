@@ -51,6 +51,10 @@ args = "Django Server"
 task = "workflow.run"
 args = "API Pipeline"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "SDK Pipeline"
+
 [[workflows.workflow]]
 name = "BigQuery Pipeline"
 author = "agent"
@@ -81,6 +85,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "while true; do python manage.py api_pipeline --limit 3; sleep 120; done"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "SDK Pipeline"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "while true; do python manage.py stellar_sdk_pipeline --limit 10 --concurrent 5; sleep 180; done"
 
 [workflows.workflow.metadata]
 outputType = "console"
