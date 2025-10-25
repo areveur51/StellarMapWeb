@@ -414,7 +414,7 @@ function renderRadialTree(jsonData) {
             // Calculate angle per node, scaling down for compactness
             // But ensure the total sector never exceeds reasonable bounds
             const maxSectorSize = Math.PI; // Max 180° for lineage (leave half circle for others)
-            let anglePerNode = goldenAngle * 0.25; // Start with ~34° per node
+            let anglePerNode = goldenAngle * 0.05; // Start with ~6.9° per node for tight spiral
             
             // Adjust if lineage chain would exceed max sector
             let lineageSectorSize = (lineageChain.length - 1) * anglePerNode;
