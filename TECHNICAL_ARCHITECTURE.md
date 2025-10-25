@@ -865,9 +865,7 @@ accounts = StellarCreatorAccountLineage.objects.filter(
 
 ### SDK + API + BigQuery System
 
-![Dual-Pipeline Architecture](./diagrams/09_dual_pipeline_architecture.png)
-
-*Note: Diagram shows dual-pipeline architecture; will be updated to reflect triple-pipeline in future.*
+![Triple-Pipeline Architecture](./diagrams/09_triple_pipeline_architecture.png)
 
 #### **Overview**
 

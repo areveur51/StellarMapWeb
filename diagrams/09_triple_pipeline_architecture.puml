@@ -1,0 +1,138 @@
+@startuml 09_triple_pipeline_architecture
+
+skinparam backgroundColor #261D45
+skinparam defaultFontColor #96DDF2
+
+skinparam component {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+  ArrowColor #01C176
+}
+
+skinparam cloud {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam database {
+  BackgroundColor #100D23
+  BorderColor #0BE784
+  FontColor #96DDF2
+}
+
+skinparam package {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+skinparam note {
+  BackgroundColor #231B3D
+  BorderColor #3f2c70
+  FontColor #96DDF2
+}
+
+title <color:#0BE784>Triple-Pipeline Architecture (SDK + API + BigQuery)
+
+' External Services
+cloud "Google BigQuery\n(Stellar Hubble Dataset)" as BigQuery
+cloud "Horizon API\n(Stellar.org)" as Horizon
+cloud "Stellar Expert API\n(stellar.expert)" as Expert
+
+' Django Backend Components
+package "Django Backend" #231B3D {
+  component "SDK Pipeline ⭐\n(RECOMMENDED)\n\n• FREE (Horizon API)\n• Concurrent (3-5 accounts)\n• Fast (30-60s per account)\n• stellar-sdk async/await" as SDKPipeline
+  component "API Pipeline\n(Reliable Fallback)\n\n• FREE (Horizon + Expert)\n• Sequential (1 at a time)\n• 8-Stage Processor (2-3 min)\n• Rate Limiter" as APIPipeline
+  component "BigQuery Pipeline 💰\n(Bulk Historical)\n\n• COSTS MONEY ($0.18-0.71)\n• Fast (5-10s per account)\n• Cost Guard (configurable)\n• Child Discovery (100K max)" as BQPipeline
+  component "Pipeline Orchestrator\n\n• Mode Selection (SDK_ONLY, API_ONLY, etc.)\n• Source Tracker\n• Processing Monitor\n• Queue Synchronizer" as Orchestrator
+}
+
+' Database
+database "Astra DB (Cassandra)\nstellar_creator_account_lineage\n\n• pipeline_source: SDK | API | BIGQUERY\n• last_pipeline_attempt: TIMESTAMP\n• processing_started_at: TIMESTAMP" as Cassandra
+
+' Configuration
+component "Admin Configuration\n(SQLite)\n\n• BigQueryPipelineConfig\n• Pipeline Mode Selection\n• APIRateLimiterConfig" as Admin
+
+' Dashboard
+component "Dashboard UI\n\n• Triple-Pipeline Metrics\n• SDK/API/BigQuery Stats\n• Cost Tracking" as Dashboard
+
+' SDK Pipeline flow (recommended path)
+Horizon -[#0BE784,bold]-> SDKPipeline : <color:#0BE784><b>Account data (async)</b>
+SDKPipeline -[#0BE784,bold]-> Cassandra : <color:#0BE784><b>Mark: SDK (FREE)</b>
+
+' API Pipeline flow (fallback path)
+Horizon -[#01C176]-> APIPipeline : Account data
+Expert -[#01C176]-> APIPipeline : Creator + assets
+APIPipeline -[#01C176]-> Cassandra : <color:#96DDF2>Mark: API (FREE)
+
+' BigQuery Pipeline flow (optional paid path)
+BigQuery -[#E5526F]-> BQPipeline : <color:#E5526F>Check budget 💰
+BQPipeline -[#E5526F]-> Cassandra : <color:#E5526F>Mark: BIGQUERY (PAID)
+BQPipeline -[#01C176]-> Orchestrator : <color:#96DDF2>Cost exceeded?\n<color:#96DDF2>Fallback to API
+
+' Orchestrator routing
+Orchestrator -[#0BE784,bold]-> SDKPipeline : <color:#0BE784><b>SDK_ONLY (default)</b>
+Orchestrator -[#01C176]-> APIPipeline : API_ONLY
+Orchestrator -[#E5526F]-> BQPipeline : BIGQUERY modes
+
+' Configuration flows
+Admin -[#01C176]-> Orchestrator : pipeline_mode
+Admin -[#E5526F]-> BQPipeline : cost_limit_usd
+Admin -[#01C176]-> APIPipeline : rate limits
+Admin -[#01C176]-> SDKPipeline : concurrent limit
+
+' Dashboard display
+Cassandra -[#01C176]-> Dashboard : Query by pipeline_source
+
+' Performance annotations
+note right of SDKPipeline #231B3D
+  <color:#0BE784><b>⭐ RECOMMENDED (FREE & FAST):</b></color>
+  <color:#96DDF2>• 30-60 seconds per account
+  <color:#96DDF2>• Concurrent: 3-5 accounts at once
+  <color:#96DDF2>• Cost: $0.00 (100% FREE)
+  <color:#96DDF2>• Uses native stellar-sdk
+  <color:#96DDF2>• Rate limit: 3600 req/hour
+  <color:#96DDF2>• Best for continuous processing
+end note
+
+note left of APIPipeline #231B3D
+  <color:#0BE784><b>Fallback Path (FREE):</b></color>
+  <color:#96DDF2>• 2-3 minutes per account
+  <color:#96DDF2>• Sequential: 1 account at a time
+  <color:#96DDF2>• Cost: $0.00 (100% FREE)
+  <color:#96DDF2>• Rate-limited for reliability
+  <color:#96DDF2>• 8-stage processing
+  <color:#96DDF2>• Always works
+end note
+
+note bottom of BQPipeline #231B3D
+  <color:#E5526F><b>⚠️ COSTS MONEY:</b></color>
+  <color:#96DDF2>• 5-10 seconds per account
+  <color:#96DDF2>• Processes up to 100K children
+  <color:#E5526F>• Cost: $0.18-0.71 per query
+  <color:#96DDF2>• Use for bulk historical data
+  <color:#96DDF2>• Cost guard prevents overages
+end note
+
+note bottom of Cassandra #231B3D
+  <color:#0BE784><b>Triple-Pipeline Tracking Fields:</b></color>
+  <color:#96DDF2>• pipeline_source: SDK | API | BIGQUERY | BIGQUERY_WITH_API_FALLBACK
+  <color:#96DDF2>• last_pipeline_attempt: Retry tracking
+  <color:#96DDF2>• processing_started_at: Stuck detection
+  
+  <color:#0BE784><b>Migration completed:</b></color> <color:#96DDF2>2025-10-25</color>
+end note
+
+note top of Orchestrator #231B3D
+  <color:#0BE784><b>Pipeline Mode Selection:</b></color>
+  <color:#96DDF2>1. <color:#0BE784><b>SDK_ONLY</b></color> - Recommended (free)
+  <color:#96DDF2>2. API_ONLY - Reliable fallback (free)
+  <color:#96DDF2>3. BIGQUERY_WITH_API_FALLBACK - Costs $
+  <color:#96DDF2>4. BIGQUERY_ONLY - Costs $
+  <color:#96DDF2>
+  <color:#96DDF2>Default: SDK_ONLY (free & fast)
+end note
+
+@enduml

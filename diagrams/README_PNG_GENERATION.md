@@ -16,19 +16,19 @@ This directory contains PlantUML diagram source files (`.puml`) and their corres
 7. `07_hva_ranking_system.png`
 8. `08_query_builder_architecture.png`
 
-### ❌ Missing PNG (Needs Generation)
-9. **`09_dual_pipeline_architecture.png`** ← **REQUIRED**
+### ✅ Existing PNGs (Already Generated)
+9. `09_triple_pipeline_architecture.png` (Updated: 2025-10-25)
 
 ## How to Generate PNG Files
 
 ### Option 1: Online PlantUML Server (Easiest)
 
 1. Visit https://www.plantuml.com/plantuml/uml/
-2. Copy the contents of `09_dual_pipeline_architecture.puml`
+2. Copy the contents of the `.puml` file you want to generate
 3. Paste into the editor
 4. Click "Submit" to render
 5. Right-click the diagram → "Save image as..."
-6. Save as `09_dual_pipeline_architecture.png` in the `diagrams/` directory
+6. Save as the corresponding `.png` file in the `diagrams/` directory
 
 ### Option 2: PlantUML CLI (Local)
 
@@ -42,15 +42,15 @@ sudo apt-get install plantuml
 
 # Generate PNG from PUML file
 cd diagrams/
-plantuml 09_dual_pipeline_architecture.puml
+plantuml <filename>.puml
 
-# This will create 09_dual_pipeline_architecture.png in the same directory
+# This will create <filename>.png in the same directory
 ```
 
 ### Option 3: VS Code Extension
 
 1. Install "PlantUML" extension in VS Code
-2. Open `09_dual_pipeline_architecture.puml`
+2. Open the `.puml` file you want to generate
 3. Press `Alt+D` (or `Option+D` on Mac) to preview
 4. Right-click preview → "Export Current Diagram"
 5. Select "png" format
@@ -61,7 +61,7 @@ plantuml 09_dual_pipeline_architecture.puml
 ```bash
 # Use official PlantUML Docker image
 docker run --rm -v $(pwd):/diagrams plantuml/plantuml:latest \
-  -tpng /diagrams/09_dual_pipeline_architecture.puml
+  -tpng /diagrams/<filename>.puml
 
 # PNG will be created in the diagrams/ directory
 ```
@@ -71,18 +71,14 @@ docker run --rm -v $(pwd):/diagrams plantuml/plantuml:latest \
 After generating the PNG, verify it exists:
 
 ```bash
-ls -lh diagrams/09_dual_pipeline_architecture.png
+ls -lh diagrams/<filename>.png
 ```
 
 Expected file size: ~50-200 KB
 
 ## Update Documentation
 
-Once the PNG is generated, the documentation will automatically reference it:
-
-**File**: `TECHNICAL_ARCHITECTURE.md`  
-**Line**: ~758  
-**Reference**: `![Dual-Pipeline Architecture](./diagrams/09_dual_pipeline_architecture.png)`
+Once the PNG is generated, update the documentation to reference it in the appropriate section.
 
 ## Quality Settings (Recommended)
 
@@ -117,20 +113,15 @@ When updating diagrams:
 
 ```bash
 # After generating PNG
-git add diagrams/09_dual_pipeline_architecture.puml
-git add diagrams/09_dual_pipeline_architecture.png
-git commit -m "docs: Add dual-pipeline architecture diagram (PlantUML + PNG)"
+git add diagrams/<filename>.puml
+git add diagrams/<filename>.png
+git commit -m "docs: Add/update diagram (PlantUML + PNG)"
 ```
 
-## Next Steps
+## Latest Updates
 
-1. **Generate the missing PNG** using one of the methods above
-2. **Verify** the PNG displays correctly in TECHNICAL_ARCHITECTURE.md
-3. **Commit** both the `.puml` source and generated `.png` file
-4. **Update** GIT_COMMIT_COMMANDS.md if needed
-
-## Related Files
-
-- Source: `diagrams/09_dual_pipeline_architecture.puml`
-- Output: `diagrams/09_dual_pipeline_architecture.png` (needs generation)
-- Documentation: `TECHNICAL_ARCHITECTURE.md` (Section 9)
+### Triple-Pipeline Architecture (2025-10-25)
+- **Source**: `diagrams/09_triple_pipeline_architecture.puml`
+- **Output**: `diagrams/09_triple_pipeline_architecture.png` ✅ Generated
+- **Documentation**: `TECHNICAL_ARCHITECTURE.md` (Section 9)
+- **Status**: Complete - Shows SDK, API, and BigQuery pipelines
