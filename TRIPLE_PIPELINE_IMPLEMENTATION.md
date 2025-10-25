@@ -1,31 +1,47 @@
-# Dual-Pipeline Architecture Implementation
+# Triple-Pipeline Architecture Implementation
 
 ## Overview
-The StellarMapWeb application now features a **dual-pipeline architecture** that ensures consistent data retrieval for Stellar account lineage even when BigQuery cost controls block expensive queries. This design provides the best of both worlds: BigQuery for speed (50-90s processing) and API-only fallback for reliability.
+The StellarMapWeb application features a **triple-pipeline architecture** that provides optimal data retrieval for Stellar account lineage with cost efficiency and performance. This design offers three complementary pipelines: SDK Pipeline for free concurrent processing (recommended), API Pipeline for reliable sequential fallback, and BigQuery Pipeline for fast bulk historical data (costs money).
 
 ## Architecture Design
 
 ### Pipeline Strategy
-1. **BigQuery Pipeline (Production Speed)**
-   - Primary data source using Google BigQuery/Hubble dataset
-   - Extremely fast for newer accounts (50-90 seconds)
-   - Cost-guarded with configurable limits (default: $0.71 per query, 145GB scan limit)
-   - Falls back to Horizon API + Stellar Expert when queries are blocked
-   - Sets `pipeline_source` to either `BIGQUERY` or `BIGQUERY_WITH_API_FALLBACK`
 
-2. **API Pipeline (Reliability Fallback)**
-   - Secondary pipeline using only Horizon API and Stellar Expert
-   - Always works regardless of BigQuery cost constraints
-   - Rate-limited to respect external API limits (Horizon: 0.5s, Stellar Expert: 1s between calls)
-   - Processes 3 accounts per batch, runs every 2 minutes
-   - Sets `pipeline_source` to `API`
+1. **SDK Pipeline (Free & Fast - RECOMMENDED)** ⭐
+   - **Cost:** 100% FREE (uses Horizon API)
+   - **Speed:** 30-60 seconds per account
+   - **Processing:** Concurrent async (3-5 accounts simultaneously)
+   - **Technology:** Native `stellar-sdk` with async/await
+   - **Rate Limiting:** 3600 requests/hour (Horizon standard)
+   - **Use Case:** Continuous background processing, recommended for most users
+   - **Sets:** `pipeline_source='SDK'`
+
+2. **API Pipeline (Free & Reliable)**
+   - **Cost:** 100% FREE (uses Horizon API + Stellar Expert)
+   - **Speed:** 2-3 minutes per account
+   - **Processing:** Sequential (one account at a time)
+   - **Technology:** Synchronous API calls with rate limiting
+   - **Rate Limiting:** Horizon 0.5s, Stellar Expert 1s between calls
+   - **Use Case:** Reliable fallback, always works regardless of BigQuery constraints
+   - **Sets:** `pipeline_source='API'`
+
+3. **BigQuery Pipeline (Fast but Costs Money)** 💰
+   - **Cost:** $0.18-0.71 per query (processes ~145GB of data)
+   - **Speed:** 5-10 seconds per account (bulk processing)
+   - **Processing:** Batch queries (up to 100,000 child accounts)
+   - **Technology:** Google BigQuery with Stellar Hubble dataset
+   - **Cost Guards:** Configurable limits to prevent runaway costs
+   - **Use Case:** Bulk historical data or when you need comprehensive fast queries
+   - **Sets:** `pipeline_source='BIGQUERY'` or `'BIGQUERY_WITH_API_FALLBACK'`
 
 ### How It Works
-- Both pipelines run simultaneously without conflicts
-- PENDING status prevents duplicate processing (atomic record locking)
-- BigQuery pipeline handles the majority of accounts when cost allows
-- API pipeline continuously processes any PENDING records that BigQuery couldn't handle
-- New tracking fields provide visibility into which pipeline processed each account
+- **All three pipelines** can run simultaneously without conflicts
+- **PENDING status** prevents duplicate processing (atomic record locking)
+- **SDK Pipeline (recommended):** Processes accounts concurrently for best free performance
+- **API Pipeline:** Continuously processes any PENDING records as reliable fallback
+- **BigQuery Pipeline:** Optional for bulk historical data (costs money, use with caution)
+- **Tracking fields** provide visibility into which pipeline processed each account
+- **Admin configuration** allows selecting pipeline mode (SDK_ONLY, API_ONLY, BIGQUERY modes)
 
 ## Implementation Details
 
@@ -36,7 +52,7 @@ The StellarMapWeb application now features a **dual-pipeline architecture** that
 ```python
 # Tracks which pipeline processed this record
 pipeline_source = models.TextField(blank=True, null=True, default='')
-# Values: 'BIGQUERY', 'BIGQUERY_WITH_API_FALLBACK', 'API'
+# Values: 'SDK', 'API', 'BIGQUERY', 'BIGQUERY_WITH_API_FALLBACK'
 
 # Tracks the last time either pipeline attempted processing
 last_pipeline_attempt = models.DateTimeField(null=True, blank=True)
@@ -46,20 +62,59 @@ processing_started_at = models.DateTimeField(null=True, blank=True)
 ```
 
 **Schema Migration Required:**
-- **CRITICAL**: Production Cassandra table must be updated before dual-pipeline works
-- Migration script: `cassandra_migration_dual_pipeline.cql`
+- **CRITICAL**: Production Cassandra table must be updated before triple-pipeline works
+- Migration script: `cassandra_migration_dual_pipeline.cql` (note: supports all three pipelines)
 - Run this script against your Astra DB keyspace to add the new columns
 
-### 2. API Pipeline Command
+### 2. SDK Pipeline Command (Recommended - Free & Fast)
+
+**Location:** `apiApp/management/commands/stellar_sdk_pipeline.py`
+
+**Features:**
+- **100% FREE** - Uses Horizon API with no BigQuery costs
+- **Concurrent processing** - 3-5 accounts simultaneously using async/await
+- **Fast** - Processes each account in 30-60 seconds
+- **Rate limiting** - Respects Horizon's 3600 req/hour limit
+- **Automatic queuing** - Discovers and queues creator and child accounts
+- **Sets** `pipeline_source='SDK'` for all processed accounts
+- **Network support** - Works with both public and testnet networks
+- **Queue Synchronizer integration** - Automatically syncs Search Cache → Lineage
+
+**Usage:**
+```bash
+# Process 10 accounts with 5 concurrent (default, recommended)
+python manage.py stellar_sdk_pipeline
+
+# Process 20 accounts with 3 concurrent
+python manage.py stellar_sdk_pipeline --limit 20 --concurrent 3
+
+# Use testnet network
+python manage.py stellar_sdk_pipeline --network testnet
+```
+
+**Performance:**
+- Processes 3-5 accounts in parallel
+- ~30-60 seconds per account (vs 2-3 min for API pipeline)
+- Free (no BigQuery costs)
+- Uses native `stellar-sdk` with `ServerAsync` for efficiency
+
+**Recommended Configuration:**
+- Set pipeline mode to `SDK_ONLY` in admin panel
+- Run continuously: `while true; do python manage.py stellar_sdk_pipeline --limit 10; sleep 180; done`
+- Best for continuous background processing
+
+### 3. API Pipeline Command (Free & Reliable Fallback)
 
 **Location:** `apiApp/management/commands/api_pipeline.py`
 
 **Features:**
-- Rate-limited API calls (Horizon: 120 req/min, Stellar Expert: 60 req/min)
-- Batch processing: 3 accounts per run (configurable)
-- Automatic stuck record recovery (15+ minutes in PROCESSING status)
-- Sets `pipeline_source='API'` for all processed accounts
-- Comprehensive error handling and logging
+- **100% FREE** - Uses Horizon API + Stellar Expert
+- **Sequential processing** - One account at a time for reliability
+- **Rate-limited** - Horizon: 120 req/min, Stellar Expert: 60 req/min
+- **Batch processing** - 3 accounts per run (configurable)
+- **Automatic stuck record recovery** - 15+ minutes in PROCESSING status
+- **Sets** `pipeline_source='API'` for all processed accounts
+- **Comprehensive error handling** and logging
 
 **Usage:**
 ```bash
@@ -70,7 +125,12 @@ python manage.py api_pipeline
 python manage.py api_pipeline --limit 5
 ```
 
-### 3. BigQuery Pipeline Updates
+**Recommended Configuration:**
+- Use as fallback when SDK Pipeline is not available
+- Run continuously: `while true; do python manage.py api_pipeline --limit 3; sleep 120; done`
+- Slower but very reliable (2-3 min per account)
+
+### 4. BigQuery Pipeline Updates
 
 **Changes to `bigquery_pipeline.py`:**
 - Now sets `pipeline_source='BIGQUERY'` when BigQuery successfully processes an account
@@ -78,19 +138,27 @@ python manage.py api_pipeline --limit 5
 - Updates `last_pipeline_attempt` timestamp
 - Tracks `processing_started_at` for stuck detection
 
-### 4. Workflow Configuration
+### 5. Workflow Configuration
 
-**New Workflow: "API Pipeline"**
+**Workflow 1: "SDK Pipeline" (RECOMMENDED)** ⭐
+- **Command:** `while true; do python manage.py stellar_sdk_pipeline --limit 10 --concurrent 5; sleep 180; done`
+- **Runs:** Continuously, processing 10 accounts every 3 minutes
+- **Purpose:** Free, fast, concurrent processing - recommended for most users
+- **Cost:** $0.00 (100% FREE)
+
+**Workflow 2: "API Pipeline"**
 - **Command:** `while true; do python manage.py api_pipeline --limit 3; sleep 120; done`
 - **Runs:** Continuously, processing 3 accounts every 2 minutes
-- **Purpose:** Ensures PENDING records are always processed, even when BigQuery is blocked
+- **Purpose:** Reliable fallback, always works regardless of constraints
+- **Cost:** $0.00 (100% FREE)
 
-**Existing Workflow: "BigQuery Pipeline"**
+**Workflow 3: "BigQuery Pipeline"**
 - **Command:** `python manage.py bigquery_pipeline --limit 100`
 - **Runs:** On-demand (manually triggered or scheduled)
-- **Purpose:** Fast bulk processing when cost constraints allow
+- **Purpose:** Fast bulk historical data processing
+- **Cost:** $0.18-0.71 per query (COSTS MONEY!)
 
-### 5. Pipeline Statistics API
+### 6. Pipeline Statistics API
 
 **Endpoint:** `/api/pipeline-stats/`
 
@@ -100,26 +168,29 @@ python manage.py api_pipeline --limit 5
   "bigquery_total": 150,
   "bigquery_with_fallback_total": 25,
   "api_total": 10,
+  "sdk_total": 50,
   "pending_total": 5,
   "processing_total": 0,
-  "complete_total": 175,
+  "complete_total": 235,
   "failed_total": 5,
   "last_24h": {
-    "bigquery": 50,
-    "bigquery_with_fallback": 10,
-    "api": 5
+    "bigquery": 10,
+    "bigquery_with_fallback": 5,
+    "api": 3,
+    "sdk": 20
   },
-  "timestamp": "2025-10-22T20:30:00.000000",
-  "total_accounts": 185
+  "timestamp": "2025-10-25T13:30:00.000000",
+  "total_accounts": 240
 }
 ```
 
 **Use Cases:**
-- Dashboard metrics showing pipeline health
-- Monitoring which pipeline is handling the workload
+- Dashboard metrics showing triple-pipeline health
+- Monitoring which pipeline is handling the workload (SDK recommended)
+- Tracking free vs. paid pipeline usage
 - Debugging pipeline performance issues
 
-### 6. Admin Configuration Panel
+### 7. Admin Configuration Panel
 
 **New Settings in `StellarMapConfiguration`:**
 

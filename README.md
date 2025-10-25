@@ -1,6 +1,6 @@
 # StellarMapWeb
 
-StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from Stellar's BigQuery/Hubble dataset (primary) and Horizon API/Stellar Expert (educational reference), stores this data in Astra DB (Cassandra), and then renders it as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected, offering insights into the network's structure and activity. The application features a high-performance BigQuery pipeline capable of processing an address in 50-90 seconds (2-3x faster than API approach), discovering up to 100,000 child accounts per parent, robust address validation, and a user-friendly interface with real-time pending account tracking and graceful error handling.
+StellarMapWeb is a Django application designed to visualize Stellar blockchain lineage data. It collects account creation relationships from multiple sources using a triple-pipeline architecture: (1) BigQuery/Hubble dataset for fast bulk processing, (2) Horizon API/Stellar Expert for reliable sequential processing, and (3) Stellar SDK for free, concurrent async processing. Data is stored in Astra DB (Cassandra) and rendered as interactive D3.js radial tree diagrams. The project aims to provide users with a clear, interactive "family tree" view of how Stellar accounts are created and interconnected. The application features three complementary pipelines for optimal performance and cost efficiency: SDK Pipeline (free, 30-60s per account, concurrent), API Pipeline (free, 2-3 min per account, sequential), and BigQuery Pipeline (fast but costs $0.18-0.71 per query). All pipelines discover up to 100,000 child accounts per parent, feature robust validation, and provide real-time pending account tracking.
 
 ## 📚 Documentation
 
@@ -10,8 +10,9 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - 🧪 **[Testing Guide](TESTING.md)** - Comprehensive testing guide with pytest markers, admin portal regression tests, and CI/CD configuration
 
 ### Feature Documentation
-- ⚡ **[Dual-Pipeline Implementation](DUAL_PIPELINE_IMPLEMENTATION.md)** - Dual-pipeline architecture (BigQuery + API fallback) with cost optimization and performance details
+- ⚡ **[Triple-Pipeline Implementation](TRIPLE_PIPELINE_IMPLEMENTATION.md)** - Triple-pipeline architecture (BigQuery, API, and SDK pipelines) with cost optimization and performance details
 - 🏆 **[HVA Ranking System](HVA_RANKING_SYSTEM.md)** - Multi-threshold High-Value Account ranking system with admin configuration and change tracking
+- 🚀 **[Performance Optimizations](PERFORMANCE_OPTIMIZATIONS.md)** - Performance optimization guide with current status and recommendations
 
 ### Additional Resources
 - 🔒 **[Security](SECURITY.md)** - Security practices, vulnerability reporting, and secure configuration guidelines
