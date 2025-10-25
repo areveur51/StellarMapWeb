@@ -412,9 +412,9 @@
             </div>
         </div>
 
-        <!-- Dual-Pipeline Metrics -->
+        <!-- Triple-Pipeline Metrics -->
         <h3 class="section-title">
-                    Dual-Pipeline Metrics
+                    Triple-Pipeline Metrics
                 </h3>
         <div class="dashboard-grid">
             <div>
@@ -445,7 +445,16 @@
                 </div>
             </div>
             <div>
-                <div class="stat-card" title="Total accounts processed across all pipelines (BigQuery + Fallback + API-Only). Shows complete system throughput.">
+                <div class="stat-card" title="Total accounts processed using Stellar SDK pipeline (concurrent async). Processes 3-5 accounts simultaneously, completely free using native SDK.">
+                    <div class="stat-label">SDK Processed</div>
+                    <div class="stat-value" style="color: #a78bfa;">
+                        <span id="sdk-total">--</span>
+                    </div>
+                    <small>free concurrent (2-3s per account)</small>
+                </div>
+            </div>
+            <div>
+                <div class="stat-card" title="Total accounts processed across all pipelines (BigQuery + Fallback + API + SDK). Shows complete system throughput.">
                     <div class="stat-label">Total Accounts</div>
                     <div class="stat-value">
                         <span id="total-accounts">--</span>
@@ -478,6 +487,15 @@
                     <div class="stat-label">Last 24h - API Only</div>
                     <div class="stat-value" style="color: #96DDF2;">
                         <span id="last-24h-api">--</span>
+                    </div>
+                    <small>accounts processed</small>
+                </div>
+            </div>
+            <div>
+                <div class="stat-card" title="Number of accounts processed via SDK pipeline in the last 24 hours. Shows recent concurrent async processing usage.">
+                    <div class="stat-label">Last 24h - SDK</div>
+                    <div class="stat-value" style="color: #a78bfa;">
+                        <span id="last-24h-sdk">--</span>
                     </div>
                     <small>accounts processed</small>
                 </div>
@@ -743,23 +761,25 @@
               
               const data = await response.json();
               
-              // Update DOM with pipeline statistics
-              document.getElementById('bigquery-total').textContent = data.bigquery_total.toLocaleString();
-              document.getElementById('bigquery-fallback-total').textContent = data.bigquery_with_fallback_total.toLocaleString();
-              document.getElementById('api-total').textContent = data.api_total.toLocaleString();
-              document.getElementById('total-accounts').textContent = data.total_accounts.toLocaleString();
+              // Update DOM with pipeline statistics (with defensive guards)
+              document.getElementById('bigquery-total').textContent = (data.bigquery_total || 0).toLocaleString();
+              document.getElementById('bigquery-fallback-total').textContent = (data.bigquery_with_fallback_total || 0).toLocaleString();
+              document.getElementById('api-total').textContent = (data.api_total || 0).toLocaleString();
+              document.getElementById('sdk-total').textContent = (data.sdk_total || 0).toLocaleString();
+              document.getElementById('total-accounts').textContent = (data.total_accounts || 0).toLocaleString();
               
-              // Update last 24h stats
-              document.getElementById('last-24h-bigquery').textContent = data.last_24h.bigquery.toLocaleString();
-              document.getElementById('last-24h-fallback').textContent = data.last_24h.bigquery_with_fallback.toLocaleString();
-              document.getElementById('last-24h-api').textContent = data.last_24h.api.toLocaleString();
+              // Update last 24h stats (with defensive guards)
+              document.getElementById('last-24h-bigquery').textContent = (data.last_24h?.bigquery || 0).toLocaleString();
+              document.getElementById('last-24h-fallback').textContent = (data.last_24h?.bigquery_with_fallback || 0).toLocaleString();
+              document.getElementById('last-24h-api').textContent = (data.last_24h?.api || 0).toLocaleString();
+              document.getElementById('last-24h-sdk').textContent = (data.last_24h?.sdk || 0).toLocaleString();
             } catch (error) {
               console.error('Error fetching pipeline stats:', error);
             }
           }
         },
         mounted() {
-          // Fetch dual-pipeline statistics on load
+          // Fetch triple-pipeline statistics on load
           this.fetchPipelineStats();
           // Auto-refresh every 30 seconds
           setInterval(() => {

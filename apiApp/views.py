@@ -1804,7 +1804,7 @@ def cassandra_query_api(request):
 
 def pipeline_stats_api(request):
     """
-    API endpoint that returns dual-pipeline statistics showing BigQuery vs API processing.
+    API endpoint that returns triple-pipeline statistics showing BigQuery, API, and SDK processing.
     
     Returns:
         JsonResponse: Dict with pipeline processing counts and status.
@@ -1818,6 +1818,7 @@ def pipeline_stats_api(request):
             'bigquery_total': 0,
             'bigquery_with_fallback_total': 0,
             'api_total': 0,
+            'sdk_total': 0,
             'pending_total': 0,
             'processing_total': 0,
             'complete_total': 0,
@@ -1826,6 +1827,7 @@ def pipeline_stats_api(request):
                 'bigquery': 0,
                 'bigquery_with_fallback': 0,
                 'api': 0,
+                'sdk': 0,
             }
         }
         
@@ -1844,6 +1846,8 @@ def pipeline_stats_api(request):
                     stats['bigquery_with_fallback_total'] += 1
                 elif pipeline_source == 'API':
                     stats['api_total'] += 1
+                elif pipeline_source == 'SDK':
+                    stats['sdk_total'] += 1
                 
                 # Count by status
                 status = getattr(record, 'status', '')
@@ -1865,6 +1869,8 @@ def pipeline_stats_api(request):
                         stats['last_24h']['bigquery_with_fallback'] += 1
                     elif pipeline_source == 'API':
                         stats['last_24h']['api'] += 1
+                    elif pipeline_source == 'SDK':
+                        stats['last_24h']['sdk'] += 1
         else:
             # SQLite: Use efficient filtering
             all_records = StellarCreatorAccountLineage.objects.filter(network_name='public')
@@ -1873,6 +1879,7 @@ def pipeline_stats_api(request):
             stats['bigquery_total'] = all_records.filter(pipeline_source='BIGQUERY').count()
             stats['bigquery_with_fallback_total'] = all_records.filter(pipeline_source='BIGQUERY_WITH_API_FALLBACK').count()
             stats['api_total'] = all_records.filter(pipeline_source='API').count()
+            stats['sdk_total'] = all_records.filter(pipeline_source='SDK').count()
             
             # Count by status
             stats['pending_total'] = all_records.filter(status='PENDING').count()
@@ -1885,10 +1892,11 @@ def pipeline_stats_api(request):
             stats['last_24h']['bigquery'] = recent_records.filter(pipeline_source='BIGQUERY').count()
             stats['last_24h']['bigquery_with_fallback'] = recent_records.filter(pipeline_source='BIGQUERY_WITH_API_FALLBACK').count()
             stats['last_24h']['api'] = recent_records.filter(pipeline_source='API').count()
+            stats['last_24h']['sdk'] = recent_records.filter(pipeline_source='SDK').count()
         
         # Add metadata
         stats['timestamp'] = datetime.utcnow().isoformat()
-        stats['total_accounts'] = stats['bigquery_total'] + stats['bigquery_with_fallback_total'] + stats['api_total']
+        stats['total_accounts'] = stats['bigquery_total'] + stats['bigquery_with_fallback_total'] + stats['api_total'] + stats['sdk_total']
         
         return JsonResponse(stats, status=200)
         
