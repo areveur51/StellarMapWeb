@@ -436,12 +436,27 @@ function renderRadialTree(jsonData) {
                        (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
                        '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
             
+            // Compress lineage radii to keep spiral compact and inside circle
+            // Find the max depth in lineage chain
+            const maxLineageDepth = Math.max(...lineageChain.map(d => d.depth));
+            const maxLineageRadius = radius * 0.5; // Cap lineage at 50% of circle radius
+            
+            console.log('[Lineage-First Layout] Compressing lineage radii to', 
+                       maxLineageRadius.toFixed(1), 'px (50% of circle)');
+            
             // Position lineage nodes sequentially in spiral pattern
             lineageChain.forEach((node, i) => {
                 // Progress through the sector following fibonacci-inspired spacing
                 node.x = lineageSectorStart + (i * anglePerNode);
+                
+                // Compress radial position to keep spiral compact
+                // Map depth 0..maxLineageDepth to radius 0..maxLineageRadius
+                const depthRatio = maxLineageDepth > 0 ? node.depth / maxLineageDepth : 0;
+                node.y = depthRatio * maxLineageRadius;
+                
                 console.log(`  Lineage[${i}] ${node.data.stellar_account || node.data.name} →`, 
-                           (node.x * 180 / Math.PI).toFixed(1), '°');
+                           (node.x * 180 / Math.PI).toFixed(1), '°,',
+                           'r=' + node.y.toFixed(1) + 'px');
             });
             
             // Shift non-lineage nodes to avoid lineage sector
