@@ -457,35 +457,42 @@ function renderRadialTree(jsonData) {
         let linkCounter = 0;
         
         // Custom link generator for lineage paths that takes the shortest angular path
+        // Uses manual SVG arc construction to ensure shortest path around the circle
         function buildShortestRadialLink(linkData) {
             const sourceAngle = linkData.source.x;
             const sourceRadius = linkData.source.y;
-            let targetAngle = linkData.target.x;
+            const targetAngle = linkData.target.x;
             const targetRadius = linkData.target.y;
             
             // Calculate angular difference
             let angleDelta = targetAngle - sourceAngle;
             
-            // Unwrap: if angular difference > 180°, go the other way around the circle
-            if (angleDelta > Math.PI) {
-                targetAngle -= 2 * Math.PI;  // Go counterclockwise instead
-            } else if (angleDelta < -Math.PI) {
-                targetAngle += 2 * Math.PI;  // Go clockwise instead
-            }
+            // Normalize to shortest path: wrap to [-π, π]
+            while (angleDelta > Math.PI) angleDelta -= 2 * Math.PI;
+            while (angleDelta < -Math.PI) angleDelta += 2 * Math.PI;
             
-            // Create a custom link generator with adjusted angle
-            // The angle accessor receives source/target node objects
-            const adjustedLinkGen = d3.linkRadial()
-                .angle(node => {
-                    // Use adjusted angle for target, original angle for source
-                    if (node === linkData.target) {
-                        return targetAngle;
-                    }
-                    return node.x;
-                })
-                .radius(node => node.y);
+            // Convert polar to cartesian for source
+            const sourceX = sourceRadius * Math.cos(sourceAngle - Math.PI / 2);
+            const sourceY = sourceRadius * Math.sin(sourceAngle - Math.PI / 2);
             
-            return adjustedLinkGen(linkData);
+            // For target, use the adjusted angle that takes the shortest path
+            const adjustedTargetAngle = sourceAngle + angleDelta;
+            const targetX = targetRadius * Math.cos(adjustedTargetAngle - Math.PI / 2);
+            const targetY = targetRadius * Math.sin(adjustedTargetAngle - Math.PI / 2);
+            
+            // Create smooth cubic bezier curve using radial control points
+            // Place control points at the midpoint radius, following the angular path
+            const midRadius = (sourceRadius + targetRadius) / 2;
+            const midAngle1 = sourceAngle + angleDelta * 0.33;
+            const midAngle2 = sourceAngle + angleDelta * 0.67;
+            
+            const cp1X = midRadius * Math.cos(midAngle1 - Math.PI / 2);
+            const cp1Y = midRadius * Math.sin(midAngle1 - Math.PI / 2);
+            const cp2X = midRadius * Math.cos(midAngle2 - Math.PI / 2);
+            const cp2Y = midRadius * Math.sin(midAngle2 - Math.PI / 2);
+            
+            // Return SVG path: M (move to source) C (cubic bezier to target)
+            return `M${sourceX},${sourceY} C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${targetX},${targetY}`;
         }
         
         const link = g.selectAll('.link')
