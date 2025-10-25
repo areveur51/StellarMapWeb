@@ -332,6 +332,16 @@ This comprehensive developer documentation includes:
 
 ### Data Collection Pipeline
 
+StellarMapWeb offers **5 pipeline configuration modes** via the admin panel:
+
+1. **SDK_ONLY** 🆓 - Use only SDK Pipeline (free, concurrent, 30-60s/account) - **RECOMMENDED**
+2. **API_ONLY** 🆓 - Use only API Pipeline (free, sequential, 2-3 min/account) - Reliable fallback
+3. **API_AND_SDK** 🆓🆓 - Run **BOTH** pipelines simultaneously (free, maximum throughput) - Best for high-volume
+4. **BIGQUERY_WITH_API_FALLBACK** 💰 - Try BigQuery first, fall back to free APIs if cost limits exceeded (costs $0.18-0.71/query)
+5. **BIGQUERY_ONLY** 💰💰 - Only use BigQuery (costs money, may fail if limits exceeded) - **NOT RECOMMENDED**
+
+**Recommendation:** Use **SDK_ONLY** for most cases, or **API_AND_SDK** for maximum free throughput.
+
 #### BigQuery Pipeline (Primary Method - Permanent Storage Architecture)
 
 **Architectural Principle:** BigQuery is ONLY queried for accounts never searched before. Once stored, lineage data is permanent in Cassandra.
