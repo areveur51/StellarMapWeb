@@ -41,8 +41,8 @@
             <option value="5">5</option>
             <option value="10">10</option>
             <option value="50">50</option>
-            <option value="100" selected>100</option>
-            <option value="1000">1,000</option>
+            <option value="100">100</option>
+            <option value="1000" selected>1,000</option>
             <option value="5000">5,000</option>
             <option value="10000">10,000</option>
         </select>
@@ -51,12 +51,12 @@
         <span class="toggle-label" style="font-size: 0.8em;">Issuer Balance:</span>
         <div style="margin-top: 3px;">
             <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
-                <span>Min: <span id="issuer-min-value">0</span></span>
+                <span>Min: <span id="issuer-min-value">1k</span></span>
                 <span>Max: <span id="issuer-max-value">∞</span></span>
             </div>
             <div style="display: flex; gap: 5px; align-items: center;">
-                <input type="range" id="issuer-min-slider" class="spacing-slider" min="0" max="100000" step="100" value="0" style="flex: 1;">
-                <input type="range" id="issuer-max-slider" class="spacing-slider" min="0" max="100000" step="100" value="100000" style="flex: 1;">
+                <input type="range" id="issuer-min-slider" class="spacing-slider" min="1000" max="100000" step="1000" value="1000" style="flex: 1;">
+                <input type="range" id="issuer-max-slider" class="spacing-slider" min="1000000" max="50000000" step="1000" value="50000000" style="flex: 1;">
             </div>
         </div>
     </div>
@@ -64,12 +64,12 @@
         <span class="toggle-label" style="font-size: 0.8em;">Asset Balance:</span>
         <div style="margin-top: 3px;">
             <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
-                <span>Min: <span id="asset-min-value">0</span></span>
+                <span>Min: <span id="asset-min-value">1k</span></span>
                 <span>Max: <span id="asset-max-value">∞</span></span>
             </div>
             <div style="display: flex; gap: 5px; align-items: center;">
-                <input type="range" id="asset-min-slider" class="spacing-slider" min="0" max="10000" step="100" value="0" style="flex: 1;">
-                <input type="range" id="asset-max-slider" class="spacing-slider" min="0" max="10000" step="100" value="10000" style="flex: 1;">
+                <input type="range" id="asset-min-slider" class="spacing-slider" min="1000" max="100000" step="1000" value="1000" style="flex: 1;">
+                <input type="range" id="asset-max-slider" class="spacing-slider" min="1000" max="100000" step="1000" value="100000" style="flex: 1;">
             </div>
         </div>
     </div>
@@ -96,12 +96,12 @@
         window.currentMode = localStorage.getItem('visualizationMode') || 'radial';
     }
     
-    // Global tree filter settings (NOT persisted on load to prevent breaking tree structure)
+    // Global tree filter settings (default min filters to 1k per new requirements)
     if (typeof window.treeFilters === 'undefined') {
         window.treeFilters = {
-            issuerMin: null,
+            issuerMin: 1000,
             issuerMax: null,
-            assetMin: null,
+            assetMin: 1000,
             assetMax: null,
             issuersOnly: false
         };
@@ -110,7 +110,7 @@
     // Global slider increment setting (persisted in localStorage)
     if (typeof window.sliderIncrement === 'undefined') {
         const savedIncrement = localStorage.getItem('sliderIncrement');
-        window.sliderIncrement = savedIncrement ? parseInt(savedIncrement) : 100;
+        window.sliderIncrement = savedIncrement ? parseInt(savedIncrement) : 1000;
     }
     
     // Store unfiltered tree data for re-filtering
@@ -395,25 +395,26 @@
     // Format number for display
     function formatFilterValue(value, isInfinity) {
         if (isInfinity) return '∞';
+        if (value >= 1000000) return (value / 1000000).toFixed(0) + 'M';
         if (value >= 1000) return (value / 1000).toFixed(0) + 'k';
         return value.toString();
     }
     
     // Reset all tree filters
     function resetTreeFilters() {
-        // Clear filter values
+        // Reset filter values to defaults (min filters now have 1k defaults, not null)
         window.treeFilters = {
-            issuerMin: null,
+            issuerMin: 1000,
             issuerMax: null,
-            assetMin: null,
+            assetMin: 1000,
             assetMax: null,
             issuersOnly: false
         };
         
-        // Clear localStorage
-        localStorage.removeItem('treeFilter_issuerMin');
+        // Update localStorage to match
+        localStorage.setItem('treeFilter_issuerMin', 1000);
         localStorage.removeItem('treeFilter_issuerMax');
-        localStorage.removeItem('treeFilter_assetMin');
+        localStorage.setItem('treeFilter_assetMin', 1000);
         localStorage.removeItem('treeFilter_assetMax');
         localStorage.removeItem('treeFilter_issuersOnly');
         
@@ -423,14 +424,14 @@
         const assetMinSlider = document.getElementById('asset-min-slider');
         const assetMaxSlider = document.getElementById('asset-max-slider');
         
-        issuerMinSlider.value = 0;
+        issuerMinSlider.value = 1000;
         issuerMaxSlider.value = issuerMaxSlider.max;
-        assetMinSlider.value = 0;
+        assetMinSlider.value = 1000;
         assetMaxSlider.value = assetMaxSlider.max;
         
-        document.getElementById('issuer-min-value').textContent = '0';
+        document.getElementById('issuer-min-value').textContent = '1k';
         document.getElementById('issuer-max-value').textContent = '∞';
-        document.getElementById('asset-min-value').textContent = '0';
+        document.getElementById('asset-min-value').textContent = '1k';
         document.getElementById('asset-max-value').textContent = '∞';
         document.getElementById('issuers-only-filter').checked = false;
         
@@ -494,16 +495,11 @@
         // Issuer Min slider
         issuerMinSlider.addEventListener('input', function() {
             const value = parseInt(this.value);
-            const isAtMin = value === parseInt(this.min);
             
             issuerMinValue.textContent = formatFilterValue(value, false); // Min sliders always show value, never ∞
-            window.treeFilters.issuerMin = isAtMin ? null : value;
+            window.treeFilters.issuerMin = value; // Always apply the min filter value
             
-            if (window.treeFilters.issuerMin !== null) {
-                localStorage.setItem('treeFilter_issuerMin', window.treeFilters.issuerMin);
-            } else {
-                localStorage.removeItem('treeFilter_issuerMin');
-            }
+            localStorage.setItem('treeFilter_issuerMin', window.treeFilters.issuerMin);
             applyTreeFilters();
         });
         
@@ -526,16 +522,11 @@
         // Asset Min slider
         assetMinSlider.addEventListener('input', function() {
             const value = parseInt(this.value);
-            const isAtMin = value === parseInt(this.min);
             
             assetMinValue.textContent = formatFilterValue(value, false); // Min sliders always show value, never ∞
-            window.treeFilters.assetMin = isAtMin ? null : value;
+            window.treeFilters.assetMin = value; // Always apply the min filter value
             
-            if (window.treeFilters.assetMin !== null) {
-                localStorage.setItem('treeFilter_assetMin', window.treeFilters.assetMin);
-            } else {
-                localStorage.removeItem('treeFilter_assetMin');
-            }
+            localStorage.setItem('treeFilter_assetMin', window.treeFilters.assetMin);
             applyTreeFilters();
         });
         
