@@ -389,6 +389,44 @@ function renderRadialTree(jsonData) {
         console.log('[Radial Tree] Layout complete - angles naturally span 0 to 2π');
         console.log('[Radial Tree] Total nodes:', descendants.length);
         
+        // OPTIMIZATION: Rotate tree to minimize lineage path angular span
+        // This prevents sharp angular turns in the red lineage line
+        const lineageNodes = descendants.filter(d => d.data && d.data.is_lineage_path);
+        if (lineageNodes.length > 1) {
+            // Sort lineage nodes by angle
+            const lineageAngles = lineageNodes.map(d => d.x).sort((a, b) => a - b);
+            
+            // Find the largest gap between consecutive lineage nodes (circular)
+            let maxGap = 0;
+            let maxGapStart = 0;
+            for (let i = 0; i < lineageAngles.length; i++) {
+                const nextIdx = (i + 1) % lineageAngles.length;
+                let gap = lineageAngles[nextIdx] - lineageAngles[i];
+                if (nextIdx === 0) {
+                    // Wrap-around gap (from last angle to first + 2π)
+                    gap = (2 * Math.PI - lineageAngles[i]) + lineageAngles[0];
+                }
+                if (gap > maxGap) {
+                    maxGap = gap;
+                    maxGapStart = lineageAngles[i];
+                }
+            }
+            
+            // Rotate tree so the largest gap is at the bottom (180°)
+            // This clusters lineage nodes together at the top
+            const rotationOffset = Math.PI - (maxGapStart + maxGap / 2);
+            
+            console.log('[Radial Tree] Rotating tree by', (rotationOffset * 180 / Math.PI).toFixed(1), 
+                        'degrees to cluster lineage path');
+            console.log('[Radial Tree] Lineage angular span reduced from', 
+                        (2 * Math.PI - maxGap) * 180 / Math.PI, 'degrees');
+            
+            // Apply rotation to all nodes
+            descendants.forEach(d => {
+                d.x = (d.x + rotationOffset + 2 * Math.PI) % (2 * Math.PI);
+            });
+        }
+        
         // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
         // around the full 360° circle, so no manual redistribution needed!
 
