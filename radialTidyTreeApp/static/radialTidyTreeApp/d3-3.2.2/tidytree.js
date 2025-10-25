@@ -456,6 +456,38 @@ function renderRadialTree(jsonData) {
         // Debug counter for logging
         let linkCounter = 0;
         
+        // Custom link generator for lineage paths that takes the shortest angular path
+        function buildShortestRadialLink(linkData) {
+            const sourceAngle = linkData.source.x;
+            const sourceRadius = linkData.source.y;
+            let targetAngle = linkData.target.x;
+            const targetRadius = linkData.target.y;
+            
+            // Calculate angular difference
+            let angleDelta = targetAngle - sourceAngle;
+            
+            // Unwrap: if angular difference > 180°, go the other way around the circle
+            if (angleDelta > Math.PI) {
+                targetAngle -= 2 * Math.PI;  // Go counterclockwise instead
+            } else if (angleDelta < -Math.PI) {
+                targetAngle += 2 * Math.PI;  // Go clockwise instead
+            }
+            
+            // Create a custom link generator with adjusted angle
+            // The angle accessor receives source/target node objects
+            const adjustedLinkGen = d3.linkRadial()
+                .angle(node => {
+                    // Use adjusted angle for target, original angle for source
+                    if (node === linkData.target) {
+                        return targetAngle;
+                    }
+                    return node.x;
+                })
+                .radius(node => node.y);
+            
+            return adjustedLinkGen(linkData);
+        }
+        
         const link = g.selectAll('.link')
             .data(root.links())
             .enter().append('path')
@@ -469,9 +501,16 @@ function renderRadialTree(jsonData) {
                 }
                 return classes.join(' ');
             })
-            .attr('d', d3.linkRadial()
-                .angle(d => d.x)
-                .radius(d => d.y))
+            .attr('d', d => {
+                // Use shortest path for lineage links, standard radial for others
+                if (d.target.data && d.target.data.is_lineage_path) {
+                    return buildShortestRadialLink(d);
+                } else {
+                    return d3.linkRadial()
+                        .angle(d => d.x)
+                        .radius(d => d.y)(d);
+                }
+            })
             .style('stroke', d => {
                 // Debug: Log link metadata for first 5 links
                 if (linkCounter < 5) {
