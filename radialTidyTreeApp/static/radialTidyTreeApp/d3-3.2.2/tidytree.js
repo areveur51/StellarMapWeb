@@ -463,39 +463,79 @@ function renderRadialTree(jsonData) {
                            'r=' + node.y.toFixed(1) + 'px');
             });
             
-            // Position non-lineage nodes (siblings/children) to fan out as groups from their parent
+            // REDISTRIBUTE NON-LINEAGE PARENT GROUPS to utilize full circle space
             const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
             
             // Find max depth of all nodes to determine safe radius cap
             const maxDepth = Math.max(...descendants.map(d => d.depth));
             const maxSafeRadius = radius * 0.9; // Cap all nodes at 90% of circle to stay inside
             
-            console.log('[Lineage-First Layout] Positioning', nonLineageNodes.length, 
-                       'non-lineage nodes to fan out from parents, radius cap:', maxSafeRadius.toFixed(1), 'px');
-            
-            // Position each non-lineage node relative to its parent's (possibly repositioned) angle
+            // Group non-lineage nodes by their parent
+            const parentGroups = new Map();
             nonLineageNodes.forEach(node => {
-                if (node.parent) {
-                    // Calculate angular offset from parent in original D3 layout
-                    const originalParentAngle = originalAngles.get(node.parent);
-                    const originalNodeAngle = originalAngles.get(node);
-                    let angularOffset = originalNodeAngle - originalParentAngle;
-                    
-                    // Normalize offset to [-π, π]
-                    while (angularOffset > Math.PI) angularOffset -= 2 * Math.PI;
-                    while (angularOffset < -Math.PI) angularOffset += 2 * Math.PI;
-                    
-                    // Position child relative to parent's NEW angle (which may have been repositioned)
-                    node.x = (node.parent.x + angularOffset) % (2 * Math.PI);
-                    if (node.x < 0) node.x += 2 * Math.PI;
-                } else {
-                    // Root node or orphan - use original angle
-                    node.x = originalAngles.get(node);
+                const parentId = node.parent ? (node.parent.data.stellar_account || node.parent.data.name) : 'root';
+                if (!parentGroups.has(parentId)) {
+                    parentGroups.set(parentId, {
+                        parent: node.parent,
+                        children: [],
+                        descendantCount: 0
+                    });
                 }
+                const group = parentGroups.get(parentId);
+                group.children.push(node);
+                // Count all descendants recursively for weighting
+                group.descendantCount += 1 + (node.descendants ? node.descendants().length - 1 : 0);
+            });
+            
+            console.log('[Lineage-First Layout] Found', parentGroups.size, 'parent groups with',
+                       nonLineageNodes.length, 'total non-lineage nodes');
+            
+            // Calculate available angular space (full circle minus lineage sector)
+            const availableAngle = 2 * Math.PI - lineageSectorSize;
+            const availableStart = lineageSectorEnd;
+            const availableEnd = availableStart + availableAngle;
+            
+            // Distribute parent groups evenly across available space
+            const groupsArray = Array.from(parentGroups.values());
+            const totalDescendants = groupsArray.reduce((sum, g) => sum + g.descendantCount, 0);
+            
+            let currentAngle = availableStart;
+            groupsArray.forEach((group, groupIndex) => {
+                // Allocate angular space proportional to group size
+                const groupWeight = totalDescendants > 0 ? group.descendantCount / totalDescendants : 1 / groupsArray.length;
+                const groupAngleSpan = availableAngle * groupWeight;
+                const groupCenterAngle = currentAngle + (groupAngleSpan / 2);
                 
-                // Cap radius to keep nodes inside circle boundary
-                const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
-                node.y = Math.min(node.y, depthRatio * maxSafeRadius);
+                console.log(`  Group[${groupIndex}] (${group.children.length} children,`,
+                           `${group.descendantCount} descendants) → center angle:`,
+                           (groupCenterAngle * 180 / Math.PI).toFixed(1), '°');
+                
+                // Position each child in the group relative to group center
+                group.children.forEach(node => {
+                    if (node.parent) {
+                        // Calculate angular offset from parent in original D3 layout
+                        const originalParentAngle = originalAngles.get(node.parent);
+                        const originalNodeAngle = originalAngles.get(node);
+                        let angularOffset = originalNodeAngle - originalParentAngle;
+                        
+                        // Normalize offset to [-π, π]
+                        while (angularOffset > Math.PI) angularOffset -= 2 * Math.PI;
+                        while (angularOffset < -Math.PI) angularOffset += 2 * Math.PI;
+                        
+                        // Position child relative to group center angle (preserves sibling spacing)
+                        node.x = (groupCenterAngle + angularOffset) % (2 * Math.PI);
+                        if (node.x < 0) node.x += 2 * Math.PI;
+                    } else {
+                        // Root node or orphan - use group center angle
+                        node.x = groupCenterAngle;
+                    }
+                    
+                    // Cap radius to keep nodes inside circle boundary
+                    const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
+                    node.y = Math.min(node.y, depthRatio * maxSafeRadius);
+                });
+                
+                currentAngle += groupAngleSpan;
             });
             
             console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
