@@ -7,6 +7,18 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - Prompt attachments go to temp/ directory (gitignored), not attached_assets/
 
 # Recent Changes (October 25, 2025)
+
+## Documentation Overhaul - Triple-Pipeline Architecture
+- **Complete Documentation Update**: All major documentation files updated from dual-pipeline to triple-pipeline architecture
+- **TRIPLE_PIPELINE_IMPLEMENTATION.md**: Renamed from DUAL_PIPELINE_IMPLEMENTATION.md and completely rewritten with comprehensive coverage of SDK, API, and BigQuery pipelines
+- **README.md Updates**: Pipeline section updated to reflect three pipelines with performance metrics and cost comparisons
+- **USER_GUIDE.md Updates**: Added SDK pipeline section with recommended default settings (SDK_ONLY mode)
+- **TECHNICAL_ARCHITECTURE.md Updates**: Updated architecture diagrams and pipeline descriptions
+- **PlantUML Diagram Update**: Created new triple-pipeline architecture diagram (diagrams/09_triple_pipeline_architecture.puml and .png)
+- **Cost Warnings**: Prominent cost warnings added for BigQuery modes ($0.18-0.71/query) with green highlights for FREE options (SDK_ONLY, API_ONLY)
+- **Security Review**: SDK pipeline code reviewed and verified for proper rate limiting, error handling, async safety, and secrets management
+
+## Previous Updates
 - **Stellar SDK Pipeline**: New async pipeline using native stellar-sdk for free, concurrent processing (3-5 accounts at once)
 - **Critical network bug fix**: SDK Pipeline now respects --network argument (was hardcoded to public)
 - **Documentation Updated**: Removed references to deleted `admin-scheduler-config.png` screenshot
