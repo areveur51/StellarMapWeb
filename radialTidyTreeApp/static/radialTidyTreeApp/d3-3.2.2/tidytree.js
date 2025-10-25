@@ -389,65 +389,61 @@ function renderRadialTree(jsonData) {
         console.log('[Radial Tree] Layout complete - angles naturally span 0 to 2π');
         console.log('[Radial Tree] Total nodes:', descendants.length);
         
-        // OPTIMIZATION: Rotate tree to minimize lineage path angular span
-        // This prevents sharp angular turns in the red lineage line by clustering lineage nodes together
-        const lineageNodes = descendants.filter(d => d.data && d.data.is_lineage_path);
-        console.log('[Radial Tree Rotation] Found', lineageNodes.length, 'lineage path nodes');
-        
-        if (lineageNodes.length > 1) {
-            // Sort lineage nodes by angle
-            const lineageAngles = lineageNodes.map(d => d.x).sort((a, b) => a - b);
-            
-            // Find the largest gap between consecutive lineage nodes (circular)
-            // This gap represents where we can "cut" the circle to make nodes contiguous
-            let maxGap = 0;
-            let maxGapEndAngle = 0; // The angle after the gap where lineage continues
-            for (let i = 0; i < lineageAngles.length; i++) {
-                const nextIdx = (i + 1) % lineageAngles.length;
-                let gap = lineageAngles[nextIdx] - lineageAngles[i];
-                if (nextIdx === 0) {
-                    // Wrap-around gap (from last angle to first + 2π)
-                    gap = (2 * Math.PI - lineageAngles[i]) + lineageAngles[0];
-                }
-                if (gap > maxGap) {
-                    maxGap = gap;
-                    maxGapEndAngle = lineageAngles[nextIdx];
-                }
+        // LINEAGE-FIRST POSITIONING: Position lineage nodes sequentially, then fit others around them
+        // Extract lineage chain in hierarchical order (root → searched account)
+        const lineageChain = [];
+        descendants.forEach(d => {
+            if (d.data && d.data.is_lineage_path) {
+                lineageChain.push(d);
             }
+        });
+        
+        // Sort lineage by depth to get correct order (parent → child)
+        lineageChain.sort((a, b) => a.depth - b.depth);
+        
+        console.log('[Lineage-First Layout] Found', lineageChain.length, 'lineage nodes');
+        
+        if (lineageChain.length > 1) {
+            // Reserve angular sector for lineage (centered at top: 90°)
+            // Allocate enough space based on lineage chain length
+            const lineageSectorSize = Math.min(Math.PI / 2, lineageChain.length * 0.15); // Max 90°, ~8.6° per node
+            const lineageSectorStart = (Math.PI / 2) - (lineageSectorSize / 2); // Center at 90°
+            const lineageSectorEnd = lineageSectorStart + lineageSectorSize;
             
-            // Calculate the center of the lineage cluster (opposite side of the gap)
-            // The lineage cluster spans from maxGapEndAngle to (maxGapEndAngle - gap) around the circle
-            const lineageSpan = 2 * Math.PI - maxGap;
-            const lineageCenter = (maxGapEndAngle + lineageSpan / 2) % (2 * Math.PI);
+            console.log('[Lineage-First Layout] Reserved sector:', 
+                       (lineageSectorStart * 180 / Math.PI).toFixed(1), '° to',
+                       (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
+                       '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
             
-            console.log('[Radial Tree Rotation] Largest gap:', (maxGap * 180 / Math.PI).toFixed(1), '°');
-            console.log('[Radial Tree Rotation] Lineage span:', (lineageSpan * 180 / Math.PI).toFixed(1), '°');
-            console.log('[Radial Tree Rotation] Lineage center at:', (lineageCenter * 180 / Math.PI).toFixed(1), '°');
-            
-            // Rotate so lineage center is at top (90° = straight up in our coordinate system)
-            // This minimizes sharp turns by keeping all lineage nodes grouped together at the top
-            const targetPosition = Math.PI / 2; // 90° = top of circle
-            const rotationOffset = targetPosition - lineageCenter;
-            
-            console.log('[Radial Tree Rotation] Rotating by:', (rotationOffset * 180 / Math.PI).toFixed(1), 
-                       '° to center lineage at top');
-            
-            // Apply rotation to all nodes
-            descendants.forEach(d => {
-                d.x = (d.x + rotationOffset + 2 * Math.PI) % (2 * Math.PI);
+            // Position lineage nodes sequentially within reserved sector
+            lineageChain.forEach((node, i) => {
+                // Evenly space lineage nodes within the sector
+                const progress = lineageChain.length > 1 ? i / (lineageChain.length - 1) : 0.5;
+                node.x = lineageSectorStart + (progress * lineageSectorSize);
+                console.log(`  Lineage[${i}] ${node.data.stellar_account || node.data.name} →`, 
+                           (node.x * 180 / Math.PI).toFixed(1), '°');
             });
             
-            // Calculate maximum angular jump in lineage path after rotation
-            const rotatedLineageAngles = lineageNodes.map(d => d.x).sort((a, b) => a - b);
-            let maxJump = 0;
-            for (let i = 0; i < rotatedLineageAngles.length - 1; i++) {
-                const jump = rotatedLineageAngles[i + 1] - rotatedLineageAngles[i];
-                if (jump > maxJump) maxJump = jump;
-            }
-            console.log('[Radial Tree Rotation] Max angular jump in lineage path:', 
-                       (maxJump * 180 / Math.PI).toFixed(1), '°');
+            // Shift non-lineage nodes to avoid lineage sector
+            // Distribute them in remaining angular space (lineageSectorEnd to lineageSectorStart + 2π)
+            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
+            const availableAngle = 2 * Math.PI - lineageSectorSize;
+            
+            console.log('[Lineage-First Layout] Repositioning', nonLineageNodes.length, 
+                       'non-lineage nodes in', (availableAngle * 180 / Math.PI).toFixed(1), '° of space');
+            
+            // Map original angles to new space (avoiding lineage sector)
+            nonLineageNodes.forEach(node => {
+                // Original angle from D3 layout (0 to 2π)
+                const originalAngle = node.x;
+                // Map to available space, wrapping around lineage sector
+                const mappedAngle = lineageSectorEnd + (originalAngle / (2 * Math.PI)) * availableAngle;
+                node.x = mappedAngle % (2 * Math.PI);
+            });
+            
+            console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
         } else {
-            console.log('[Radial Tree Rotation] Skipping rotation - only', lineageNodes.length, 'lineage node(s)');
+            console.log('[Lineage-First Layout] Skipping - only', lineageChain.length, 'lineage node(s)');
         }
         
         // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
