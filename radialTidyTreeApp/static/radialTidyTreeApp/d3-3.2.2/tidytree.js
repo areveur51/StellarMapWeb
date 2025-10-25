@@ -404,22 +404,41 @@ function renderRadialTree(jsonData) {
         console.log('[Lineage-First Layout] Found', lineageChain.length, 'lineage nodes');
         
         if (lineageChain.length > 1) {
-            // Reserve angular sector for lineage (centered at top: 90°)
-            // Allocate enough space based on lineage chain length
-            const lineageSectorSize = Math.min(Math.PI / 2, lineageChain.length * 0.15); // Max 90°, ~8.6° per node
-            const lineageSectorStart = (Math.PI / 2) - (lineageSectorSize / 2); // Center at 90°
+            // FIBONACCI SPIRAL: Use golden angle for natural, organic spacing
+            // Golden angle ≈ 137.508° (2π / φ², where φ is the golden ratio)
+            const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.399963 radians ≈ 137.508°
+            
+            console.log('[Lineage-First Layout] Using Fibonacci spiral with golden angle:', 
+                       (goldenAngle * 180 / Math.PI).toFixed(3), '°');
+            
+            // Calculate angle per node, scaling down for compactness
+            // But ensure the total sector never exceeds reasonable bounds
+            const maxSectorSize = Math.PI; // Max 180° for lineage (leave half circle for others)
+            let anglePerNode = goldenAngle * 0.25; // Start with ~34° per node
+            
+            // Adjust if lineage chain would exceed max sector
+            let lineageSectorSize = (lineageChain.length - 1) * anglePerNode;
+            if (lineageSectorSize > maxSectorSize) {
+                // Scale down to fit within max sector
+                anglePerNode = maxSectorSize / (lineageChain.length - 1);
+                lineageSectorSize = maxSectorSize;
+                console.log('[Lineage-First Layout] Adjusted angle per node to fit:', 
+                           (anglePerNode * 180 / Math.PI).toFixed(1), '°');
+            }
+            
+            // Start at top of circle, centered
+            const lineageSectorStart = (Math.PI / 2) - (lineageSectorSize / 2);
             const lineageSectorEnd = lineageSectorStart + lineageSectorSize;
             
-            console.log('[Lineage-First Layout] Reserved sector:', 
+            console.log('[Lineage-First Layout] Fibonacci sector:', 
                        (lineageSectorStart * 180 / Math.PI).toFixed(1), '° to',
                        (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
                        '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
             
-            // Position lineage nodes sequentially within reserved sector
+            // Position lineage nodes sequentially in spiral pattern
             lineageChain.forEach((node, i) => {
-                // Evenly space lineage nodes within the sector
-                const progress = lineageChain.length > 1 ? i / (lineageChain.length - 1) : 0.5;
-                node.x = lineageSectorStart + (progress * lineageSectorSize);
+                // Progress through the sector following fibonacci-inspired spacing
+                node.x = lineageSectorStart + (i * anglePerNode);
                 console.log(`  Lineage[${i}] ${node.data.stellar_account || node.data.name} →`, 
                            (node.x * 180 / Math.PI).toFixed(1), '°');
             });
