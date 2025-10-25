@@ -36,9 +36,9 @@ End Chart Options
  */
 
 // Fixed standard sizes following Mike Bostock's canonical pattern
-const RADIAL_NODE_SIZE = 5;  // Fixed node circle radius (px)
-const RADIAL_TEXT_SIZE = 12; // Fixed text font size (px)
-const RADIAL_COMPACTNESS = 0.7;  // Depth multiplier to shorten child lines (0.7 = 30% shorter)
+const RADIAL_NODE_SIZE = 9;  // Fixed node circle radius (px)
+const RADIAL_TEXT_SIZE = 17; // Fixed text font size (px)
+const RADIAL_COMPACTNESS = 0.5;  // Depth multiplier to shorten child lines (0.5 = 50% shorter)
 
 /*
 End Globals
