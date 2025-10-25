@@ -309,6 +309,9 @@ class Command(BaseCommand):
             account_obj.xlm_balance = enriched_data['xlm_balance']
             account_obj.home_domain = enriched_data.get('home_domain', '')
             
+            # Set pipeline source to SDK
+            account_obj.pipeline_source = 'SDK'
+            
             # Set creator
             if enriched_data['creator_account']:
                 account_obj.stellar_creator_account = enriched_data['creator_account']
