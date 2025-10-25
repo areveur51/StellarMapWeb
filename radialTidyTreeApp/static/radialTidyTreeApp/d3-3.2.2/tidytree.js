@@ -390,25 +390,18 @@ function renderRadialTree(jsonData) {
         console.log('[Radial Tree] Total nodes:', descendants.length);
         
         // OPTIMIZATION: Rotate tree to minimize lineage path angular span
-        // This prevents sharp angular turns in the red lineage line
+        // This prevents sharp angular turns in the red lineage line by clustering lineage nodes together
         const lineageNodes = descendants.filter(d => d.data && d.data.is_lineage_path);
         console.log('[Radial Tree Rotation] Found', lineageNodes.length, 'lineage path nodes');
         
         if (lineageNodes.length > 1) {
-            // Log lineage node details before rotation
-            console.log('[Radial Tree Rotation] Lineage nodes BEFORE rotation:');
-            lineageNodes.forEach((d, i) => {
-                console.log(`  [${i}]`, d.data.stellar_account || d.data.name,
-                           'angle:', (d.x * 180 / Math.PI).toFixed(1), '°');
-            });
-            
             // Sort lineage nodes by angle
             const lineageAngles = lineageNodes.map(d => d.x).sort((a, b) => a - b);
             
             // Find the largest gap between consecutive lineage nodes (circular)
+            // This gap represents where we can "cut" the circle to make nodes contiguous
             let maxGap = 0;
-            let maxGapStart = 0;
-            let maxGapEnd = 0;
+            let maxGapEndAngle = 0; // The angle after the gap where lineage continues
             for (let i = 0; i < lineageAngles.length; i++) {
                 const nextIdx = (i + 1) % lineageAngles.length;
                 let gap = lineageAngles[nextIdx] - lineageAngles[i];
@@ -418,35 +411,41 @@ function renderRadialTree(jsonData) {
                 }
                 if (gap > maxGap) {
                     maxGap = gap;
-                    maxGapStart = lineageAngles[i];
-                    maxGapEnd = lineageAngles[nextIdx === 0 ? 0 : nextIdx];
+                    maxGapEndAngle = lineageAngles[nextIdx];
                 }
             }
             
-            console.log('[Radial Tree Rotation] Largest gap:', (maxGap * 180 / Math.PI).toFixed(1), 
-                       '° between', (maxGapStart * 180 / Math.PI).toFixed(1), '° and',
-                       (maxGapEnd * 180 / Math.PI).toFixed(1), '°');
-            console.log('[Radial Tree Rotation] Lineage angular span:', 
-                       ((2 * Math.PI - maxGap) * 180 / Math.PI).toFixed(1), '°');
+            // Calculate the center of the lineage cluster (opposite side of the gap)
+            // The lineage cluster spans from maxGapEndAngle to (maxGapEndAngle - gap) around the circle
+            const lineageSpan = 2 * Math.PI - maxGap;
+            const lineageCenter = (maxGapEndAngle + lineageSpan / 2) % (2 * Math.PI);
             
-            // Rotate tree so the largest gap is at the bottom (180°)
-            // This clusters lineage nodes together at the top
-            const rotationOffset = Math.PI - (maxGapStart + maxGap / 2);
+            console.log('[Radial Tree Rotation] Largest gap:', (maxGap * 180 / Math.PI).toFixed(1), '°');
+            console.log('[Radial Tree Rotation] Lineage span:', (lineageSpan * 180 / Math.PI).toFixed(1), '°');
+            console.log('[Radial Tree Rotation] Lineage center at:', (lineageCenter * 180 / Math.PI).toFixed(1), '°');
             
-            console.log('[Radial Tree Rotation] Applying rotation offset:', 
-                       (rotationOffset * 180 / Math.PI).toFixed(1), '°');
+            // Rotate so lineage center is at top (90° = straight up in our coordinate system)
+            // This minimizes sharp turns by keeping all lineage nodes grouped together at the top
+            const targetPosition = Math.PI / 2; // 90° = top of circle
+            const rotationOffset = targetPosition - lineageCenter;
+            
+            console.log('[Radial Tree Rotation] Rotating by:', (rotationOffset * 180 / Math.PI).toFixed(1), 
+                       '° to center lineage at top');
             
             // Apply rotation to all nodes
             descendants.forEach(d => {
                 d.x = (d.x + rotationOffset + 2 * Math.PI) % (2 * Math.PI);
             });
             
-            // Log lineage node details after rotation
-            console.log('[Radial Tree Rotation] Lineage nodes AFTER rotation:');
-            lineageNodes.forEach((d, i) => {
-                console.log(`  [${i}]`, d.data.stellar_account || d.data.name,
-                           'angle:', (d.x * 180 / Math.PI).toFixed(1), '°');
-            });
+            // Calculate maximum angular jump in lineage path after rotation
+            const rotatedLineageAngles = lineageNodes.map(d => d.x).sort((a, b) => a - b);
+            let maxJump = 0;
+            for (let i = 0; i < rotatedLineageAngles.length - 1; i++) {
+                const jump = rotatedLineageAngles[i + 1] - rotatedLineageAngles[i];
+                if (jump > maxJump) maxJump = jump;
+            }
+            console.log('[Radial Tree Rotation] Max angular jump in lineage path:', 
+                       (maxJump * 180 / Math.PI).toFixed(1), '°');
         } else {
             console.log('[Radial Tree Rotation] Skipping rotation - only', lineageNodes.length, 'lineage node(s)');
         }
