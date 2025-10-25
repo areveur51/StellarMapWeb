@@ -8,6 +8,15 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 
 # Recent Changes (October 25, 2025)
 
+## API_AND_SDK Mode Added - Dual-Pipeline Configuration
+- **Pipeline Configuration Enhanced**: Added `API_AND_SDK` mode to `BigQueryPipelineConfig` model with 5 total pipeline mode choices
+- **Model Updates**: Updated pipeline mode field with dropdown choices (SDK_ONLY, API_ONLY, API_AND_SDK, BIGQUERY_WITH_API_FALLBACK, BIGQUERY_ONLY)
+- **Admin Panel Enhanced**: Added comprehensive documentation for API_AND_SDK mode showing dual-pipeline operation with green "FREE" cost boxes
+- **Documentation Updates**: All major docs updated to reflect 5 pipeline modes (README.md, USER_GUIDE.md, TECHNICAL_ARCHITECTURE.md, TRIPLE_PIPELINE_IMPLEMENTATION.md)
+- **PlantUML Diagram Updated**: Updated triple-pipeline architecture diagram to show 5 pipeline modes including API_AND_SDK
+- **Current Configuration**: Both API Pipeline (3 accounts/2min) and SDK Pipeline (10 accounts/3min) workflows running simultaneously
+- **Cost Efficiency**: API_AND_SDK mode is 100% FREE with maximum throughput - runs both pipelines in parallel for high-volume processing
+
 ## Documentation Overhaul - Triple-Pipeline Architecture
 - **Complete Documentation Update**: All major documentation files updated from dual-pipeline to triple-pipeline architecture
 - **TRIPLE_PIPELINE_IMPLEMENTATION.md**: Renamed from DUAL_PIPELINE_IMPLEMENTATION.md and completely rewritten with comprehensive coverage of SDK, API, and BigQuery pipelines
@@ -15,7 +24,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **USER_GUIDE.md Updates**: Added SDK pipeline section with recommended default settings (SDK_ONLY mode)
 - **TECHNICAL_ARCHITECTURE.md Updates**: Updated architecture diagrams and pipeline descriptions
 - **PlantUML Diagram Update**: Created new triple-pipeline architecture diagram (diagrams/09_triple_pipeline_architecture.puml and .png)
-- **Cost Warnings**: Prominent cost warnings added for BigQuery modes ($0.18-0.71/query) with green highlights for FREE options (SDK_ONLY, API_ONLY)
+- **Cost Warnings**: Prominent cost warnings added for BigQuery modes ($0.18-0.71/query) with green highlights for FREE options (SDK_ONLY, API_ONLY, API_AND_SDK)
 - **Security Review**: SDK pipeline code reviewed and verified for proper rate limiting, error handling, async safety, and secrets management
 
 ## Previous Updates
@@ -43,7 +52,7 @@ StellarMapWeb is a Django application designed to visualize Stellar blockchain l
 - **Django Framework**: Built on Django 5.0.2 with a multi-app structure.
 - **Database Management**: Astra DB (Cassandra) for production, SQLite for development, with a custom `DatabaseAppsRouter` and environment-aware model loading. Cassandra models use composite primary keys and are fully integrated with Django Admin.
 - **Triple-Pipeline Architecture**: Three complementary data collection pipelines: (1) BigQuery pipeline for bulk historical data with cost optimization (`BigQueryCostGuard`), (2) API pipeline for reliable sequential processing using Horizon/Stellar Expert, and (3) **Stellar SDK Pipeline** for free, fast, concurrent async processing (3-5 accounts simultaneously). All pipelines automatically queue discovered creator and child accounts for continuous lineage graph expansion.
-- **Unified Pipeline Configuration**: All pipeline settings consolidated into `BigQueryPipelineConfig` model, configurable via the admin panel.
+- **Unified Pipeline Configuration**: All pipeline settings consolidated into `BigQueryPipelineConfig` model with 5 pipeline modes (SDK_ONLY, API_ONLY, API_AND_SDK, BIGQUERY_WITH_API_FALLBACK, BIGQUERY_ONLY), configurable via the admin panel.
 - **Queue Synchronizer**: Automatic synchronization between Search Cache and Account Lineage tables to ensure all user searches are processed and data consistency is maintained.
 - **API Integration**: Asynchronous interactions with Horizon API and Stellar Expert, utilizing `Tenacity` for robust retries.
 - **Caching**: 12-hour caching for Stellar address searches and optimized API endpoint caching with 30s TTL for pending accounts.
