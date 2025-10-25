@@ -292,26 +292,26 @@ function renderRadialTree(jsonData) {
             maxDepth = Math.max(maxDepth, d.depth);
         });
         
-        // Calculate minimum radius where labels touch (not overlap) at EVERY depth level
+        // Calculate radius where labels TOUCH (edge-to-edge) at EVERY depth level
         // At depth d, the radial distance is: (d / maxDepth) × radius
         // Circumference at depth d: 2π × (d / maxDepth) × radius
-        // Required: nodesAtDepth × labelWidth ≤ circumference
-        // So: radius ≥ (nodesAtDepth × labelWidth × maxDepth) / (2π × d)
+        // For labels to TOUCH: nodesAtDepth × labelWidth = circumference
+        // So: radius = (nodesAtDepth × labelWidth × maxDepth) / (2π × d)
         
-        const labelWidth = 80; // pixels per label (reduced for smaller nodes)
+        const labelWidth = 70; // pixels per node label (edge-to-edge spacing)
         let minRadius = 300; // absolute minimum
         
         for (let depth = 1; depth <= maxDepth; depth++) {
             const nodeCount = nodesPerDepth[depth] || 0;
             if (nodeCount > 0) {
-                // Calculate radius needed for nodes to JUST TOUCH at this depth
+                // Calculate exact radius for nodes to touch at this depth
                 const requiredRadius = (nodeCount * labelWidth * maxDepth) / (2 * Math.PI * depth);
                 minRadius = Math.max(minRadius, requiredRadius);
             }
         }
         
-        // Round up to ensure no overlap
-        const calculatedRadius = Math.ceil(minRadius);
+        // Use exact calculation (no padding) so nodes touch
+        const calculatedRadius = Math.floor(minRadius);
         
         console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
         console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
