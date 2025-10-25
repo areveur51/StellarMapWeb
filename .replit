@@ -28,6 +28,10 @@ externalPort = 80
 localPort = 33033
 externalPort = 3000
 
+[[ports]]
+localPort = 33371
+externalPort = 3001
+
 [agent]
 expertMode = true
 
@@ -50,6 +54,10 @@ args = "Django Server"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "SDK Pipeline"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Pipeline"
 
 [[workflows.workflow]]
 name = "BigQuery Pipeline"
@@ -81,6 +89,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "while true; do python manage.py stellar_sdk_pipeline --limit 10 --concurrent 5; sleep 180; done"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "API Pipeline"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "while true; do python manage.py api_pipeline --limit 3; sleep 120; done"
 
 [workflows.workflow.metadata]
 outputType = "console"

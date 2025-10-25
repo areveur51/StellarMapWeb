@@ -39,11 +39,18 @@ class BigQueryPipelineConfig(django_models.Model):
     size_limit_mb = django_models.FloatField(default=148900.0)  # Maximum query size in MB (~145GB)
 
     # Pipeline Strategy
-    pipeline_mode = django_models.CharField(max_length=50, default='BIGQUERY_WITH_API_FALLBACK')
-    # Options:
-    # - 'BIGQUERY_ONLY': Use only BigQuery, fail if blocked by cost controls
-    # - 'API_ONLY': Use only Horizon/Stellar Expert APIs (no BigQuery)
-    # - 'BIGQUERY_WITH_API_FALLBACK': Try BigQuery first, fall back to APIs if blocked (RECOMMENDED)
+    PIPELINE_MODE_CHOICES = [
+        ('SDK_ONLY', 'SDK Only (Free, Fast, Concurrent)'),
+        ('API_ONLY', 'API Only (Free, Reliable, Sequential)'),
+        ('API_AND_SDK', 'API + SDK (Free, Both Pipelines Running)'),
+        ('BIGQUERY_WITH_API_FALLBACK', 'BigQuery with API Fallback (Costs Money)'),
+        ('BIGQUERY_ONLY', 'BigQuery Only (High Cost)'),
+    ]
+    pipeline_mode = django_models.CharField(
+        max_length=50, 
+        choices=PIPELINE_MODE_CHOICES,
+        default='SDK_ONLY'
+    )
 
     # Age Restrictions (in days)
     instant_query_max_age_days = django_models.IntegerField(default=365)  # 1 year

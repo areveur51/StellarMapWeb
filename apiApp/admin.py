@@ -487,7 +487,13 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
                 '• Uses Horizon/Stellar Expert APIs with sequential processing<br>'
                 '• <span style="color:#28a745;font-weight:bold;">Completely free - no BigQuery costs!</span><br>'
                 '• Slower than SDK but reliable fallback<br>'
-                '• Subject to API rate limits (0.5s-1s delays)<br>'
+                '• Subject to API rate limits (0.5s-1s delays)<br><br>'
+                
+                '<strong>3. API_AND_SDK</strong> 🆓🆓 <span style="color:#28a745;font-weight:bold;">(DUAL PIPELINE - 100% FREE)</span><br>'
+                '• Runs BOTH API and SDK pipelines simultaneously<br>'
+                '• <span style="color:#28a745;font-weight:bold;">Completely free - no BigQuery costs!</span><br>'
+                '• Maximum throughput for high-volume processing<br>'
+                '• Use when you need both concurrent (SDK) + sequential (API) processing<br>'
                 '</div><br>'
                 
                 '<div style="background:#fff3cd;border:2px solid #ffc107;padding:8px;margin:8px 0;border-radius:4px;">'
@@ -510,6 +516,7 @@ class BigQueryPipelineConfigAdmin(admin.ModelAdmin):
                 '<strong>💡 RECOMMENDATION:</strong><br>'
                 '• <strong>For most users:</strong> Use <strong>SDK_ONLY</strong> (free, fast, efficient)<br>'
                 '• <strong>For fallback:</strong> Use <strong>API_ONLY</strong> (free, reliable)<br>'
+                '• <strong>For maximum throughput:</strong> Use <strong>API_AND_SDK</strong> (free, both pipelines running)<br>'
                 '• <strong>For historical queries:</strong> Use <strong>BIGQUERY_WITH_API_FALLBACK</strong> (costs money but has safeguards)<br>'
                 '• <strong>AVOID:</strong> <strong>BIGQUERY_ONLY</strong> unless you have specific high-cost-limit use cases<br>'
                 '</div>'
