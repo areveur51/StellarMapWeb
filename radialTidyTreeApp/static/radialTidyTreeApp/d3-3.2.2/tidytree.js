@@ -407,6 +407,29 @@ function renderRadialTree(jsonData) {
         const originalAngles = new Map();
         descendants.forEach(d => originalAngles.set(d, d.x));
         
+        // ADAPTIVE LINE LENGTH: Adjust radius based on node count for better readability
+        // Fewer nodes = longer lines (more spread out), many nodes = shorter lines (compact)
+        const totalNodeCount = descendants.length;
+        let lineageRadiusMultiplier, nonLineageRadiusMultiplier;
+        
+        if (totalNodeCount < 50) {
+            // Few nodes: make lines long for readability
+            lineageRadiusMultiplier = 0.75;
+            nonLineageRadiusMultiplier = 0.95;
+        } else if (totalNodeCount < 150) {
+            // Medium nodes: moderate compression
+            lineageRadiusMultiplier = 0.6;
+            nonLineageRadiusMultiplier = 0.92;
+        } else {
+            // Many nodes: keep compact
+            lineageRadiusMultiplier = 0.5;
+            nonLineageRadiusMultiplier = 0.9;
+        }
+        
+        console.log('[Lineage-First Layout] Adaptive radii for', totalNodeCount, 'nodes:',
+                   'lineage=' + (lineageRadiusMultiplier * 100).toFixed(0) + '%,',
+                   'non-lineage=' + (nonLineageRadiusMultiplier * 100).toFixed(0) + '%');
+        
         if (lineageChain.length > 1) {
             // FIBONACCI SPIRAL: Use golden angle for natural, organic spacing
             // Golden angle ≈ 137.508° (2π / φ², where φ is the golden ratio)
@@ -440,13 +463,9 @@ function renderRadialTree(jsonData) {
                        (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
                        '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
             
-            // Compress lineage radii to keep spiral compact and inside circle
             // Find the max depth in lineage chain
             const maxLineageDepth = Math.max(...lineageChain.map(d => d.depth));
-            const maxLineageRadius = radius * 0.5; // Cap lineage at 50% of circle radius
-            
-            console.log('[Lineage-First Layout] Compressing lineage radii to', 
-                       maxLineageRadius.toFixed(1), 'px (50% of circle)');
+            const maxLineageRadius = radius * lineageRadiusMultiplier;
             
             // Position lineage nodes sequentially in spiral pattern
             lineageChain.forEach((node, i) => {
@@ -468,7 +487,7 @@ function renderRadialTree(jsonData) {
             
             // Find max depth of all nodes to determine safe radius cap
             const maxDepth = Math.max(...descendants.map(d => d.depth));
-            const maxSafeRadius = radius * 0.9; // Cap all nodes at 90% of circle to stay inside
+            const maxSafeRadius = radius * nonLineageRadiusMultiplier; // Use adaptive radius cap
             
             // Group non-lineage nodes by their parent
             const parentGroups = new Map();
@@ -530,7 +549,13 @@ function renderRadialTree(jsonData) {
                         node.x = groupCenterAngle;
                     }
                     
-                    // Cap radius to keep nodes inside circle boundary
+                    // SCALE radius adaptively: extend for small graphs, compress for large
+                    // D3 layout defaults to 0.9 * radius, so scale relative to that baseline
+                    const baselineMultiplier = 0.9;
+                    const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
+                    node.y = node.y * scaleFactor;
+                    
+                    // Additional safety cap at adaptive threshold
                     const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
                     node.y = Math.min(node.y, depthRatio * maxSafeRadius);
                 });
@@ -540,7 +565,19 @@ function renderRadialTree(jsonData) {
             
             console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
         } else {
-            console.log('[Lineage-First Layout] Skipping - only', lineageChain.length, 'lineage node(s)');
+            console.log('[Lineage-First Layout] Skipping lineage spiral - only', lineageChain.length, 'lineage node(s)');
+            
+            // Still apply adaptive scaling to all non-lineage nodes
+            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
+            const baselineMultiplier = 0.9;
+            const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
+            
+            console.log('[Lineage-First Layout] Applying adaptive scaling to', nonLineageNodes.length,
+                       'non-lineage nodes with factor:', scaleFactor.toFixed(3));
+            
+            nonLineageNodes.forEach(node => {
+                node.y = node.y * scaleFactor;
+            });
         }
         
         // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
