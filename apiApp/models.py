@@ -3,19 +3,20 @@ import datetime
 import uuid
 from django.conf import settings
 
-# Environment-based model selection
+# Environment-based model selection (includes lab CASSANDRA_READ_ONLY)
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
+USE_CASSANDRA = bool(getattr(settings, 'USE_CASSANDRA', ENV in ['production', 'replit']))
 
-if ENV in ['production', 'replit']:
-    # Production/Replit mode: Use Cassandra models
+if USE_CASSANDRA:
+    # Production / Replit / lab RO: Use Cassandra models
     try:
         from cassandra.cqlengine import columns as cassandra_columns
         from django_cassandra_engine.models import DjangoCassandraModel
         from .models_cassandra import *
     except ImportError as e:
-        raise ImportError(f"Production/Replit mode requires Cassandra dependencies: {e}")
+        raise ImportError(f"Cassandra mode requires Cassandra dependencies: {e}")
 else:
-    # Local development mode: Use SQLite models
+    # Local development mode: Use SQLite/Postgres models
     from .models_local import *
 
 # Always import the BigQueryPipelineConfig (Django model)

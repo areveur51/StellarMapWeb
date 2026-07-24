@@ -56,7 +56,12 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Cassandra Configuration
 CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE', default='stellarmapweb')
-ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='')
+ASTRA_DB_TOKEN = config('ASTRA_DB_TOKEN', default='').strip()
+# Lab: read Astra without ENV=production (no cron/writes). Requires ASTRA_DB_TOKEN.
+_cassandra_ro_raw = str(config('CASSANDRA_READ_ONLY', default='0')).strip().lower()
+CASSANDRA_READ_ONLY = _cassandra_ro_raw in ('1', 'true', 'yes', 'on') and bool(ASTRA_DB_TOKEN)
+# Use Cassandra models + routing for apiApp when production OR lab RO mode
+USE_CASSANDRA = (ENV in ['production', 'replit']) or CASSANDRA_READ_ONLY
 # CASSANDRA_FALLBACK_ORDER_BY_PYTHON = True  # Disabled - causes TypeError with None value comparisons
 
 # Path to secure connect bundle
@@ -77,6 +82,9 @@ INSTALLED_APPS = [
 # Conditionally add Cassandra support if ASTRA_DB_TOKEN is provided
 if ASTRA_DB_TOKEN:
     INSTALLED_APPS.insert(0, 'django_cassandra_engine')  # Must be first for Cassandra support
+# Expose for helpers that only import settings
+os.environ.setdefault('CASSANDRA_READ_ONLY', '1' if CASSANDRA_READ_ONLY else '0')
+os.environ.setdefault('USE_CASSANDRA', '1' if USE_CASSANDRA else '0')
 
 # Database: SQLite (default lab file) OR Postgres via DATABASE_URL / DATABASE_DRIVER=pg
 # Shared NAS Postgres example: postgres://stellarmap:***@127.0.0.1:5433/StellarMapDB
@@ -149,17 +157,15 @@ if ASTRA_DB_TOKEN:
         }
     }
 
-# Database routing based on ENV variable
-# - ENV='development' → apiApp uses SQLite (default database)
-# - ENV='production' → apiApp uses Cassandra database
-# - ENV='replit' → apiApp uses Cassandra database
-if ENV in ['production', 'replit']:
-    # Production and Replit environments use Cassandra
+# Database routing:
+# - production / replit → Cassandra (read+write when token allows)
+# - CASSANDRA_READ_ONLY=1 + token → Cassandra for apiApp reads (writes blocked in router)
+# - else development → default (SQLite / Postgres)
+if USE_CASSANDRA and ASTRA_DB_TOKEN:
     DATABASE_APPS_MAPPING = {
         'apiApp': 'cassandra',
     }
 else:
-    # Development environment uses SQLite (default)
     DATABASE_APPS_MAPPING = {
         'apiApp': 'default',
     }
