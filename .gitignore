@@ -198,3 +198,6 @@ tmp/
 # Temporary files
 *.tmp
 *.temp
+# NAS self-host markers
+.migrate-ok
+

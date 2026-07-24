@@ -16,17 +16,74 @@ def api_home(request):
 def health_check(request):
     """
     Health check endpoint for load balancers and monitoring.
-    Returns 200 OK if the service is healthy.
+    Returns 200 OK if the service process is up (shallow).
+
+    For full dependency heartbeat see GET /api/heartbeat/.
     """
     return JsonResponse({
         'status': 'healthy',
         'service': 'stellarmapweb',
-        'version': '1.0'
+        'version': '1.0',
+        'heartbeat': '/api/heartbeat/',
     }, status=200)
 
 
-# Simple in-memory cache for pending accounts (30 second TTL - matches frontend polling interval)
-_pending_accounts_cache = {'data': None, 'timestamp': None, 'ttl': 30}
+def system_heartbeat_api(request):
+    """
+    Dependency heartbeat for System Dashboard and operators.
+
+    Probes internal (Django, DB, cache, optional Cassandra/Redis) and
+    external (Horizon, Stellar Expert, optional BigQuery) with short timeouts.
+
+    Query params:
+        external=0  — skip external HTTP probes (faster, internal only)
+    """
+    include_external = request.GET.get('external', '1').lower() not in (
+        '0', 'false', 'no', 'off',
+    )
+    try:
+        from apiApp.helpers.sm_heartbeat import run_heartbeat
+
+        payload = run_heartbeat(include_external=include_external)
+        # Degraded/unhealthy still return 200 so the dashboard can render details;
+        # use payload['status'] for monitoring. Optional strict mode:
+        status_code = 200
+        if request.GET.get('strict', '').lower() in ('1', 'true', 'yes'):
+            if payload.get('status') == 'unhealthy':
+                status_code = 503
+            elif payload.get('status') == 'degraded':
+                status_code = 200
+        return JsonResponse(payload, status=status_code)
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse(
+            {
+                'status': 'unhealthy',
+                'service': 'stellarmapweb',
+                'error': str(e)[:200],
+                'internal': [],
+                'external': [],
+                'summary': {'ok': 0, 'warn': 0, 'fail': 1, 'skipped': 0},
+            },
+            status=503,
+        )
+
+
+# In-memory cache for pending accounts (TTL follows POLL_INTERVAL_MS / LIGHT_MODE)
+_pending_accounts_cache = {'data': None, 'timestamp': None, 'ttl': None}
+
+
+def _pending_cache_ttl_seconds():
+    from django.conf import settings
+    poll_ms = int(getattr(settings, 'POLL_INTERVAL_MS', 30000) or 30000)
+    # Match UI poll cadence (min 15s, max 5m)
+    return max(15, min(300, poll_ms // 1000))
+
+
+def _pending_accounts_limit():
+    from django.conf import settings
+    return max(10, int(getattr(settings, 'PENDING_ACCOUNTS_LIMIT', 100) or 100))
+
 
 def pending_accounts_api(request):
     """
@@ -34,8 +91,8 @@ def pending_accounts_api(request):
     Optimized with caching and result limiting to prevent 2MB+ responses.
     
     Performance optimizations:
-    - 10-second cache to reduce database load
-    - Limit to 100 most recent records
+    - Cache TTL tied to POLL_INTERVAL_MS (LIGHT_MODE → longer)
+    - Limit records via PENDING_ACCOUNTS_LIMIT (default 50 light / 100 full)
     - Minimal payload (no timestamps, only essential fields)
     
     Returns:
@@ -43,8 +100,11 @@ def pending_accounts_api(request):
     """
     from datetime import datetime, timedelta
     
-    # Check cache first
     cache = _pending_accounts_cache
+    cache['ttl'] = _pending_cache_ttl_seconds()
+    limit = _pending_accounts_limit()
+
+    # Check cache first
     if cache['data'] and cache['timestamp']:
         age_seconds = (datetime.utcnow() - cache['timestamp']).total_seconds()
         if age_seconds < cache['ttl']:
@@ -73,7 +133,7 @@ def pending_accounts_api(request):
         
         # Fetch records with optimization
         if USE_CASSANDRA:
-            # Cassandra: Collect all pending/processing, then sort by updated_at and limit to 100
+            # Cassandra: Collect pending/processing, then sort by updated_at and limit
             all_pending = []
             total_count = 0
             for record in StellarCreatorAccountLineage.objects.all():
@@ -81,13 +141,12 @@ def pending_accounts_api(request):
                     all_pending.append(record)
                     total_count += 1
             
-            # Sort by updated_at descending (most recent first) and limit to 100
-            records = sorted(all_pending, key=lambda r: r.updated_at or datetime.min, reverse=True)[:100]
+            records = sorted(all_pending, key=lambda r: r.updated_at or datetime.min, reverse=True)[:limit]
         else:
             # SQLite: Use efficient filtering with ordering
             all_records = StellarCreatorAccountLineage.objects.filter(status__in=[PENDING, PROCESSING])
             total_count = all_records.count()
-            records = list(all_records.order_by('-updated_at')[:100])
+            records = list(all_records.order_by('-updated_at')[:limit])
         
         # Build minimal response (no timestamps to reduce payload size)
         for record in records:
@@ -2119,8 +2178,35 @@ def lineage_with_siblings_api(request):
                         all_sibling_addresses.add(child_addr)
         
         # STEP 3: BATCH FETCH full data for ALL accounts (lineage + siblings + creators)
-        # IMPORTANT: Cassandra has a limit of 25 values in __in queries
+        # IMPORTANT: We need to fetch creators of siblings too, not just lineage creators
+        # First, get all accounts we know about
         all_accounts_to_fetch = lineage_path_set | all_sibling_addresses | set(creator_addresses)
+        
+        # Fetch these accounts to get their creator addresses
+        temp_records = []
+        if all_sibling_addresses:
+            siblings_list = list(all_sibling_addresses)
+            BATCH_SIZE = 25
+            
+            if USE_CASSANDRA:
+                for i in range(0, len(siblings_list), BATCH_SIZE):
+                    batch = siblings_list[i:i + BATCH_SIZE]
+                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
+                        stellar_account__in=batch,
+                        network_name=network
+                    ))
+                    temp_records.extend(batch_records)
+            else:
+                temp_records = list(StellarCreatorAccountLineage.objects.filter(
+                    stellar_account__in=siblings_list,
+                    network_name=network
+                ))
+            
+            # Add creators of siblings to the fetch set
+            for rec in temp_records:
+                if rec.stellar_creator_account:
+                    all_accounts_to_fetch.add(rec.stellar_creator_account)
+        
         all_account_data = {}
         
         if all_accounts_to_fetch:

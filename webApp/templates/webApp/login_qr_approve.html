@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Approve StellarMap login</title>
+  {% include 'webApp/includes/head_assets.html' %}
+</head>
+<body class="bg-color-261D45">
+  <div class="sm-auth-wrap">
+    <div class="sm-auth-card">
+      <h1>Approve desktop login?</h1>
+      <p class="sm-auth-sub" id="info">Checking Tailscale identity…</p>
+      <button type="button" class="sm-btn sm-btn--success sm-btn--block" id="btn-approve" disabled>Approve login</button>
+      <div id="msg"></div>
+      <div class="sm-auth-links" style="margin-top:18px">
+        <a href="/">Public home</a>
+      </div>
+    </div>
+  </div>
+  {{ challenge_id|default:""|json_script:"challenge-id" }}
+  <script>
+    const challengeId = JSON.parse(document.getElementById('challenge-id').textContent || '""');
+    const info = document.getElementById('info');
+    const btn = document.getElementById('btn-approve');
+    const msg = document.getElementById('msg');
+
+    async function loadInfo() {
+      if (!challengeId) {
+        info.textContent = 'Missing challenge id.';
+        return;
+      }
+      const res = await fetch('/api/auth/qr/info?c=' + encodeURIComponent(challengeId));
+      const data = await res.json();
+      if (!res.ok) {
+        info.textContent = data.message || 'Challenge invalid';
+        return;
+      }
+      if (data.identity) {
+        info.innerHTML =
+          'Signed in to Tailscale as <strong>' + data.identity.loginName + '</strong>' +
+          (data.identity.nodeName ? ' on <em>' + data.identity.nodeName + '</em>' : '') +
+          '.<br>Allowed manager: <strong>' + (data.identity.allowed ? 'yes' : 'no') + '</strong>.' +
+          (data.hint ? '<br><small>' + data.hint + '</small>' : '');
+        btn.disabled = !data.identity.allowed;
+      } else {
+        info.textContent = data.hint || 'Could not resolve Tailscale identity.';
+        btn.disabled = true;
+      }
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      msg.className = '';
+      msg.textContent = '';
+      try {
+        const res = await fetch('/api/auth/qr/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ c: challengeId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          msg.className = 'sm-auth-err';
+          msg.textContent = data.message || 'Approve failed';
+          btn.disabled = false;
+          return;
+        }
+        msg.className = 'sm-auth-ok';
+        msg.textContent = 'Approved. Return to the desktop browser — it will finish signing in.';
+      } catch (e) {
+        msg.className = 'sm-auth-err';
+        msg.textContent = String(e);
+        btn.disabled = false;
+      }
+    });
+
+    loadInfo();
+  </script>
+</body>
+</html>

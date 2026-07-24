@@ -934,6 +934,28 @@ def dashboard_view(request):
         sentry_sdk.capture_exception(e)
         api_health['rate_limiting_enabled'] = False
     
+    # Initial dependency heartbeat (SSR); page also polls /api/heartbeat/
+    heartbeat = {
+        'status': 'unknown',
+        'checked_at': None,
+        'duration_ms': 0,
+        'summary': {'ok': 0, 'warn': 0, 'fail': 0, 'skipped': 0},
+        'internal': [],
+        'external': [],
+        'light_mode': False,
+        'env': 'development',
+    }
+    try:
+        from apiApp.helpers.sm_heartbeat import run_heartbeat
+
+        # SSR: internal only (fast; no multi-second external HTTP on page render).
+        # Full internal+external probes run via GET /api/heartbeat/ (JS auto-refresh).
+        heartbeat = run_heartbeat(include_external=False)
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        heartbeat['status'] = 'unhealthy'
+        heartbeat['error'] = str(e)[:160]
+
     context = {
         'db_stats': db_stats,
         'performance_stats': performance_stats,
@@ -942,6 +964,7 @@ def dashboard_view(request):
         'stage_health': stage_health,
         'bigquery_config': bigquery_config,
         'api_health': api_health,
+        'heartbeat': heartbeat,
     }
     
     return render(request, 'webApp/dashboard.html', context)

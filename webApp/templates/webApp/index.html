@@ -1,83 +1,52 @@
 {% load static %}
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>StellarMap Web</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <!-- Global theme loader - syncs with admin portal theme -->
-  <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
-  <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
-  <!-- include custom theme -->
-  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
-  <!-- include the Font Awesome library for icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
-  <!-- include HighlightJS library for syntax highlighting -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai-sublime.min.css" crossorigin="anonymous">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js" crossorigin="anonymous"></script>
+  <title>StellarMap — Home</title>
+  {% include 'webApp/includes/head_assets.html' %}
 </head>
 <body class="bg-color-261D45">
   <div id="app">
-    <!-- Header section for landing page - outside search container -->
-    <div class="landing-header text-center mb-4">
-      <h1 class="main-title text-light">StellarMap Web</h1>
-      <p class="subtitle text-muted">Visualize Stellar blockchain lineage and account relationships</p>
-    </div>
-
-    <!-- Include shared search container and sidebar -->
     {% include 'webApp/search_container_include.html' %}
 
-    <!-- Info section for landing page -->
-    <div class="landing-content">
-      <div class="container">
+    <div class="landing-content sm-page">
+      <div class="landing-header text-center">
+        <h1 class="main-title">StellarMap</h1>
+        <p class="subtitle">Visualize Stellar account lineage and relationships</p>
+      </div>
+
+      <div class="container-fluid px-0">
         <div class="row justify-content-center">
-          <div class="col-md-10">
-            
-            <!-- Main info card -->
-            <b-card class="info-card mb-4" bg-variant="dark" text-variant="light">
-              <h3 class="text-center mb-3">What is StellarMapWeb?</h3>
-              <p class="text-center">
-                This application generates interactive lineage visualizations of Stellar addresses, 
-                showing the relationships and creation hierarchy in a radial tree format.
+          <div class="col-12 col-lg-10">
+            <div class="sm-card info-card mb-3">
+              <h3 class="text-center mb-2">What is StellarMap?</h3>
+              <p class="text-center mb-0">
+                Interactive lineage maps of Stellar addresses — creation hierarchy in a radial tree.
+                Paste an account in the bar above to explore. No login required for search.
               </p>
-            </b-card>
-            
-            <!-- Features grid -->
+            </div>
+
             <div class="row">
-              <div class="col-md-4 mb-3">
-                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
-                  <div class="text-center">
-                    <div class="feature-icon mb-3">
-                      <i class="fas fa-sitemap fa-3x text-primary"></i>
-                    </div>
-                    <h5 class="card-title">Account Lineage</h5>
-                    <p class="card-text">Track how accounts were created and their relationships</p>
-                  </div>
-                </b-card>
+              <div class="col-12 col-md-4 mb-3">
+                <div class="sm-card feature-card h-100 text-center">
+                  <i class="fas fa-sitemap fa-2x mb-2"></i>
+                  <h5>Account lineage</h5>
+                  <p class="mb-0">Track how accounts were created and how they connect</p>
+                </div>
               </div>
-              
-              <div class="col-md-4 mb-3">
-                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
-                  <div class="text-center">
-                    <div class="feature-icon mb-3">
-                      <i class="fas fa-project-diagram fa-3x text-success"></i>
-                    </div>
-                    <h5 class="card-title">Radial Tree</h5>
-                    <p class="card-text">Interactive D3.js visualization of account hierarchies</p>
-                  </div>
-                </b-card>
+              <div class="col-12 col-md-4 mb-3">
+                <div class="sm-card feature-card h-100 text-center">
+                  <i class="fas fa-project-diagram fa-2x mb-2"></i>
+                  <h5>Radial tree</h5>
+                  <p class="mb-0">Interactive D3 visualization of account hierarchies</p>
+                </div>
               </div>
-              
-              <div class="col-md-4 mb-3">
-                <b-card class="feature-card h-100" bg-variant="dark" text-variant="light">
-                  <div class="text-center">
-                    <div class="feature-icon mb-3">
-                      <i class="fas fa-chart-line fa-3x text-info"></i>
-                    </div>
-                    <h5 class="card-title">Network Data</h5>
-                    <p class="card-text">Real-time data from Horizon API and Stellar Expert</p>
-                  </div>
-                </b-card>
+              <div class="col-12 col-md-4 mb-3">
+                <div class="sm-card feature-card h-100 text-center">
+                  <i class="fas fa-chart-line fa-2x mb-2"></i>
+                  <h5>Network data</h5>
+                  <p class="mb-0">Horizon API, Stellar Expert, and optional BigQuery</p>
+                </div>
               </div>
             </div>
           </div>
@@ -86,104 +55,28 @@
     </div>
   </div>
 
-  <!-- Load required Bootstrap and BootstrapVue CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
-  <!-- Load Vue followed by BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
-  <!-- Load D3.js for visualization -->
-  <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" crossorigin="anonymous"></script>
-  
   <script>
-    // Register BootstrapVue with Vue
     Vue.use(BootstrapVue);
-    
-    var vm = new Vue({
+    new Vue({
       el: '#app',
       data: {
-        query_account: 'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD',
-        loading: false,
-        progressValue: 0,
+        query_account: '',
         network_toggle: true,
         network_selected: 'public',
-        loading_animation: true
       },
       methods: {
-        async search() {
-          // Set 'loading' to true to show a loading indicator
-          this.loading = true;
-          this.progressValue = 17;
-          
-          try {
-            // Navigate to search results with parameters  
-            const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
-            window.location.href = searchUrl;
-          } catch (e) {
-            // If an error occurs, store the error message
-            console.error('Search error:', e.message);
-            this.loading = false;
-          }
+        search() {
+          if (!this.query_account || !this.query_account.trim()) return;
+          const searchUrl = `/search/?account=${encodeURIComponent(this.query_account.trim())}&network=${this.network_selected}`;
+          window.location.href = searchUrl;
         },
         toggleNetwork() {
-          // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
-          this.network_selected = this.network_toggle ? 'public' : 'testnet'
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
         }
       }
-    })
+    });
   </script>
-
-  <style>
-    .landing-header {
-      padding: 3rem 0 2rem 0;
-      background: transparent;
-    }
-    
-    .main-title {
-      font-size: 3.5rem;
-      color: #96DDF2;
-      text-shadow: 0 0 20px #96DDF2;
-      margin-bottom: 1rem;
-    }
-    
-    .subtitle {
-      font-size: 1.2rem;
-      color: #B8860B;
-    }
-    
-    .landing-content {
-      padding: 2rem 0;
-    }
-    
-    .info-card {
-      border: 2px solid #3f2c70;
-      box-shadow: 0 0 15px rgba(150, 221, 242, 0.2);
-    }
-    
-    .feature-card {
-      border: 1px solid #3f2c70;
-      transition: transform 0.3s, border-color 0.3s;
-    }
-    
-    .feature-card:hover {
-      transform: translateY(-5px);
-      border-color: #5a4494;
-      box-shadow: 0 5px 15px rgba(150, 221, 242, 0.3);
-    }
-    
-    .feature-icon {
-      margin-bottom: 1rem;
-    }
-    
-    @media (max-width: 768px) {
-      .main-title {
-        font-size: 2.5rem;
-      }
-      
-      .landing-header {
-        padding: 1rem 0;
-      }
-    }
-  </style>
 </body>
 </html>

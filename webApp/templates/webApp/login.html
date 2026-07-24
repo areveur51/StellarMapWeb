@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>StellarMap — Manager login</title>
+  {% include 'webApp/includes/head_assets.html' %}
+  <style>
+    #qr-box {
+      text-align: center;
+      margin: 16px 0 8px;
+      min-height: 0;
+    }
+    #qr-box .qr-canvas-wrap {
+      display: inline-block;
+      background: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      line-height: 0;
+    }
+    #qr-box canvas,
+    #qr-box img {
+      display: block;
+      max-width: min(240px, 70vw);
+      height: auto !important;
+    }
+    #qr-box .qr-link {
+      margin-top: 12px;
+      word-break: break-all;
+      font-size: 0.8rem;
+      color: #c4b5fd;
+    }
+    #qr-box .qr-link a { color: #96DDF2; }
+  </style>
+</head>
+<body class="bg-color-261D45">
+  {# ensure CSRF cookie is readable by fetch (login view already has ensure_csrf_cookie) #}
+  {% csrf_token %}
+  <div class="sm-auth-wrap">
+    <div class="sm-auth-card">
+      <h1>Manager login</h1>
+      <p class="sm-auth-sub">
+        Passwordless <strong>Tailscale</strong> sign-in for people who manage StellarMapWeb.
+        Search and read-only use do <strong>not</strong> need this login.
+      </p>
+
+      <div class="sm-auth-note">
+        <strong>Visitors:</strong> use <a href="/search/">Search</a> or <a href="/">Home</a> without signing in.<br>
+        <strong>Managers:</strong> must be on your Tailscale network and listed in
+        <code>TAILSCALE_ALLOW_LOGINS</code>.
+      </div>
+
+      {% if qr_enabled %}
+      <button type="button" class="sm-btn sm-btn--primary sm-btn--block" id="btn-direct">Continue on this device</button>
+      <button type="button" class="sm-btn sm-btn--block" id="btn-qr">Refresh QR code</button>
+      <div id="qr-box" aria-live="polite"></div>
+      <div id="status" class="sm-auth-ok" style="display:none"></div>
+      <div id="error" class="sm-auth-err" style="display:none"></div>
+      {% else %}
+      <p class="sm-auth-err">Tailscale QR auth is disabled (AUTH_MODE).</p>
+      {% endif %}
+
+      <div class="sm-auth-links">
+        <a href="/">← Public home</a>
+        ·
+        <a href="/dashboard/">Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  {# qrcodejs — reliable browser build (node-qrcode CDN path 404s) #}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous"></script>
+  {{ next_url|default:"/admin/"|json_script:"next-url" }}
+  <script>
+    const nextUrl = JSON.parse(document.getElementById('next-url').textContent) || '/admin/';
+    const errEl = document.getElementById('error');
+    const okEl = document.getElementById('status');
+    const qrBox = document.getElementById('qr-box');
+    let pollTimer = null;
+    let challengeId = null;
+
+    function csrfToken() {
+      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      if (m) return decodeURIComponent(m[1]);
+      const input = document.querySelector('input[name=csrfmiddlewaretoken]');
+      return input ? input.value : '';
+    }
+    function showErr(msg) {
+      if (!errEl) return;
+      errEl.style.display = 'block';
+      errEl.textContent = msg || 'Error';
+      if (okEl) okEl.style.display = 'none';
+    }
+    function showOk(msg) {
+      if (!okEl) return;
+      okEl.style.display = 'block';
+      okEl.textContent = msg || 'OK';
+      if (errEl) errEl.style.display = 'none';
+    }
+
+    function renderQr(url) {
+      if (!qrBox) return;
+      qrBox.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.className = 'qr-canvas-wrap';
+      qrBox.appendChild(wrap);
+
+      if (typeof QRCode === 'undefined') {
+        wrap.innerHTML = '<p style="color:#E5526F;padding:12px;line-height:1.4">QR library failed to load.</p>';
+      } else {
+        // qrcodejs API: new QRCode(element, options)
+        new QRCode(wrap, {
+          text: url,
+          width: 220,
+          height: 220,
+          colorDark: '#100D23',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      }
+
+      const p = document.createElement('p');
+      p.className = 'qr-link sm-auth-sub';
+      p.innerHTML = 'Scan with a phone on Tailscale, or open:<br><a href="' + url + '">' + url + '</a>';
+      qrBox.appendChild(p);
+    }
+
+    async function directLogin() {
+      const btn = document.getElementById('btn-direct');
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/tailscale/direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          credentials: 'same-origin',
+          body: '{}',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showErr(data.message || ('Direct login failed (' + res.status + ')'));
+          return;
+        }
+        showOk('Signed in as ' + (data.user && data.user.email) + ' — redirecting…');
+        window.location.href = nextUrl;
+      } catch (e) {
+        showErr(String(e));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function startQr() {
+      if (!qrBox) return;
+      if (pollTimer) clearInterval(pollTimer);
+      qrBox.innerHTML = '<p class="sm-auth-sub">Generating QR…</p>';
+      try {
+        const res = await fetch('/api/auth/qr/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken(),
+          },
+          credentials: 'same-origin',
+          body: '{}',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          showErr(data.message || data.detail || ('Could not start QR (' + res.status + ')'));
+          qrBox.innerHTML = '';
+          return;
+        }
+        challengeId = data.challengeId;
+        const url = data.approveUrl;
+        if (!url) {
+          showErr('QR start returned no approve URL');
+          return;
+        }
+        renderQr(url);
+        showOk('Waiting for phone approval…');
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (e) {
+        showErr(String(e));
+        qrBox.innerHTML = '';
+      }
+    }
+
+    async function pollStatus() {
+      if (!challengeId) return;
+      try {
+        const res = await fetch('/api/auth/qr/status?c=' + encodeURIComponent(challengeId), {
+          credentials: 'same-origin',
+        });
+        const data = await res.json();
+        if (data.status === 'approved') {
+          clearInterval(pollTimer);
+          const complete = await fetch('/api/auth/qr/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            credentials: 'same-origin',
+            body: JSON.stringify({ c: challengeId }),
+          });
+          const body = await complete.json();
+          if (!complete.ok) {
+            showErr(body.message || 'Complete failed');
+            return;
+          }
+          showOk('Approved — redirecting…');
+          window.location.href = nextUrl;
+        } else if (data.status === 'expired' || data.status === 'missing') {
+          clearInterval(pollTimer);
+          showErr('QR expired — tap Refresh QR code.');
+        }
+      } catch (e) { /* ignore poll errors */ }
+    }
+
+    document.getElementById('btn-direct')?.addEventListener('click', directLogin);
+    document.getElementById('btn-qr')?.addEventListener('click', startQr);
+
+    // Auto-show QR on load (managers expect it visible)
+    {% if qr_enabled %}
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startQr);
+    } else {
+      startQr();
+    }
+    {% endif %}
+  </script>
+</body>
+</html>

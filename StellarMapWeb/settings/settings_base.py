@@ -30,7 +30,24 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 # Environment setting for database selection
 ENV = config('ENV', default='development')
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost'] + (os.environ.get("REPLIT_DOMAINS", "").split(',') if os.environ.get("REPLIT_DOMAINS") else [])
+# NAS / self-host: keep always-on footprint small (see docs/StellarMapWeb)
+# LIGHT_MODE=1 → lean cache, quieter logs, longer UI poll TTL defaults
+_light_raw = str(config('LIGHT_MODE', default='0')).strip().lower()
+LIGHT_MODE = _light_raw in ('1', 'true', 'yes', 'on')
+
+# Hosts: merge .env ALLOWED_HOSTS with localhost + optional Replit domains
+_allowed_from_env = [
+    s.strip() for s in config('ALLOWED_HOSTS', default='').split(',') if s.strip()
+]
+ALLOWED_HOSTS = list(dict.fromkeys(
+    ['127.0.0.1', 'localhost', '0.0.0.0']
+    + _allowed_from_env
+    + ([d for d in os.environ.get("REPLIT_DOMAINS", "").split(',') if d])
+))
+# Django does not treat literal "*" as "all hosts"; expand for lab HTTP binding
+if '*' in ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ['*']
+
 CSRF_TRUSTED_ORIGINS = [
     "https://" + domain for domain in os.environ.get("REPLIT_DOMAINS", "").split(',') if os.environ.get("REPLIT_DOMAINS")
 ]
@@ -61,12 +78,58 @@ INSTALLED_APPS = [
 if ASTRA_DB_TOKEN:
     INSTALLED_APPS.insert(0, 'django_cassandra_engine')  # Must be first for Cassandra support
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database: SQLite (default lab file) OR Postgres via DATABASE_URL / DATABASE_DRIVER=pg
+# Shared NAS Postgres example: postgres://stellarmap:***@127.0.0.1:5433/StellarMapDB
+_db_driver = str(config('DATABASE_DRIVER', default='sqlite')).strip().lower()
+_database_url = config('DATABASE_URL', default='').strip()
+if _db_driver in ('pg', 'postgres', 'postgresql') or (
+    _database_url.startswith('postgres') and _db_driver != 'sqlite'
+):
+    # Prefer DATABASE_URL (same pattern as ChronoTrace / DoqumentWeb)
+    try:
+        import urllib.parse as _urlparse
+
+        _u = _urlparse.urlparse(_database_url)
+        if not _u.scheme.startswith('postgres'):
+            raise ValueError('DATABASE_URL must be a postgres:// URL')
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': _urlparse.unquote(_u.path.lstrip('/') or 'StellarMapDB'),
+                'USER': _urlparse.unquote(_u.username or ''),
+                'PASSWORD': _urlparse.unquote(_u.password or ''),
+                'HOST': _u.hostname or '127.0.0.1',
+                'PORT': str(_u.port or 5432),
+                'CONN_MAX_AGE': int(config('PG_CONN_MAX_AGE', default=60)),
+                'OPTIONS': {
+                    'connect_timeout': int(config('PG_CONNECT_TIMEOUT', default=10)),
+                },
+            }
+        }
+    except Exception:
+        # Fallback discrete vars
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': config('POSTGRES_DB', default='StellarMapDB'),
+                'USER': config('POSTGRES_USER', default='stellarmap'),
+                'PASSWORD': config('POSTGRES_PASSWORD', default=''),
+                'HOST': config('POSTGRES_HOST', default='127.0.0.1'),
+                'PORT': config('POSTGRES_HOST_PORT', default=config('POSTGRES_PORT', default='5433')),
+                'CONN_MAX_AGE': int(config('PG_CONN_MAX_AGE', default=60)),
+            }
+        }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+            # NAS: WAL + timeout reduce lock wait CPU spin under concurrent reads
+            'OPTIONS': {
+                'timeout': 20,
+            },
+        }
     }
-}
 
 # Conditionally add Cassandra database if ASTRA_DB_TOKEN is provided
 if ASTRA_DB_TOKEN:
@@ -104,16 +167,30 @@ else:
 # Enable the database router
 DATABASE_ROUTERS = ['StellarMapWeb.router.DatabaseAppsRouter']
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'stellarmap_cache_table',
-        'OPTIONS': {
-            'MAX_ENTRIES': 10000,
-            'CULL_FREQUENCY': 4,  # Cull 1/4 of entries when MAX_ENTRIES reached
+# Cache: locmem is lighter than DatabaseCache on SQLite (no extra table churn).
+# LIGHT_MODE keeps the process small for always-on NAS; full mode allows larger sets.
+if LIGHT_MODE:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'stellarmap-light',
+            'OPTIONS': {
+                'MAX_ENTRIES': int(config('CACHE_MAX_ENTRIES', default=256)),
+            },
+            'TIMEOUT': int(config('CACHE_TIMEOUT', default=120)),
         }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'stellarmap_cache_table',
+            'OPTIONS': {
+                'MAX_ENTRIES': int(config('CACHE_MAX_ENTRIES', default=10000)),
+                'CULL_FREQUENCY': 4,
+            }
+        }
+    }
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -121,9 +198,51 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Managers: Tailscale QR session required for /admin/ + management APIs.
+    # Search / dashboard / read APIs stay public.
+    'StellarMapWeb.middleware.ManagerGateMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# --- Manager auth (Tailscale QR) — same idea as ChronoTrace / DoqumentWeb ---
+# Public visitors: search + read-only without login.
+# Managers: AUTH_MODE=tailscale-qr + TAILSCALE_ALLOW_LOGINS email allowlist.
+AUTH_MODE = config('AUTH_MODE', default='tailscale-qr')
+TAILSCALE_ALLOW_LOGINS = config('TAILSCALE_ALLOW_LOGINS', default='')
+TAILSCALE_SOCKET = config(
+    'TAILSCALE_SOCKET',
+    default='/volume6/@appdata/Tailscale/tailscaled.sock',
+)
+TAILSCALE_QR_TTL_MS = config('TAILSCALE_QR_TTL_MS', default=90000, cast=int)
+PUBLIC_BASE_URL = config('PUBLIC_BASE_URL', default='')
+SESSION_IDLE_HOURS = config('SESSION_IDLE_HOURS', default=8, cast=int)
+# Cookie flags for lab HTTP (override for HTTPS prod)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_NAME = config('SESSION_COOKIE_NAME', default='stellarmap.sid')
+
+# Export auth settings for helpers that read os.environ
+os.environ.setdefault('AUTH_MODE', str(AUTH_MODE))
+if TAILSCALE_ALLOW_LOGINS:
+    os.environ.setdefault('TAILSCALE_ALLOW_LOGINS', str(TAILSCALE_ALLOW_LOGINS))
+os.environ.setdefault('TAILSCALE_SOCKET', str(TAILSCALE_SOCKET))
+os.environ.setdefault('TAILSCALE_QR_TTL_MS', str(TAILSCALE_QR_TTL_MS))
+
+# Serve static files from the app process (gunicorn/host) without a separate nginx.
+# WhiteNoise is already a dependency; default on for lab/LIGHT_MODE.
+_use_whitenoise = str(
+    config('USE_WHITENOISE', default='1' if (LIGHT_MODE or ENV == 'development') else '0')
+).lower() in ('1', 'true', 'yes', 'on')
+if _use_whitenoise:
+    if 'whitenoise.middleware.WhiteNoiseMiddleware' not in MIDDLEWARE:
+        MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    # Find app static without full collectstatic (saves disk/CPU on NAS first boot)
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = DEBUG
+    WHITENOISE_MAX_AGE = 60 if DEBUG else 3600
 
 # Only use clickjacking protection in deployments because the Development Web View uses
 # iframes and needs to be a cross origin.
@@ -141,7 +260,8 @@ TEMPLATES = [{
             'django.template.context_processors.debug',
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
-            'django.contrib.messages.context_processors.messages'
+            'django.contrib.messages.context_processors.messages',
+            'StellarMapWeb.context_processors.nas_runtime',
         ]
     }
 }]
@@ -152,7 +272,11 @@ WSGI_APPLICATION = 'StellarMapWeb.wsgi.application'
 
 import logging
 
-# Configure logging to reduce Cassandra DEBUG verbosity
+# Logging: LIGHT_MODE / non-DEBUG keeps console quiet (less I/O and disk log growth)
+_root_level = config(
+    'DJANGO_LOG_LEVEL',
+    default=('WARNING' if LIGHT_MODE else ('DEBUG' if DEBUG else 'INFO')),
+)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -163,47 +287,72 @@ LOGGING = {
     },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG' if DEBUG else 'INFO',
+        'level': _root_level,
     },
     'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING' if LIGHT_MODE else _root_level,
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console'],
+            'level': 'WARNING' if LIGHT_MODE else 'INFO',
+            'propagate': False,
+        },
         # Reduce Cassandra driver verbosity to prevent flooding stderr
         'cassandra': {
             'handlers': ['console'],
-            'level': 'WARNING',  # Only show WARNING and ERROR, not DEBUG/INFO
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.cluster': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.connection': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.cqlengine.connection': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.pool': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.io.libevreactor': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
         'cassandra.protocol_features': {
             'handlers': ['console'],
-            'level': 'WARNING',
+            'level': 'ERROR' if LIGHT_MODE else 'WARNING',
             'propagate': False,
         },
     },
 }
+
+# UI / API poll cadence (ms) — search page + pending-accounts cache honor this
+# LIGHT_MODE defaults to 60s to cut background request load on NAS
+POLL_INTERVAL_MS = int(
+    config('POLL_INTERVAL_MS', default='60000' if LIGHT_MODE else '30000')
+)
+# Pending-accounts API list cap (RAM + JSON size)
+PENDING_ACCOUNTS_LIMIT = int(
+    config('PENDING_ACCOUNTS_LIMIT', default='50' if LIGHT_MODE else '100')
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -249,3 +398,25 @@ STATICFILES_DIRS = []
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# SQLite PRAGMA helpers (applied once per connection)
+from django.db.backends.signals import connection_created  # noqa: E402
+
+
+def _sqlite_pragma(sender, connection, **kwargs):
+    if connection.vendor != 'sqlite':
+        return
+    with connection.cursor() as cursor:
+        cursor.execute('PRAGMA journal_mode=WAL;')
+        cursor.execute('PRAGMA synchronous=NORMAL;')
+        cursor.execute('PRAGMA temp_store=MEMORY;')
+        # Smaller mmap/cache in LIGHT_MODE for NAS / old laptop RAM
+        if LIGHT_MODE:
+            cursor.execute('PRAGMA mmap_size=16777216;')   # 16 MiB
+            cursor.execute('PRAGMA cache_size=-4000;')     # ~4 MiB page cache
+        else:
+            cursor.execute('PRAGMA mmap_size=67108864;')   # 64 MiB
+            cursor.execute('PRAGMA cache_size=-16000;')
+
+
+connection_created.connect(_sqlite_pragma)
