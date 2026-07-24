@@ -123,18 +123,39 @@ class QueueSynchronizer:
     @staticmethod
     def sync_status_back_to_cache(stellar_account, network_name, status, cached_json=None):
         """
-        Update Search Cache status when Lineage processing completes.
-        
-        This is called by pipeline completion hooks to keep Search Cache in sync.
-        
+        Update Search Cache **status only** when Lineage processing progresses.
+
+        This is called by pipeline completion hooks to keep Search Cache status
+        in sync with Lineage. It intentionally does **not** write display tree
+        payloads into ``cached_json``.
+
+        Why status-only
+        ---------------
+        Older callers passed a summary dict (xlm_balance, creator, …) which was
+        assigned as ``str(dict)`` (Python ``repr``, not JSON). That:
+
+        1. Destroyed any valid tree JSON already in ``cached_json``
+        2. Made ``json.loads`` fail in ``StellarMapCacheHelpers.get_cached_data``
+        3. Caused ``search_view`` to treat the entry as stale and often re-PENDING
+           COMPLETE accounts (feedback loop)
+
+        Tree / projection materialization belongs to write-time rebuild
+        (``StellarMapCacheHelpers.update_cache`` / LineageAggregateService PR2B).
+        Until then, leave an existing ``cached_json`` body untouched.
+
         Args:
             stellar_account (str): Stellar account address
             network_name (str): Network name
             status (str): New status from Lineage
-            cached_json (dict, optional): Result data to cache
-        
+            cached_json: Deprecated and **ignored**. Accepted only for call-site
+                compatibility. Never written to the cache body. Prefer omitting it.
+
         Returns:
             bool: True if updated successfully, False otherwise
+
+        Notes:
+            Does **not** set ``last_fetched_at`` — that timestamp means a full
+            display payload was written, not a status tick.
         """
         try:
             # Find corresponding Search Cache record
@@ -150,11 +171,20 @@ class QueueSynchronizer:
                 )
                 return False
             
+            if cached_json is not None:
+                # Compatibility: historical pipelines passed summary dicts here.
+                # Never write them — would clobber tree JSON with non-JSON repr.
+                logger.warning(
+                    f'Sync Back: ignoring deprecated cached_json argument for '
+                    f'{stellar_account[:8]}... (status-only sync; never clobber body)'
+                )
+
             # Map Lineage statuses to Search Cache statuses
             status_map = {
                 'BIGQUERY_COMPLETE': 'DONE_MAKE_PARENT_LINEAGE',
                 'API_COMPLETE': 'DONE_MAKE_PARENT_LINEAGE',
                 'DONE_MAKE_PARENT_LINEAGE': 'DONE_MAKE_PARENT_LINEAGE',
+                'COMPLETE': 'DONE_MAKE_PARENT_LINEAGE',
                 'PENDING': 'PENDING',
                 'PROCESSING': 'IN_PROGRESS_MAKE_PARENT_LINEAGE',
                 'IN_PROGRESS': 'IN_PROGRESS_MAKE_PARENT_LINEAGE',
@@ -165,19 +195,16 @@ class QueueSynchronizer:
             
             cache_status = status_map.get(status, status)
             
-            # Update cache record
+            # Status + updated_at only. Never assign cached_json or last_fetched_at
+            # (last_fetched_at means a full display payload was written).
             old_status = cache_record.status
             cache_record.status = cache_status
             cache_record.updated_at = datetime.utcnow()
-            
-            if cached_json:
-                cache_record.cached_json = str(cached_json)
-            
             cache_record.save()
-            
+
             logger.info(
                 f'Sync Back: ✓ Updated Search Cache {stellar_account[:8]}... '
-                f'{old_status} → {cache_status}'
+                f'{old_status} → {cache_status} (status-only; cached_json preserved)'
             )
             
             return True

@@ -685,16 +685,12 @@ class Command(BaseCommand):
             account_obj.save()
             
             # Sync status back to Search Cache (if record exists there)
+            # Status-only: never pass summary dicts (would clobber tree JSON).
+            # Full display projection is materialised by write-time rebuild (PR2B).
             QueueSynchronizer.sync_status_back_to_cache(
                 stellar_account=account_obj.stellar_account,
                 network_name=account_obj.network_name,
                 status='BIGQUERY_COMPLETE',
-                cached_json={
-                    'xlm_balance': float(account_obj.xlm_balance or 0),
-                    'creator_account': account_obj.stellar_creator_account,
-                    'home_domain': account_obj.home_domain,
-                    'pipeline_source': account_obj.pipeline_source,
-                }
             )
             
             # Detect and record HVA standing changes for ALL supported thresholds
