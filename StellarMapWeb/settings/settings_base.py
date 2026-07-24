@@ -362,6 +362,18 @@ _lineage_write_raw = str(
 ).strip().lower()
 LINEAGE_WRITE_PROJECTION = _lineage_write_raw in ('1', 'true', 'yes', 'on')
 
+# When 1: search_view serves table+tree from LineageAggregateService (one projection).
+_lineage_ssr_raw = str(
+    config('LINEAGE_UNIFIED_AGGREGATE', default='0')
+).strip().lower()
+LINEAGE_UNIFIED_AGGREGATE = _lineage_ssr_raw in ('1', 'true', 'yes', 'on')
+
+# When 1: SSR projection includes sibling nodes (larger payload). Default off for NAS.
+_lineage_ssr_sib_raw = str(
+    config('LINEAGE_SSR_INCLUDE_SIBLINGS', default='0')
+).strip().lower()
+LINEAGE_SSR_INCLUDE_SIBLINGS = _lineage_ssr_sib_raw in ('1', 'true', 'yes', 'on')
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 

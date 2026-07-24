@@ -15,6 +15,192 @@ from apiApp.helpers.sm_cache import StellarMapCacheHelpers
 from apiApp.helpers.sm_stage_execution import initialize_stage_executions
 
 
+def _skeleton_tree(account):
+    """Minimal D3 tree placeholder while lineage is processing or missing."""
+    return {
+        'name': account or 'Root',
+        'node_type': 'ISSUER',
+        'stellar_account': account or '',
+        'children': [],
+    }
+
+
+def _is_terminal_search_cache_status(status):
+    """
+    True when search-cache / lineage status means processing finished.
+    Used to avoid re-PENDING COMPLETE accounts solely for invalid cache body.
+    """
+    if not status:
+        return False
+    s = str(status).upper()
+    if s in (
+        'DONE_MAKE_PARENT_LINEAGE',
+        'COMPLETE',
+        'BIGQUERY_COMPLETE',
+        'API_COMPLETE',
+        'DONE',
+    ):
+        return True
+    if s.startswith('DONE_'):
+        return True
+    if 'COMPLETE' in s and 'IN_PROGRESS' not in s and 'PENDING' not in s:
+        return True
+    return False
+
+
+def _search_ssr_via_unified_aggregate(account, network):
+    """
+    Build search page tree + lineage table from LineageAggregateService.
+
+    PR3: flag-gated path (LINEAGE_UNIFIED_AGGREGATE). DB-only aggregation;
+    never Horizon. Avoids create_pending_entry when status is already terminal
+    but cached_json is invalid/missing (re-PENDING loop fix).
+
+    Returns:
+        dict with genealogy_data, account_lineage_data, is_fresh, is_refreshing,
+        cache_entry, meta
+    """
+    from apiApp.helpers.sm_lineage_aggregate import (
+        AggregateOptions,
+        LineageAggregateService,
+        maybe_rebuild_projection_on_complete,
+        parse_cache_body,
+        write_projection_enabled,
+    )
+
+    include_siblings = bool(getattr(settings, 'LINEAGE_SSR_INCLUDE_SIBLINGS', False))
+    options = AggregateOptions.from_settings(
+        include_siblings=include_siblings,
+        use_search_cache=True,
+        force_rebuild=False,
+    )
+
+    is_fresh = False
+    is_refreshing = False
+    cache_helpers = None
+    cache_entry = None
+    body_kind = 'miss'
+
+    try:
+        cache_helpers = StellarMapCacheHelpers()
+        is_fresh, cache_entry = cache_helpers.check_cache_freshness(
+            account, network_name=network
+        )
+    except Exception as cache_error:
+        sentry_sdk.capture_exception(cache_error)
+        is_fresh = False
+        cache_entry = None
+
+    if cache_entry is not None:
+        body_kind, _ = parse_cache_body(getattr(cache_entry, 'cached_json', None))
+        if body_kind == 'miss':
+            # Fresh timestamp but unusable body (e.g. legacy str(dict)) is not fresh
+            is_fresh = False
+
+    terminal = _is_terminal_search_cache_status(
+        getattr(cache_entry, 'status', None) if cache_entry else None
+    )
+    svc = LineageAggregateService()
+    projection = None
+
+    if body_kind in ('projection', 'legacy_tree') and not options.force_rebuild:
+        # Serve from dual-format cache reader inside get_projection
+        projection = svc.get_projection(account, network, options)
+        if body_kind == 'projection' and is_fresh:
+            pass  # keep is_fresh
+        elif body_kind in ('projection', 'legacy_tree'):
+            # Stale-but-usable body: show it; do not thrash PENDING if terminal
+            if not terminal and not is_fresh:
+                try:
+                    if cache_helpers:
+                        cache_entry = cache_helpers.create_pending_entry(
+                            account, network_name=network
+                        )
+                        is_refreshing = True
+                        try:
+                            initialize_stage_executions(account, network)
+                        except Exception as stage_init_error:
+                            sentry_sdk.capture_exception(stage_init_error)
+                except Exception as e:
+                    sentry_sdk.capture_exception(e)
+                    is_refreshing = False
+
+    elif terminal:
+        # Invalid/empty body but complete status: rebuild DB-only, never re-PENDING
+        if write_projection_enabled():
+            projection = maybe_rebuild_projection_on_complete(account, network)
+        if projection is None:
+            build_opts = AggregateOptions.from_settings(
+                include_siblings=include_siblings,
+                use_search_cache=False,
+                force_rebuild=True,
+            )
+            projection = svc.build_projection(account, network, build_opts)
+        is_fresh = True
+        is_refreshing = False
+
+    else:
+        # New / in-progress / no terminal status: queue for pipelines if needed
+        try:
+            if cache_helpers:
+                cache_entry = cache_helpers.create_pending_entry(
+                    account, network_name=network
+                )
+                is_refreshing = True
+                try:
+                    initialize_stage_executions(account, network)
+                except Exception as stage_init_error:
+                    sentry_sdk.capture_exception(stage_init_error)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            is_refreshing = False
+
+        build_opts = AggregateOptions.from_settings(
+            include_siblings=include_siblings,
+            use_search_cache=False,
+            force_rebuild=True,
+        )
+        try:
+            projection = svc.build_projection(account, network, build_opts)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            projection = None
+
+    if not projection:
+        projection = {
+            'account': account,
+            'network': network,
+            'lineage_path': [],
+            'nodes': {},
+            'siblings_by_creator': {},
+            'tree': _skeleton_tree(account),
+            'meta': {'db_only': True, 'empty': True},
+        }
+
+    tree = svc.to_tree(projection) if projection.get('nodes') or projection.get('tree') else _skeleton_tree(account)
+    if not tree or not isinstance(tree, dict):
+        tree = _skeleton_tree(account)
+    # Guard: never pass full projection object as D3 root
+    if tree.get('schema_version') is not None and 'nodes' in tree:
+        tree = tree.get('tree') or _skeleton_tree(account)
+
+    account_lineage_data = svc.to_table_rows(projection)
+
+    genealogy_data = {
+        'account_genealogy_items': [],
+        'tree_data': tree,
+    }
+
+    return {
+        'genealogy_data': genealogy_data,
+        'account_lineage_data': account_lineage_data,
+        'is_fresh': is_fresh,
+        'is_refreshing': is_refreshing,
+        'cache_entry': cache_entry,
+        'meta': projection.get('meta') or {},
+    }
+
+
 def index_view(request):
     """
     Render the main landing page with search interface.
@@ -300,94 +486,166 @@ def search_view(request):
         response['Expires'] = '0'
         return response
 
-    # 12-hour Cassandra cache strategy (with fallback for schema migration)
+    # LINEAGE_UNIFIED_AGGREGATE=1: single projection for table + tree (PR3)
+    # Default off: legacy dual path (cache tree + separate O(D) table walk)
+    use_unified = bool(getattr(settings, 'LINEAGE_UNIFIED_AGGREGATE', False))
+
     is_fresh = False
     is_refreshing = False
     genealogy_data = None
     cache_helpers = None
     cache_entry = None
-    
-    try:
-        cache_helpers = StellarMapCacheHelpers()
-        is_fresh, cache_entry = cache_helpers.check_cache_freshness(account, network_name=network)
-    except Exception as cache_error:
-        # Cache not available yet (schema migration needed), skip cache
-        sentry_sdk.capture_exception(cache_error)
-        is_fresh = False
-        cache_entry = None
-    
-    # Return cached data immediately if fresh
-    if is_fresh and cache_entry and cache_helpers:
-        cached_tree_data = cache_helpers.get_cached_data(cache_entry)
-        if cached_tree_data:
+    account_lineage_data = []
+
+    if use_unified:
+        unified = _search_ssr_via_unified_aggregate(account, network)
+        genealogy_data = unified['genealogy_data']
+        account_lineage_data = unified['account_lineage_data']
+        is_fresh = unified['is_fresh']
+        is_refreshing = unified['is_refreshing']
+        cache_entry = unified['cache_entry']
+    else:
+        # --- legacy path (flag off) ---
+        # 12-hour Cassandra cache strategy (with fallback for schema migration)
+        try:
+            cache_helpers = StellarMapCacheHelpers()
+            is_fresh, cache_entry = cache_helpers.check_cache_freshness(
+                account, network_name=network
+            )
+        except Exception as cache_error:
+            # Cache not available yet (schema migration needed), skip cache
+            sentry_sdk.capture_exception(cache_error)
+            is_fresh = False
+            cache_entry = None
+
+        # Return cached data immediately if fresh
+        if is_fresh and cache_entry and cache_helpers:
+            cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+            if cached_tree_data:
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': cached_tree_data
+                }
+            else:
+                # Cache entry exists but no JSON, treat as stale
+                is_fresh = False
+
+        # Handle stale or missing cache
+        if not is_fresh and genealogy_data is None:
+            # Stale or missing cache, create PENDING entry to trigger cron jobs
+            try:
+                if cache_helpers:
+                    cache_entry = cache_helpers.create_pending_entry(
+                        account, network_name=network
+                    )
+                    is_refreshing = True
+
+                    try:
+                        initialize_stage_executions(account, network)
+                    except Exception as stage_init_error:
+                        sentry_sdk.capture_exception(stage_init_error)
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                is_refreshing = False
+
+            if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
+                try:
+                    cached_tree_data = cache_helpers.get_cached_data(cache_entry)
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': cached_tree_data or _skeleton_tree(account),
+                    }
+                except Exception:
+                    genealogy_data = {
+                        'account_genealogy_items': [],
+                        'tree_data': _skeleton_tree(account),
+                    }
+            else:
+                genealogy_data = {
+                    'account_genealogy_items': [],
+                    'tree_data': _skeleton_tree(account),
+                }
+
+        if genealogy_data is None:
             genealogy_data = {
                 'account_genealogy_items': [],
-                'tree_data': cached_tree_data
+                'tree_data': _skeleton_tree(account),
             }
-            # Data is fresh and available, skip refresh logic
-        else:
-            # Cache entry exists but no JSON, treat as stale
-            is_fresh = False
-    
-    # Handle stale or missing cache
-    if not is_fresh and genealogy_data is None:
-        # Stale or missing cache, create PENDING entry to trigger cron jobs
+
+        # Separate O(D) walk for Account Lineage table (legacy)
         try:
-            if cache_helpers:
-                cache_entry = cache_helpers.create_pending_entry(account, network_name=network)
-                is_refreshing = True
-                
-                # Initialize all stage execution records for tracking
+            from apiApp.models import StellarCreatorAccountLineage
+
+            visited_accounts = set()
+            accounts_to_process = [account]
+
+            while accounts_to_process:
+                current_account = accounts_to_process.pop(0)
+                if current_account in visited_accounts:
+                    continue
+                visited_accounts.add(current_account)
+
                 try:
-                    initialize_stage_executions(account, network)
-                except Exception as stage_init_error:
-                    sentry_sdk.capture_exception(stage_init_error)
+                    lineage_records = StellarCreatorAccountLineage.objects.filter(
+                        stellar_account=current_account,
+                        network_name=network
+                    ).all()
+
+                    for record in lineage_records:
+                        assets = []
+                        if record.horizon_accounts_json:
+                            try:
+                                horizon_data = json.loads(record.horizon_accounts_json)
+                                balances = horizon_data.get('balances', [])
+
+                                for balance in balances:
+                                    asset_type = balance.get('asset_type', '')
+                                    if asset_type != 'native':
+                                        asset_code = balance.get('asset_code', '')
+                                        asset_issuer = balance.get('asset_issuer', '')
+                                        asset_balance = balance.get('balance', '0')
+
+                                        assets.append({
+                                            'name': asset_code,
+                                            'node_type': 'ASSET',
+                                            'asset_type': asset_type,
+                                            'asset_code': asset_code,
+                                            'asset_issuer': asset_issuer,
+                                            'balance': float(asset_balance) if asset_balance else 0.0
+                                        })
+                            except (json.JSONDecodeError, KeyError, ValueError):
+                                pass
+
+                        record_data = {
+                            'stellar_account': record.stellar_account,
+                            'stellar_creator_account': record.stellar_creator_account,
+                            'network_name': record.network_name,
+                            'stellar_account_created_at': record.stellar_account_created_at.isoformat() if record.stellar_account_created_at else None,
+                            'home_domain': record.home_domain,
+                            'xlm_balance': record.xlm_balance,
+                            'assets': assets,
+                            'status': record.status,
+                            'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
+                            'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
+                        }
+                        account_lineage_data.append(record_data)
+
+                        if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
+                            if record.stellar_creator_account not in accounts_to_process:
+                                accounts_to_process.append(record.stellar_creator_account)
+                except Exception as e:
+                    sentry_sdk.capture_exception(e)
+                    continue
+
         except Exception as e:
             sentry_sdk.capture_exception(e)
-            is_refreshing = False
-        
-        # Check if there's any cached data (even if stale) to show while processing
-        if cache_entry and hasattr(cache_entry, 'cached_json') and cache_entry.cached_json:
-            try:
-                cached_tree_data = cache_helpers.get_cached_data(cache_entry)
-                genealogy_data = {
-                    'account_genealogy_items': [],
-                    'tree_data': cached_tree_data or {
-                        'name': account,
-                        'node_type': 'ISSUER',
-                        'children': []
-                    }
-                }
-            except Exception:
-                # No cached data available, show processing state
-                genealogy_data = {
-                    'account_genealogy_items': [],
-                    'tree_data': {
-                        'name': account,
-                        'node_type': 'ISSUER',
-                        'children': []
-                    }
-                }
-        else:
-            # No cached data at all, show processing state with account info
-            genealogy_data = {
-                'account_genealogy_items': [],
-                'tree_data': {
-                    'name': account,
-                    'node_type': 'ISSUER',
-                    'children': []
-                }
-            }
-    
+            account_lineage_data = []
+
     # Ensure genealogy_data is set (fallback safety)
     if genealogy_data is None:
         genealogy_data = {
             'account_genealogy_items': [],
-            'tree_data': {
-                'name': 'Root',
-                'node_type': 'ISSUER',
-                'children': []
-            }
+            'tree_data': _skeleton_tree(account),
         }
 
     # Prepare request status data for display
@@ -412,82 +670,14 @@ def search_view(request):
             'message': 'No database entry found for this account/network combination'
         }
 
-    # Fetch Account Lineage records from StellarCreatorAccountLineage
-    # Recursively follow creator accounts up the lineage chain
-    account_lineage_data = []
-    try:
-        from apiApp.models import StellarCreatorAccountLineage
-        
-        visited_accounts = set()
-        accounts_to_process = [account]
-        
-        while accounts_to_process:
-            current_account = accounts_to_process.pop(0)
-            if current_account in visited_accounts:
-                continue
-            visited_accounts.add(current_account)
-            
-            try:
-                lineage_records = StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=current_account,
-                    network_name=network
-                ).all()
-                
-                for record in lineage_records:
-                    # Extract assets from horizon_accounts_json
-                    assets = []
-                    if record.horizon_accounts_json:
-                        try:
-                            import json
-                            horizon_data = json.loads(record.horizon_accounts_json)
-                            balances = horizon_data.get('balances', [])
-                            
-                            for balance in balances:
-                                asset_type = balance.get('asset_type', '')
-                                if asset_type != 'native':
-                                    asset_code = balance.get('asset_code', '')
-                                    asset_issuer = balance.get('asset_issuer', '')
-                                    asset_balance = balance.get('balance', '0')
-                                    
-                                    assets.append({
-                                        'name': asset_code,
-                                        'node_type': 'ASSET',
-                                        'asset_type': asset_type,
-                                        'asset_code': asset_code,
-                                        'asset_issuer': asset_issuer,
-                                        'balance': float(asset_balance) if asset_balance else 0.0
-                                    })
-                        except (json.JSONDecodeError, KeyError, ValueError):
-                            pass
-                    
-                    record_data = {
-                        'stellar_account': record.stellar_account,
-                        'stellar_creator_account': record.stellar_creator_account,
-                        'network_name': record.network_name,
-                        'stellar_account_created_at': record.stellar_account_created_at.isoformat() if record.stellar_account_created_at else None,
-                        'home_domain': record.home_domain,
-                        'xlm_balance': record.xlm_balance,
-                        'assets': assets,
-                        'status': record.status,
-                        'created_at': record.created_at.isoformat() if hasattr(record, 'created_at') and record.created_at else None,
-                        'updated_at': record.updated_at.isoformat() if hasattr(record, 'updated_at') and record.updated_at else None,
-                    }
-                    account_lineage_data.append(record_data)
-                    
-                    # Follow the creator chain: add creator account to process next
-                    if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
-                        if record.stellar_creator_account not in accounts_to_process:
-                            accounts_to_process.append(record.stellar_creator_account)
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                continue
-                
-    except Exception as e:
-        sentry_sdk.capture_exception(e)
-        account_lineage_data = []
-
     # Fetch all pending accounts from BOTH tables using helper function
     pending_accounts_data = fetch_pending_accounts()
+
+    # radial_tidy_tree template may expect tree root; never pass projection envelope
+    tree_for_ui = genealogy_data['tree_data']
+    if isinstance(tree_for_ui, dict) and tree_for_ui.get('schema_version') is not None and 'nodes' in tree_for_ui:
+        tree_for_ui = tree_for_ui.get('tree') or _skeleton_tree(account)
+        genealogy_data['tree_data'] = tree_for_ui
 
     context = {
         'search_variable': 'Cached Results' if is_fresh else ('Refreshing...' if is_refreshing else 'Live Search Results'),
@@ -505,6 +695,7 @@ def search_view(request):
         'request_status_data': request_status_data,
         'account_lineage_data': account_lineage_data,
         'pending_accounts_data': pending_accounts_data,
+        'lineage_unified_aggregate': use_unified,
     }
     
     response = render(request, 'webApp/search.html', context)
