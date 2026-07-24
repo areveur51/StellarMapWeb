@@ -3,7 +3,8 @@
 ## Unreleased
 
 ### Added
-- **LineageAggregateService (PR1)** — `apiApp/helpers/sm_lineage_aggregate.py`: DB-only unified projection (nodes/edges/path/tree/siblings), adapters for table + siblings API + tree parity with client XLM≥1000 filter; dual-format cache reader; no view wiring yet
+- **Write-time projection (PR2B)** — `LINEAGE_WRITE_PROJECTION` flag; on complete, API/BigQuery/SDK pipelines + parent-lineage cron can `rebuild_and_cache` DB-only projection; SDK now status-syncs search cache; `update_cache` rejects non-JSON bodies
+- **LineageAggregateService (PR1)** — `apiApp/helpers/sm_lineage_aggregate.py`: DB-only unified projection (nodes/edges/path/tree/siblings), adapters for table + siblings API + tree parity with client XLM≥1000 filter; no view wiring yet (PR3/PR4)
 - **Shared shell** — `includes/head_assets.html`, vanilla slide-out menu (no Bootstrap-Vue sidebar), touch-friendly top bar
 - **Responsive `frontend.css`** — restored page styles (dashboard/bulk/HVA/query) + mobile/iPad breakpoints and safe-area padding
 - **Tailscale QR manager login** — passwordless `/login/` (auto QR + continue on device); allowlist via `TAILSCALE_ALLOW_LOGINS`

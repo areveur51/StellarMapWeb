@@ -60,17 +60,33 @@ class StellarMapCacheHelpers:
     
     def update_cache(self, stellar_account, network_name, tree_data, status=COMPLETE):
         """
-        Update cache with fresh tree data.
-        
-        Returns:
-            StellarAccountSearchCache: Updated cache entry
+        Update cache with fresh tree / projection data.
+
+        Always stores **valid JSON** via ``json.dumps`` (never ``str(dict)``).
+        Sets ``last_fetched_at`` because a full display body was written.
+
+        Args:
+            tree_data: dict (legacy D3 tree or schema_version projection) or
+                a JSON string already produced with json.dumps.
         """
+        if isinstance(tree_data, str):
+            # Validate string is JSON; reject Python repr bodies
+            try:
+                json.loads(tree_data)
+            except (json.JSONDecodeError, TypeError) as e:
+                raise ValueError(
+                    "update_cache requires valid JSON string or dict body"
+                ) from e
+            body = tree_data
+        else:
+            body = json.dumps(tree_data)
+
         try:
             cache_entry = StellarAccountSearchCache.objects.get(
                 stellar_account=stellar_account,
                 network_name=network_name
             )
-            cache_entry.cached_json = json.dumps(tree_data)
+            cache_entry.cached_json = body
             cache_entry.last_fetched_at = datetime.datetime.utcnow()
             cache_entry.status = status
             cache_entry.save()
@@ -80,7 +96,7 @@ class StellarMapCacheHelpers:
             cache_entry = StellarAccountSearchCache.objects.create(
                 stellar_account=stellar_account,
                 network_name=network_name,
-                cached_json=json.dumps(tree_data),
+                cached_json=body,
                 last_fetched_at=datetime.datetime.utcnow(),
                 status=status,
                 created_at=datetime.datetime.utcnow(),

@@ -229,6 +229,21 @@ class Command(BaseCommand):
             account_obj.processing_time_seconds = int(processing_time)
             account_obj.save()
 
+            # Search-cache status sync (was missing on SDK path) + optional projection
+            QueueSynchronizer.sync_status_back_to_cache(
+                stellar_account=account_obj.stellar_account,
+                network_name=account_obj.network_name,
+                status='COMPLETE',
+            )
+            from apiApp.helpers.sm_lineage_aggregate import (
+                maybe_rebuild_projection_on_complete,
+            )
+            maybe_rebuild_projection_on_complete(
+                account_obj.stellar_account,
+                account_obj.network_name,
+                cache_status='DONE_MAKE_PARENT_LINEAGE',
+            )
+
             self.stdout.write(self.style.SUCCESS(
                 f'    ✓ Completed in {processing_time:.1f}s'
             ))

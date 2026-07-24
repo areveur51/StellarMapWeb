@@ -686,11 +686,19 @@ class Command(BaseCommand):
             
             # Sync status back to Search Cache (if record exists there)
             # Status-only: never pass summary dicts (would clobber tree JSON).
-            # Full display projection is materialised by write-time rebuild (PR2B).
             QueueSynchronizer.sync_status_back_to_cache(
                 stellar_account=account_obj.stellar_account,
                 network_name=account_obj.network_name,
                 status='BIGQUERY_COMPLETE',
+            )
+            # Flag-gated full projection write (LINEAGE_WRITE_PROJECTION=1)
+            from apiApp.helpers.sm_lineage_aggregate import (
+                maybe_rebuild_projection_on_complete,
+            )
+            maybe_rebuild_projection_on_complete(
+                account_obj.stellar_account,
+                account_obj.network_name,
+                cache_status='DONE_MAKE_PARENT_LINEAGE',
             )
             
             # Detect and record HVA standing changes for ALL supported thresholds
