@@ -48,7 +48,15 @@ On complete, status is always synced without clobbering `cached_json`. When `LIN
 2. Enable `LINEAGE_API_RESPONSE_CACHE` (default on).
 3. Enable `LINEAGE_WRITE_PROJECTION=1` where pipelines run.
 4. Enable `LINEAGE_UNIFIED_AGGREGATE=1` for SSR.
-5. Frontend server-tree preference remains a follow-up (PR6b).
+5. Frontend prefers server `tree` when `meta.tree_build.algorithm === buildTreeFromLineage_v1` (PR6b); client rebuild is fallback.
+
+## Frontend (PR6b)
+
+`search.html` `fetchAccountLineage`:
+
+1. Still transforms maps → table + siblings tabs.
+2. If `data.tree` present and `meta.tree_build.algorithm === buildTreeFromLineage_v1`, calls `applyTreeData(data.tree)`.
+3. Otherwise falls back to client `buildTreeFromLineage`.
 
 ## Tests
 
@@ -57,3 +65,4 @@ On complete, status is always synced without clobbering `cached_json`. When `LIN
 - `apiApp/tests/test_lineage_write_projection.py`
 - `apiApp/tests/test_lineage_api_pr4.py`
 - `webApp/tests/test_search_ssr_unified.py`
+- `webApp/tests/test_frontend_server_tree.py`

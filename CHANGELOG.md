@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Frontend server tree (PR6b)** — search poll prefers API `tree` when `meta.tree_build.algorithm` is `buildTreeFromLineage_v1`; client rebuild remains fallback
 - **Lineage aggregation docs (PR6a)** — `LINEAGE_AGGREGATION.md` implementation status; `PERFORMANCE_OPTIMIZATIONS.md` §0 (flags, caches, rate limits, rollout)
 - **Lineage API aggregator + cache + rate limits (PR4)** — `/api/lineage-with-siblings/` and feature-frozen `/api/account-lineage/` use `LineageAggregateService` (DB-only); process-local response LRU; `@ratelimit` 30/m siblings, 20/m account-lineage; removed Horizon/BigQuery branch from account-lineage
 - **Search SSR unified aggregate (PR3)** — `LINEAGE_UNIFIED_AGGREGATE` flag: `search_view` serves table + tree from one `LineageAggregateService` projection; terminal COMPLETE + invalid body rebuilds without re-PENDING; legacy dual-walk kept when flag off
