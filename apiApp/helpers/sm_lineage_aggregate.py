@@ -356,6 +356,43 @@ def _node_from_record(
 # ---------------------------------------------------------------------------
 
 
+def write_projection_enabled() -> bool:
+    """True when LINEAGE_WRITE_PROJECTION is on (pipeline write-time rebuild)."""
+    return bool(getattr(settings, "LINEAGE_WRITE_PROJECTION", False))
+
+
+def maybe_rebuild_projection_on_complete(
+    stellar_account: str,
+    network_name: str,
+    cache_status: str = "DONE_MAKE_PARENT_LINEAGE",
+) -> Optional[Dict[str, Any]]:
+    """
+    If LINEAGE_WRITE_PROJECTION is enabled, rebuild DB-only projection into
+    search cache (valid json.dumps only). Safe no-op when flag is off.
+
+    Call after lineage processing reaches a terminal complete status.
+    Does not replace status-only sync — callers should still call
+    QueueSynchronizer.sync_status_back_to_cache for status.
+    """
+    if not write_projection_enabled():
+        return None
+    if not stellar_account or not network_name:
+        return None
+    try:
+        return LineageAggregateService().rebuild_and_cache(
+            stellar_account,
+            network_name,
+            cache_status=cache_status,
+        )
+    except Exception as e:
+        logger.warning(
+            "maybe_rebuild_projection_on_complete failed for %s...: %s",
+            stellar_account[:8],
+            e,
+        )
+        return None
+
+
 class LineageAggregateService:
     """
     Build and adapt a unified lineage projection for table, siblings, and tree.

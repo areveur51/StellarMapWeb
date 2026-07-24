@@ -354,6 +354,14 @@ PENDING_ACCOUNTS_LIMIT = int(
     config('PENDING_ACCOUNTS_LIMIT', default='50' if LIGHT_MODE else '100')
 )
 
+# Lineage aggregation flags (see docs/StellarMapWeb/design-lineage-aggregation.md)
+# When 1: pipelines + parent-lineage cron write full projection JSON via
+# LineageAggregateService.rebuild_and_cache (DB-only). Default off for safe rollout.
+_lineage_write_raw = str(
+    config('LINEAGE_WRITE_PROJECTION', default='0')
+).strip().lower()
+LINEAGE_WRITE_PROJECTION = _lineage_write_raw in ('1', 'true', 'yes', 'on')
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
