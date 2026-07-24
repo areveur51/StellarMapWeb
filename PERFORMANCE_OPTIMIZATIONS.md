@@ -3,6 +3,58 @@
 ## Summary
 This document tracks all performance optimizations applied to the StellarMapWeb application. The optimizations focus on database queries, API caching, frontend rendering, and pipeline efficiency.
 
+## 0. Lineage Aggregation (2026-07 — development)
+
+Unified **table + siblings + radial tree** aggregation landed on the `development` branch (design PR roadmap). Full design: hub `docs/StellarMapWeb/design-lineage-aggregation.md` (GrokBuild) or product design notes.
+
+| PR | Change | Status |
+|----|--------|--------|
+| **PR2A** | Status-only search-cache sync; never `str(dict)` into `cached_json` | Merged |
+| **PR1** | `LineageAggregateService` (`apiApp/helpers/sm_lineage_aggregate.py`) DB-only projection | Merged |
+| **PR2B** | Flag `LINEAGE_WRITE_PROJECTION` → `rebuild_and_cache` on API/BQ/SDK/cron complete | Merged |
+| **PR3** | Flag `LINEAGE_UNIFIED_AGGREGATE` → `search_view` one projection for table+tree | Merged |
+| **PR4** | Lineage APIs via aggregator; process-local response LRU; rate limits | Merged |
+| **PR5** | Progressive / lazy siblings | Deferred (optional) |
+| **PR6b** | Frontend prefers server `tree` | Pending |
+
+### Caching (lineage)
+
+| Layer | Behavior |
+|-------|----------|
+| **Search cache `cached_json`** | Valid `json.dumps` only (tree or schema v1 projection). Status-only sync does **not** touch body or `last_fetched_at`. |
+| **`LINEAGE_WRITE_PROJECTION=1`** | On pipeline complete, write full projection via `rebuild_and_cache` (DB-only). |
+| **`LINEAGE_API_RESPONSE_CACHE` (default on)** | Process-local TTL/LRU for `/api/lineage-with-siblings/` and `/api/account-lineage/` — **not** Django LocMem (avoids thrashing `CACHE_MAX_ENTRIES=256` under LIGHT_MODE). TTL = `max(15, min(300, POLL_INTERVAL_MS//1000))`. Max entries 32 light / 64 full; skip payloads &gt; 512KB. |
+| **`pending_accounts_api`** | Separate process-local cache; TTL still poll-aligned. |
+
+### Rate limits (lineage)
+
+| Endpoint | Limit |
+|----------|-------|
+| `GET /api/lineage-with-siblings/` | **30/m** per IP |
+| `GET /api/account-lineage/` | **20/m** per IP (feature-frozen; prefer siblings API) |
+| `search_view` | **20/m** per IP (existing) |
+
+### Flags (default safe for NAS)
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `LINEAGE_WRITE_PROJECTION` | `0` | Pipelines write full projection on complete |
+| `LINEAGE_UNIFIED_AGGREGATE` | `0` | SSR uses unified service |
+| `LINEAGE_SSR_INCLUDE_SIBLINGS` | `0` | SSR includes siblings (heavier) |
+| `LINEAGE_API_RESPONSE_CACHE` | `1` | Process-local API response LRU |
+
+### Query model
+
+- Path discovery remains **O(D)** sequential partition reads (creator unknown until hop).
+- Siblings / enrichment use batch IN ≤25 on Cassandra.
+- Aggregator is **DB-only** (no Horizon/BigQuery on request or rebuild).
+
+### Lab tip
+
+On LIGHT_MODE NAS, leave write/SSR flags off until pipelines are intentionally enabled; PR2A alone already stops cache clobber. Turn on `LINEAGE_UNIFIED_AGGREGATE` + `LINEAGE_WRITE_PROJECTION` when you want one projection end-to-end.
+
+---
+
 ## 1. SDK Pipeline Source Tracking (October 25, 2025)
 
 ### Issue
@@ -21,13 +73,14 @@ Added `account_obj.pipeline_source = 'SDK'` to the `_update_account_in_database(
 ## 2. API Endpoint Caching Strategy
 
 ### Current Status
-- `pending_accounts_api`: 30s cache (✓ Already optimized)
+- `pending_accounts_api`: process-local cache, TTL tied to `POLL_INTERVAL_MS` (✓)
+- `lineage-with-siblings` / `account-lineage`: process-local LRU + poll-aligned TTL (✓ PR4)
+- Search cache: 12-hour freshness on `last_fetched_at` (✓); body is JSON only (✓ PR2A/PR2B)
 - `pipeline_stats_api`: No caching (opportunity for optimization)
-- `lineage_api`: No caching (opportunity for optimization)
 
 ### Recommendations
 1. **pipeline_stats_api**: Add 10-15s cache (stats change slowly)
-2. **lineage_api**: Add per-account caching with 5-minute TTL
+2. ~~**lineage_api**: Add per-account caching~~ — done via process-local LRU (PR4)
 3. **search results**: Already cached for 12 hours (✓ Good)
 
 ---
