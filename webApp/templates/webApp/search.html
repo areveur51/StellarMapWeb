@@ -251,11 +251,12 @@
                   </div>
                   <div v-else-if="siblings_data && siblings_data.length > 0">
                     <div class="alert alert-info" style="margin-bottom: 15px;">
-                      <strong>{% verbatim %}{{ siblings_data.length }}{% endverbatim %} sibling accounts</strong> found alongside the direct lineage path. 
-                      These are other accounts created by the same creators in the lineage chain.
+                      <strong>{% verbatim %}{{ filteredSiblingsData.length }}{% endverbatim %} sibling accounts</strong> shown (≥ {% verbatim %}{{ siblingXlmThreshold }}{% endverbatim %} XLM). 
+                      {% verbatim %}<span v-if="filteredSiblingsCount > 0">{{ filteredSiblingsCount }} accounts hidden due to low XLM balance.</span>{% endverbatim %}
+                      <br><small>Siblings are accounts created by the same creators in the lineage chain. All sibling data is preserved in the tree visualization.</small>
                     </div>
                     <b-table
-                      :items="siblings_data"
+                      :items="filteredSiblingsData"
                       :fields="lineageTableFields"
                       striped
                       small
@@ -643,8 +644,28 @@
           tomlModalTitle: '',
           tomlContent: '',
           tomlLoading: false,
-          tomlError: null
+          tomlError: null,
+          siblingXlmThreshold: 1000  // Filter siblings with XLM balance >= 1000
         },
+      computed: {
+        filteredSiblingsData() {
+          // Filter siblings to only show accounts with XLM balance >= threshold
+          // This keeps the siblings tab manageable while preserving all data in the tree visualization
+          if (!this.siblings_data || this.siblings_data.length === 0) {
+            return [];
+          }
+          
+          return this.siblings_data.filter(account => {
+            return account.xlm_balance >= this.siblingXlmThreshold;
+          });
+        },
+        filteredSiblingsCount() {
+          // Count of siblings that were filtered out
+          const totalSiblings = this.siblings_data ? this.siblings_data.length : 0;
+          const filteredSiblings = this.filteredSiblingsData.length;
+          return totalSiblings - filteredSiblings;
+        }
+      },
       methods: {
         async search() {
           // Set 'loading' to true to show a loading indicator
@@ -737,68 +758,74 @@
           console.log('[buildTreeFromLineage] Building tree with', dataToUse.length, 'accounts');
           console.log('[buildTreeFromLineage] Sample account:', dataToUse[0]);
           
+          // Find the oldest ancestor (root) from lineage accounts
+          const lineageAccounts = dataToUse.filter(acc => acc.is_lineage_path);
+          let oldestAncestor = null;
+          if (lineageAccounts.length > 0) {
+            // The first lineage account is the oldest (root)
+            oldestAncestor = lineageAccounts[0].stellar_account;
+            console.log('[buildTreeFromLineage] Oldest ancestor (root):', oldestAncestor?.substring(0, 8));
+          }
+          
           // Build a map of accounts for easy lookup
           const accountMap = new Map();
+          const XLM_THRESHOLD = 1000;  // Minimum XLM balance for siblings to appear in tree
           
-          // First pass: create all nodes
+          // First pass: create all nodes (filter siblings by XLM balance)
+          let filteredSiblingCount = 0;
           dataToUse.forEach(record => {
-            accountMap.set(record.stellar_account, {
-              name: record.stellar_account,
-              node_type: 'ISSUER',
-              stellar_account: record.stellar_account,
-              created: record.stellar_account_created_at || '',
-              home_domain: record.home_domain || '',
-              xlm_balance: record.xlm_balance || 0,
-              creator_account: record.stellar_creator_account || '',
-              // Preserve sibling metadata flags for D3 visualization color coding
-              is_lineage_path: record.is_lineage_path || false,
-              is_sibling: record.is_sibling || false,
-              is_searched_account: record.is_searched_account || false,
-              is_issuer: record.is_issuer || false,
-              children: []
-            });
+            // ALWAYS include lineage accounts (regardless of balance)
+            // ONLY include siblings with XLM balance >= 1000
+            const isLineage = record.is_lineage_path || false;
+            const isSibling = record.is_sibling || false;
+            const xlmBalance = record.xlm_balance || 0;
+            
+            if (isLineage || (isSibling && xlmBalance >= XLM_THRESHOLD)) {
+              accountMap.set(record.stellar_account, {
+                name: record.stellar_account,
+                node_type: 'ISSUER',
+                stellar_account: record.stellar_account,
+                created: record.stellar_account_created_at || '',
+                home_domain: record.home_domain || '',
+                xlm_balance: xlmBalance,
+                creator_account: record.stellar_creator_account || '',
+                // Preserve sibling metadata flags for D3 visualization color coding
+                is_lineage_path: isLineage,
+                is_sibling: isSibling,
+                is_searched_account: record.is_searched_account || false,
+                is_issuer: record.is_issuer || false,
+                children: []
+              });
+            } else if (isSibling && xlmBalance < XLM_THRESHOLD) {
+              filteredSiblingCount++;
+            }
           });
           
-          // Second pass: build the tree structure showing both directions
-          let rootNode = null;
-          dataToUse.forEach(record => {
-            const currentNode = accountMap.get(record.stellar_account);
-            const creatorAccount = record.stellar_creator_account;
+          console.log('[buildTreeFromLineage] Filtered', filteredSiblingCount, 'siblings with XLM balance <', XLM_THRESHOLD);
+          console.log('[buildTreeFromLineage] Total nodes in tree:', accountMap.size);
+          
+          // Second pass: build the tree structure from creator relationships
+          // We ONLY use the creator_account field to build parent-child relationships
+          // This ensures we only connect nodes that passed the XLM filter
+          accountMap.forEach((currentNode, accountAddr) => {
+            const creatorAccount = currentNode.creator_account;
             
-            // Build creator chain (upward): add as child of creator
+            // Add this node as a child of its creator (if creator exists in filtered set)
             if (creatorAccount && accountMap.has(creatorAccount)) {
               const parentNode = accountMap.get(creatorAccount);
               // Only add if not already a child (avoid duplicates)
               if (!parentNode.children.some(child => child.stellar_account === currentNode.stellar_account)) {
                 parentNode.children.push(currentNode);
               }
-            } else {
-              // No creator in dataset means this is a potential root
-              if (!rootNode) {
-                rootNode = currentNode;
-              }
             }
+          });
+          
+          // Third pass: add asset nodes (iterate over original data to get asset info)
+          dataToUse.forEach(record => {
+            const currentNode = accountMap.get(record.stellar_account);
             
-            // Build descendant chain (downward): add child accounts created by this account
-            if (record.child_accounts && record.child_accounts.length > 0) {
-              console.log('[buildTreeFromLineage] Account', record.stellar_account?.substring(0, 8), 'has', record.child_accounts.length, 'children');
-              record.child_accounts.forEach(childAccount => {
-                if (accountMap.has(childAccount)) {
-                  const childNode = accountMap.get(childAccount);
-                  // Only add if not already a child (avoid duplicates)
-                  if (!currentNode.children.some(child => child.stellar_account === childNode.stellar_account)) {
-                    currentNode.children.push(childNode);
-                  }
-                } else {
-                  console.log('[buildTreeFromLineage] Child account', childAccount?.substring(0, 8), 'not in accountMap');
-                }
-              });
-            }
-            
-            // Add ASSET nodes as children of this ISSUER node
-            if (record.assets && record.assets.length > 0) {
-              console.log('[buildTreeFromLineage] Adding', record.assets.length, 'assets to account', record.stellar_account?.substring(0, 8), 
-                         'is_sibling:', record.is_sibling, 'is_lineage:', record.is_lineage_path);
+            // Only add assets if the node passed the filter (exists in accountMap)
+            if (currentNode && record.assets && record.assets.length > 0) {
               record.assets.forEach(asset => {
                 currentNode.children.push({
                   name: asset.asset_code,
@@ -813,14 +840,63 @@
             }
           });
           
-          // Fallback to first account if still no root
-          if (!rootNode && dataToUse.length > 0) {
+          // Select root node: Use oldest ancestor from lineage, or fallback to first account
+          let rootNode = null;
+          if (oldestAncestor && accountMap.has(oldestAncestor)) {
+            rootNode = accountMap.get(oldestAncestor);
+            console.log('[buildTreeFromLineage] Using oldest ancestor as root:', oldestAncestor?.substring(0, 8));
+          } else if (dataToUse.length > 0) {
+            // Fallback: use first account
             rootNode = accountMap.get(dataToUse[0].stellar_account);
+            console.log('[buildTreeFromLineage] Fallback: using first account as root');
+          }
+          
+          // Debug: Check root node structure before setting tree_data
+          if (rootNode) {
+            console.log('[buildTreeFromLineage] Root node:', rootNode.stellar_account?.substring(0, 8), 'has', rootNode.children?.length || 0, 'children');
+            console.log('[buildTreeFromLineage] Root node children:', rootNode.children?.map(c => c.stellar_account?.substring(0, 8) || c.name));
           }
           
           // Update tree_data and trigger visualization
           if (rootNode) {
-            this.tree_data = rootNode;
+            // Deep clone the tree to remove circular references for Vue reactivity
+            const cloneTree = (node, visited = new Set()) => {
+              // Prevent infinite loops from circular references
+              if (visited.has(node.stellar_account || node.name)) {
+                return null;
+              }
+              visited.add(node.stellar_account || node.name);
+              
+              const cloned = {
+                name: node.name,
+                node_type: node.node_type,
+                stellar_account: node.stellar_account,
+                created: node.created,
+                home_domain: node.home_domain,
+                xlm_balance: node.xlm_balance,
+                creator_account: node.creator_account,
+                is_lineage_path: node.is_lineage_path,
+                is_sibling: node.is_sibling,
+                is_searched_account: node.is_searched_account,
+                is_issuer: node.is_issuer,
+                asset_type: node.asset_type,
+                asset_code: node.asset_code,
+                asset_issuer: node.asset_issuer,
+                balance: node.balance,
+                children: []
+              };
+              
+              // Clone children recursively
+              if (node.children && node.children.length > 0) {
+                cloned.children = node.children
+                  .map(child => cloneTree(child, new Set(visited)))
+                  .filter(child => child !== null);
+              }
+              
+              return cloned;
+            };
+            
+            this.tree_data = cloneTree(rootNode);
             
             // Trigger tree rendering based on current mode
             this.$nextTick(() => {
@@ -1036,8 +1112,15 @@
           this.account_lineage_data = lineageAccountsSorted;
           this.siblings_data = siblingAccountsSorted;
           
-          // Return ALL accounts (lineage + siblings) for D3 tree visualization
-          return allAccounts;
+          // Return ALL accounts for D3 tree visualization
+          // IMPORTANT: Put lineage accounts FIRST in root → searched order
+          // This ensures buildTreeFromLineage selects the correct root (oldest ancestor)
+          const orderedAccounts = [...lineageAccountsSorted, ...siblingAccountsSorted];
+          
+          console.log('[transformSiblingsToLineage] First account (should be root):', orderedAccounts[0]?.stellar_account?.substring(0, 8));
+          console.log('[transformSiblingsToLineage] Last lineage account (should be searched):', lineageAccountsSorted[lineageAccountsSorted.length - 1]?.stellar_account?.substring(0, 8));
+          
+          return orderedAccounts;
         },
         async fetchServerLogs() {
           try {
@@ -1407,6 +1490,21 @@
           handler(newVal) {
             // Update JSON display whenever tree_data changes
             this.updateJSONDisplay();
+            
+            // Re-render tree visualization whenever tree_data changes
+            if (newVal && Object.keys(newVal).length > 0) {
+              this.$nextTick(() => {
+                const currentMode = window.currentMode || localStorage.getItem('visualizationMode') || 'radial';
+                
+                if (currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                  renderTidyTree(newVal);
+                } else if (typeof renderRadialTree === 'function') {
+                  renderRadialTree(newVal);
+                }
+                
+                console.log('[tree_data watcher] Tree re-rendered with', newVal);
+              });
+            }
           },
           deep: true,
           immediate: true
@@ -1461,33 +1559,32 @@
           // Clear any existing intervals first
           this.stopPolling();
           
-          // Set up auto-refresh for pending accounts every 30 seconds (optimized from 15s for performance)
+          // Poll cadence from server (LIGHT_MODE / POLL_INTERVAL_MS; default 60s on NAS)
+          const pollMs = {{ poll_interval_ms|default:60000 }};
           this.pendingAccountsInterval = setInterval(() => {
             if (!document.hidden) {
               this.fetchPendingAccounts();
             }
-          }, 30000);
+          }, pollMs);
           
           // Fetch stage executions immediately if account is available
           if (this.query_account && this.network_selected) {
             this.fetchStageExecutions();
             
-            // Set up auto-refresh for stage executions every 30 seconds (optimized from 15s for performance)
             this.stageExecutionsInterval = setInterval(() => {
               if (!document.hidden) {
                 this.fetchStageExecutions();
               }
-            }, 30000);
+            }, pollMs);
             
             // Fetch account lineage immediately on mount
             this.fetchAccountLineage();
             
-            // Set up auto-refresh for account lineage every 30 seconds (optimized from 15s for performance)
             this.lineageInterval = setInterval(() => {
               if (!document.hidden) {
                 this.fetchAccountLineage();
               }
-            }, 30000);
+            }, pollMs);
           }
         };
         

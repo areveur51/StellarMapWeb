@@ -1,0 +1,18 @@
+"""Template context shared across pages (NAS light-mode poll cadence, etc.)."""
+from django.conf import settings
+
+
+def nas_runtime(request):
+    is_manager = False
+    try:
+        from apiApp.helpers.tailscale_auth import user_is_manager
+
+        is_manager = user_is_manager(getattr(request, 'user', None))
+    except Exception:
+        pass
+    return {
+        'poll_interval_ms': getattr(settings, 'POLL_INTERVAL_MS', 30000),
+        'light_mode': getattr(settings, 'LIGHT_MODE', False),
+        'is_manager': is_manager,
+        'manager_login_url': '/login/',
+    }

@@ -58,9 +58,18 @@
         <a href="/dashboard" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
             System Dashboard
         </a>
-        <a href="/admin" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
+        {% if is_manager %}
+        <a href="/admin/" class="btn btn-sm btn-outline-info" style="border-color: #0BE784; color: #0BE784;">
             Admin Panel
         </a>
+        <a href="/logout/" class="btn btn-sm btn-outline-info" style="border-color: #E5526F; color: #E5526F;">
+            Manager logout
+        </a>
+        {% else %}
+        <a href="/login/?next=/admin/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
+            Manager login
+        </a>
+        {% endif %}
     </div>
   </div>
 

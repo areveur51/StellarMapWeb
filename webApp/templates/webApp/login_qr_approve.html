@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Approve StellarMapWeb login</title>
+  <style>
+    body { background: #261D45; color: #96DDF2; font-family: system-ui, sans-serif; margin: 0; }
+    .wrap { max-width: 420px; margin: 36px auto; padding: 20px; }
+    .card { background: #1a1530; border: 1px solid #3f2c70; border-radius: 10px; padding: 20px; }
+    h1 { font-size: 1.15rem; text-align: center; }
+    p { font-size: 0.9rem; color: #c4b5fd; line-height: 1.4; }
+    button {
+      width: 100%; padding: 14px; border: none; border-radius: 8px;
+      background: #0BE784; color: #100D23; font-weight: 700; font-size: 1rem; cursor: pointer;
+    }
+    button:disabled { opacity: 0.5; }
+    .err { color: #E5526F; margin-top: 12px; }
+    .ok { color: #0BE784; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Approve desktop login?</h1>
+      <p id="info">Checking Tailscale identity…</p>
+      <button type="button" id="btn-approve" disabled>Approve login</button>
+      <div id="msg"></div>
+    </div>
+  </div>
+  {{ challenge_id|default:""|json_script:"challenge-id" }}
+  <script>
+    const challengeId = JSON.parse(document.getElementById('challenge-id').textContent || '""');
+    const info = document.getElementById('info');
+    const btn = document.getElementById('btn-approve');
+    const msg = document.getElementById('msg');
+
+    async function loadInfo() {
+      if (!challengeId) {
+        info.textContent = 'Missing challenge id.';
+        return;
+      }
+      const res = await fetch('/api/auth/qr/info?c=' + encodeURIComponent(challengeId));
+      const data = await res.json();
+      if (!res.ok) {
+        info.textContent = data.message || 'Challenge invalid';
+        return;
+      }
+      if (data.identity) {
+        info.innerHTML =
+          'Signed in to Tailscale as <strong>' + data.identity.loginName + '</strong>' +
+          (data.identity.nodeName ? ' on <em>' + data.identity.nodeName + '</em>' : '') +
+          '.<br>Allowed manager: <strong>' + (data.identity.allowed ? 'yes' : 'no') + '</strong>.' +
+          (data.hint ? '<br><small>' + data.hint + '</small>' : '');
+        btn.disabled = !data.identity.allowed;
+      } else {
+        info.textContent = data.hint || 'Could not resolve Tailscale identity.';
+        btn.disabled = true;
+      }
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      msg.className = '';
+      msg.textContent = '';
+      try {
+        const res = await fetch('/api/auth/qr/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ c: challengeId }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          msg.className = 'err';
+          msg.textContent = data.message || 'Approve failed';
+          btn.disabled = false;
+          return;
+        }
+        msg.className = 'ok';
+        msg.textContent = 'Approved. Return to the desktop browser — it will finish signing in.';
+      } catch (e) {
+        msg.className = 'err';
+        msg.textContent = String(e);
+        btn.disabled = false;
+      }
+    });
+
+    loadInfo();
+  </script>
+</body>
+</html>
