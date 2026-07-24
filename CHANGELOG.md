@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Aggregation closeout** — rewrite `test_lineage_with_siblings_api` as Django TestCase (no pytest; valid keys); document Definition of Done in `LINEAGE_AGGREGATION.md`
 - **Progressive siblings (PR5)** — optional `LINEAGE_PROGRESSIVE_SIBLINGS`; API `include_siblings` / `structure_only`; search UI path-first then siblings second fetch
 - **Frontend server tree (PR6b)** — search poll prefers API `tree` when `meta.tree_build.algorithm` is `buildTreeFromLineage_v1`; client rebuild remains fallback
 - **Lineage aggregation docs (PR6a)** — `LINEAGE_AGGREGATION.md` implementation status; `PERFORMANCE_OPTIMIZATIONS.md` §0 (flags, caches, rate limits, rollout)
