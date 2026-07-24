@@ -20,6 +20,7 @@
 - **Light-footprint defaults** — `LIGHT_MODE` (locmem cache, quieter logs, longer UI poll, lean SQLite PRAGMAs)
 
 ### Changed
+- **System Dashboard UI** — metric sections use the same elevated panel + compact card language as Dependency Heartbeat (no more fixed 180×180 square tiles); shared `.dash-panel` styles
 - Menu no longer depends on Bootstrap-Vue `b-sidebar` (plain HTML/JS drawer; always clickable)
 - Login QR uses **qrcodejs** CDN (previous node-qrcode path 404'd); QR generates on page load; CSRF token on form
 - App styles live in `frontend.css` (not global Bootstrap reboot — original pages never used full Bootstrap CSS)
