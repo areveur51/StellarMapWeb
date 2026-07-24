@@ -22,8 +22,9 @@ class FrontendServerTreeSourceTests(SimpleTestCase):
     def test_fetch_prefers_server_tree(self):
         self.assertIn("canUseServerTree", self.search_html)
         self.assertIn("applyTreeData", self.search_html)
+        self.assertIn("applyLineageApiPayload", self.search_html)
         self.assertIn("this.canUseServerTree(data)", self.search_html)
-        self.assertIn("this.applyTreeData(data.tree, 'server-tree')", self.search_html)
+        self.assertIn("this.applyTreeData(data.tree,", self.search_html)
         self.assertIn("this.buildTreeFromLineage(allAccountsForTree)", self.search_html)
 
     def test_fallback_path_still_present(self):

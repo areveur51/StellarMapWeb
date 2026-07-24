@@ -1663,6 +1663,8 @@ def lineage_with_siblings_api(request):
         account (str): Stellar account address (required)
         network (str): Network name (required, 'public' or 'testnet')
         max_siblings_per_level (int): Cap siblings per creator (default from settings)
+        include_siblings (0|1): Default 1. When 0, path-only structure (PR5 progressive).
+        structure_only (0|1): Alias for include_siblings=0 (faster first paint).
     """
     from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
     from apiApp.helpers.sm_lineage_aggregate import (
@@ -1689,6 +1691,18 @@ def lineage_with_siblings_api(request):
         max_siblings = default_max_sib
     max_siblings = max(1, min(max_siblings, 200))
 
+    def _truthy(val, default=True):
+        if val is None:
+            return default
+        return str(val).strip().lower() not in ('0', 'false', 'no', 'off')
+
+    structure_only = _truthy(request.GET.get('structure_only'), default=False)
+    # structure_only forces path-only; else honor include_siblings (default on)
+    if structure_only:
+        include_siblings = False
+    else:
+        include_siblings = _truthy(request.GET.get('include_siblings'), default=True)
+
     if not account or not network:
         return JsonResponse({
             'error': 'Missing required parameters',
@@ -1708,7 +1722,11 @@ def lineage_with_siblings_api(request):
         }, status=400)
 
     key = cache_key(
-        account, network, kind='siblings', max_siblings=max_siblings
+        account,
+        network,
+        kind='siblings' if include_siblings else 'structure',
+        max_siblings=max_siblings if include_siblings else 0,
+        include_siblings=1 if include_siblings else 0,
     )
     cached, hit = get_cached(key)
     if hit and cached is not None:
@@ -1721,7 +1739,7 @@ def lineage_with_siblings_api(request):
 
     try:
         options = AggregateOptions.from_settings(
-            include_siblings=True,
+            include_siblings=include_siblings,
             max_siblings_per_level=max_siblings,
             use_search_cache=True,
         )
@@ -1731,6 +1749,8 @@ def lineage_with_siblings_api(request):
         meta = dict(payload.get('meta') or {})
         meta['cached'] = False
         meta['cache_ttl'] = lineage_response_ttl_seconds()
+        meta['include_siblings'] = include_siblings
+        meta['structure_only'] = not include_siblings
         payload['meta'] = meta
         set_cached(key, payload)
         return JsonResponse(payload, safe=False)

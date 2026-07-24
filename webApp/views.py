@@ -696,6 +696,9 @@ def search_view(request):
         'account_lineage_data': account_lineage_data,
         'pending_accounts_data': pending_accounts_data,
         'lineage_unified_aggregate': use_unified,
+        'lineage_progressive_siblings': bool(
+            getattr(settings, 'LINEAGE_PROGRESSIVE_SIBLINGS', False)
+        ),
     }
     
     response = render(request, 'webApp/search.html', context)

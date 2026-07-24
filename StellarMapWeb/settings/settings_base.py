@@ -380,6 +380,13 @@ _lineage_api_cache_raw = str(
 ).strip().lower()
 LINEAGE_API_RESPONSE_CACHE = _lineage_api_cache_raw in ('1', 'true', 'yes', 'on')
 
+# When 1: search UI fetches path/structure first, then siblings in a second request
+# (faster first paint for deep trees). Default off — one full poll is simpler.
+_lineage_prog_raw = str(
+    config('LINEAGE_PROGRESSIVE_SIBLINGS', default='0')
+).strip().lower()
+LINEAGE_PROGRESSIVE_SIBLINGS = _lineage_prog_raw in ('1', 'true', 'yes', 'on')
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
