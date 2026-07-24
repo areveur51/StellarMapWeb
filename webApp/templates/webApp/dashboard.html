@@ -13,11 +13,11 @@
     {% include 'webApp/search_container_include.html' %}
 
     <div class="dashboard-container">
-        <h1>System Dashboard</h1>
+        <h1 class="dash-page-title">System Dashboard</h1>
 
         <!-- Dependency Heartbeat (internal + external) -->
         <h3 class="section-title">Dependency Heartbeat</h3>
-        <div class="heartbeat-panel" id="heartbeat-panel"
+        <div class="dash-panel heartbeat-panel" id="heartbeat-panel"
              data-status="{{ heartbeat.status|default:'unknown' }}"
              data-checked="{{ heartbeat.checked_at|default:'' }}">
             <div class="heartbeat-header">
@@ -99,10 +99,9 @@
         </div>
         
         <!-- Alerts and Recommendations -->
-        <h3 class="section-title">
-                    Alerts & Recommendations
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Alerts & Recommendations</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div class="col-12">
                 {% if db_stats.stuck_accounts > 0 %}
                 <div class="alert alert-custom alert-warning">
@@ -141,12 +140,13 @@
                 {% endif %}
             </div>
         </div>
+        </div>
+
         
         <!-- API Health Monitoring -->
-        <h3 class="section-title">
-            API Health Monitoring
-        </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">API Health Monitoring</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Current Horizon API usage rate. Shows calls per minute with burst limit of 120 req/min. Rate limiter prevents API throttling.">
                     <div class="stat-label">Horizon API (Stellar)</div>
@@ -188,7 +188,7 @@
             <div>
                 <div class="stat-card" title="Shows if rate limiting is active. When enabled, requests are throttled to prevent API ban. Slow continuous retrieval ensures stable operation.">
                     <div class="stat-label">Rate Limiting Status</div>
-                    <div class="stat-value" style="line-height: 1.1; font-size: 2.4rem; margin: 8px 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <div class="stat-value" style="line-height: 1.1; font-size: 1.05rem; margin: 8px 0; display: flex; align-items: center; justify-content: center; gap: 8px;">
                         {% if api_health.rate_limiting_enabled %}
                             <span class="health-indicator health-good"></span> ACTIVE
                         {% else %}
@@ -205,12 +205,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
         
         <!-- BigQuery Cost Tracking -->
-        <h3 class="section-title">
-            BigQuery Cost Tracking
-        </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">BigQuery Cost Tracking</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Maximum cost allowed per BigQuery query. Queries exceeding this limit automatically fall back to free APIs.">
                     <div class="stat-label">Cost Limit</div>
@@ -235,7 +236,7 @@
             <div>
                 <div class="stat-card" title="Current pipeline operation mode. API_ONLY uses free APIs only. BIGQUERY_WITH_API_FALLBACK uses BigQuery with API fallback. BIGQUERY_ONLY uses BigQuery exclusively.">
                     <div class="stat-label">Pipeline Mode</div>
-                    <div class="stat-value" style="font-size: 1.0rem; white-space: normal; word-wrap: break-word; line-height: 1.3;">
+                    <div class="stat-value" style="font-size: 0.95rem; white-space: normal; word-wrap: break-word; line-height: 1.3;">
                         {% if bigquery_stats.bigquery_enabled %}
                             <span class="health-indicator health-good"></span>
                         {% else %}
@@ -246,12 +247,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Triple-Pipeline Metrics -->
-        <h3 class="section-title">
-                    Triple-Pipeline Metrics
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Triple-Pipeline Metrics</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Total accounts processed using BigQuery pipeline (fast path). Typically takes 50-90 seconds per account with comprehensive lineage data.">
                     <div class="stat-label">BigQuery Processed</div>
@@ -298,7 +300,10 @@
                 </div>
             </div>
         </div>
-        <div class="dashboard-grid">
+        </div>
+
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Number of accounts processed via BigQuery pipeline in the last 24 hours. Tracks recent fast-path usage.">
                     <div class="stat-label">Last 24h - BigQuery</div>
@@ -336,12 +341,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Database Health -->
-        <h3 class="section-title">
-                    Database Health
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Database Health</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Total number of Stellar accounts stored in the search cache">
                     <div class="stat-label">Total Accounts</div>
@@ -383,12 +389,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Processing Status -->
-        <h3 class="section-title">
-            Processing Status
-        </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Processing Status</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Accounts waiting to be processed by the pipeline. These are queued for lineage data collection.">
                     <div class="stat-label">Pending</div>
@@ -426,12 +433,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Lineage Data Integrity -->
-        <h3 class="section-title">
-                    Lineage Data Integrity
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Lineage Data Integrity</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Total number of creator-child relationship records stored in the lineage table.">
                     <div class="stat-label">Total Lineage Records</div>
@@ -463,12 +471,13 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- Performance Metrics -->
-        <h3 class="section-title">
-                    Performance Metrics
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">Performance Metrics</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Average time (in minutes) to process an account from start to completion.">
                     <div class="stat-label">Avg Processing Time</div>
@@ -510,16 +519,17 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
         <!-- System Health -->
-        <h3 class="section-title">
-                    System Health
-                </h3>
-        <div class="dashboard-grid">
+        <h3 class="section-title">System Health</h3>
+                <div class="dash-panel">
+<div class="dashboard-grid">
             <div>
                 <div class="stat-card" title="Status of the last cron job execution. SUCCESS/DONE indicates healthy operation. ERROR/FAILED requires investigation.">
                     <div class="stat-label">Cron Status</div>
-                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.25; padding: 0 8px; text-align: left;{% else %}color: #ffc107; font-size: 2.4rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% endif %} margin: 8px 0;">
+                    <div class="stat-value" style="{% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}color: #0BE784; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}color: #E5526F; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% elif cron_health.status|length > 15 %}color: #ffc107; font-size: 0.95rem; line-height: 1.25; padding: 0 8px; text-align: left;{% else %}color: #ffc107; font-size: 1.05rem; display: flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.1;{% endif %} margin: 8px 0;">
                         {% if cron_health.status == 'SUCCESS' or cron_health.status == 'DONE' %}
                             <span class="health-indicator health-good"></span> {{ cron_health.status }}
                         {% elif cron_health.status == 'ERROR' or cron_health.status == 'FAILED' %}
@@ -553,6 +563,8 @@
                 </div>
             </div>
         </div>
+        </div>
+
 
     </div>
   </div>
