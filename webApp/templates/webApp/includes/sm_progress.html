@@ -1,0 +1,28 @@
+{% comment %}
+  DRY full-page / inline progress for StellarMapWeb.
+  Include once per page (before closing body or inside #app):
+    {% include "webApp/includes/sm_progress.html" %}
+  Requires frontend.css + webApp/js/sm_progress.js (loaded from head_assets).
+
+  JS API (window.StellarMapProgress):
+    show({ title, message, value, indeterminate })
+    set(value, message)   // 0–100
+    pulse(title, message) // indeterminate
+    hide()
+    wrap(promise, opts)   // auto show/hide around async work
+{% endcomment %}
+<div id="sm-progress"
+     class="sm-progress"
+     hidden
+     aria-hidden="true"
+     aria-live="polite"
+     aria-busy="false">
+  <div class="sm-progress__backdrop" data-sm-progress-dismiss></div>
+  <div class="sm-progress__panel" role="status">
+    <div class="sm-progress__title" id="sm-progress-title">Working…</div>
+    <div class="sm-progress__track" aria-hidden="true">
+      <div class="sm-progress__bar" id="sm-progress-bar" style="width: 0%"></div>
+    </div>
+    <div class="sm-progress__meta" id="sm-progress-meta"></div>
+  </div>
+</div>

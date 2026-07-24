@@ -10,6 +10,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js" crossorigin="anonymous"></script>
 </head>
 <body class="bg-color-261D45">
+  <!-- Progress overlay MUST stay outside #app so Vue mount cannot destroy it -->
+  {% include 'webApp/includes/sm_progress.html' %}
+
   <!-- No CSS overrides - use styling from visualization_toggle_include.html for DRY -->
   
   <!-- Scroll Position Save/Restore (on page navigation only, not on Vue updates) -->
@@ -439,8 +442,10 @@
     {% endverbatim %}
   </div>
 
-  <!-- Load required Bootstrap and BootstrapVue CSS -->
-<!-- Load Vue followed by BootstrapVue -->
+  <!-- Shared app helpers BEFORE Vue so mixins/globals exist at new Vue() -->
+  <script src="{% static 'webApp/js/sm_progress.js' %}?v=3"></script>
+  <script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
+  <!-- Load Vue followed by BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
   <!-- Load D3.js for visualization -->
@@ -495,7 +500,9 @@
     
     var vm = new Vue({
         el: '#app',
-        mixins: [lineage_table_mixin],
+        mixins: [lineage_table_mixin].concat(
+          typeof sm_progress_mixin !== 'undefined' ? [sm_progress_mixin] : []
+        ),
         data: {
           query_account: '{{ account|default:"GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD" }}',
           loading: false,
@@ -586,27 +593,57 @@
           const totalSiblings = this.siblings_data ? this.siblings_data.length : 0;
           const filteredSiblings = this.filteredSiblingsData.length;
           return totalSiblings - filteredSiblings;
-        }
+        },
+        /** Uppercase PUBLIC / TESTNET for the switch UI */
+        networkLabel() {
+          if (window.StellarMapNetwork) {
+            return StellarMapNetwork.displayLabel(this.network_selected);
+          }
+          return (this.network_selected || 'public').toUpperCase();
+        },
       },
       methods: {
         async search() {
-          // Set 'loading' to true to show a loading indicator
+          const account = (this.query_account || '').trim();
+          if (!account) {
+            this.smProgressShow && this.smProgressShow({
+              title: 'Enter an account',
+              message: 'Paste a Stellar address to search.',
+              value: 0,
+            });
+            if (this.smProgressHide) this.smProgressHide(900);
+            return;
+          }
           this.loading = true;
-          this.progressValue = 17;
-          
-          try {
-            // Use Django backend for efficient search with caching and validation
-            const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
+          this.progressValue = 20;
+          const searchUrl = `/search/?account=${encodeURIComponent(account)}&network=${this.network_selected}`;
+          // DRY progress overlay survives full page navigation
+          if (window.StellarMapProgress && typeof StellarMapProgress.navigate === 'function') {
+            StellarMapProgress.navigate(searchUrl, {
+              title: 'Searching lineage…',
+              message: account,
+            });
+          } else {
+            this.smProgressPulse && this.smProgressPulse('Searching lineage…', account);
             window.location.href = searchUrl;
-          } catch (e) {
-            // If an error occurs, store the error message in 'response'
-            this.response = e.message;
-            this.loading = false;
           }
         },
         toggleNetwork() {
-          // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
-          this.network_selected = this.network_toggle ? 'public' : 'testnet'
+          // Legacy BV checkbox path (if still used somewhere)
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
+        },
+        /**
+         * PUBLIC ↔ TESTNET switch (search bar). Uses StellarMapNetwork when available.
+         */
+        toggleNetworkSwitch() {
+          if (window.StellarMapNetwork) {
+            const next = StellarMapNetwork.nextState(this.network_selected);
+            this.network_toggle = next.network_toggle;
+            this.network_selected = next.network_selected;
+            return;
+          }
+          this.network_toggle = !this.network_toggle;
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
         },
         updateJSONDisplay() {
           let dataToDisplay = null;
@@ -1006,11 +1043,17 @@
             // Only show loading spinner on first load
             if (isFirstLoad) {
               this.lineageLoading = true;
+              this.smProgressShow && this.smProgressShow({
+                title: 'Loading lineage…',
+                message: this.query_account,
+                value: 15,
+              });
             }
             this.lineageError = null;
 
             // PR5: optional progressive — path/structure first, then full siblings
             if (this.lineage_progressive_siblings) {
+              this.smProgressSet && this.smProgressSet(35, 'Path structure…');
               const structure = await this.fetchLineageApiPayload(false);
               this.applyLineageApiPayload(structure, 'server-tree-structure');
               // Allow first paint before heavier siblings request
@@ -1018,6 +1061,7 @@
                 this.lineageLoading = false;
               }
               try {
+                this.smProgressSet && this.smProgressSet(70, 'Siblings…');
                 const full = await this.fetchLineageApiPayload(true);
                 this.applyLineageApiPayload(full, 'server-tree-with-siblings');
               } catch (e2) {
@@ -1025,14 +1069,17 @@
                 console.warn('Progressive siblings fetch failed; keeping structure-only', e2);
               }
             } else {
+              this.smProgressSet && this.smProgressSet(55, 'Fetching lineage…');
               const data = await this.fetchLineageApiPayload(true);
               this.applyLineageApiPayload(data, 'server-tree');
             }
+            this.smProgressSet && this.smProgressSet(100, 'Done');
           } catch (e) {
             console.error('Error fetching account lineage:', e);
             this.lineageError = e.message || 'Error fetching account lineage';
           } finally {
             this.lineageLoading = false;
+            this.smProgressHide && this.smProgressHide(220);
           }
         },
         transformSiblingsToLineage(siblingsData) {

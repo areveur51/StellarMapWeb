@@ -1,5 +1,9 @@
 <!-- radialTidyTreeApp/templates/radialTidyTreeApp/radial_tidy_tree_partial.html -->
 {% load static %}
+{% comment %}
+  Vue owns all tree rendering via applyTreeData / paintTreeVisualization.
+  Do not auto-paint D3 here (avoids SSR flash when fetchAccountLineage updates).
+{% endcomment %}
 
 <style>
     #radial-tree-container {
@@ -25,9 +29,7 @@
     }
 </style>
 
-{# Vue owns all tree rendering via applyTreeData — no early D3 paint here
-   (avoids SSR flash then wipe when fetchAccountLineage updates the tree). #}
 <div id="radial-tree-container">
     <div class="sm-tree-placeholder" id="sm-tree-placeholder">Loading lineage tree…</div>
-    <svg id="tree" width="800" height="800"></svg>
+    <svg id="tree" width="800" height="800" aria-label="Account lineage tree"></svg>
 </div>
