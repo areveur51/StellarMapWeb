@@ -15,7 +15,7 @@ Unified **table + siblings + radial tree** aggregation landed on the `developmen
 | **PR3** | Flag `LINEAGE_UNIFIED_AGGREGATE` → `search_view` one projection for table+tree | Merged |
 | **PR4** | Lineage APIs via aggregator; process-local response LRU; rate limits | Merged |
 | **PR5** | Progressive / lazy siblings | Deferred (optional) |
-| **PR6b** | Frontend prefers server `tree` | Pending |
+| **PR6b** | Frontend prefers server `tree` when algorithm matches | This PR |
 
 ### Caching (lineage)
 
