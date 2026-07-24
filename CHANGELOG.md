@@ -28,6 +28,8 @@
 - `requirements.txt`: `psycopg2-binary` for Postgres
 
 ### Fixed
+- **Search page not fully loading** — progress overlay moved outside Vue `#app`; helpers load before Vue (no defer race); progress DOM re-queried on show/hide
+- **Search shell unit tests** — `test_search_page_shell.py` guards template/script structure regressions
 - **Network PUBLIC/TESTNET switch** — replace bare BV checkbox with accessible switch; `StellarMapNetwork` + unit tests
 - **Leaked Django comment on Search** — multi-line `{# #}` is invalid; use `{% comment %}` (text no longer shows next to Filters)
 - **Search refresh layout** — results container full-width block (no flex-center left shunt)

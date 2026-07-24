@@ -14,22 +14,18 @@
 (function (global) {
   'use strict';
 
-  var root = null;
-  var bar = null;
-  var titleEl = null;
-  var metaEl = null;
   var hideTimer = null;
   var pulseTimer = null;
   var value = 0;
 
+  /** Always re-query DOM (Vue remounts must not leave stale node refs). */
   function els() {
-    if (!root) {
-      root = document.getElementById('sm-progress');
-      bar = document.getElementById('sm-progress-bar');
-      titleEl = document.getElementById('sm-progress-title');
-      metaEl = document.getElementById('sm-progress-meta');
-    }
-    return root;
+    return {
+      root: document.getElementById('sm-progress'),
+      bar: document.getElementById('sm-progress-bar'),
+      titleEl: document.getElementById('sm-progress-title'),
+      metaEl: document.getElementById('sm-progress-meta'),
+    };
   }
 
   function clearPulse() {
@@ -37,31 +33,35 @@
       clearInterval(pulseTimer);
       pulseTimer = null;
     }
-    if (root) root.classList.remove('is-indeterminate');
+    var e = els();
+    if (e.root) e.root.classList.remove('is-indeterminate');
   }
 
   function setBarWidth(pct) {
     value = Math.max(0, Math.min(100, Number(pct) || 0));
-    if (bar) bar.style.width = value + '%';
+    var e = els();
+    if (e.bar) e.bar.style.width = value + '%';
   }
 
   var Progress = {
     show: function (opts) {
       opts = opts || {};
-      if (!els()) return;
+      var e = els();
+      if (!e.root) return;
       if (hideTimer) {
         clearTimeout(hideTimer);
         hideTimer = null;
       }
-      root.hidden = false;
-      root.setAttribute('aria-hidden', 'false');
-      root.setAttribute('aria-busy', 'true');
+      e.root.hidden = false;
+      e.root.removeAttribute('hidden');
+      e.root.setAttribute('aria-hidden', 'false');
+      e.root.setAttribute('aria-busy', 'true');
       document.body.classList.add('sm-progress-active');
-      if (titleEl) titleEl.textContent = opts.title || 'Working…';
-      if (metaEl) metaEl.textContent = opts.message || '';
+      if (e.titleEl) e.titleEl.textContent = opts.title || 'Working…';
+      if (e.metaEl) e.metaEl.textContent = opts.message || '';
       clearPulse();
       if (opts.indeterminate) {
-        root.classList.add('is-indeterminate');
+        e.root.classList.add('is-indeterminate');
         setBarWidth(30);
         var dir = 1;
         pulseTimer = setInterval(function () {
@@ -76,12 +76,13 @@
     },
 
     set: function (pct, message) {
-      if (!els()) return;
+      var e = els();
+      if (!e.root) return;
       clearPulse();
-      root.classList.remove('is-indeterminate');
-      if (!root.hidden) {
+      e.root.classList.remove('is-indeterminate');
+      if (!e.root.hidden) {
         setBarWidth(pct);
-        if (message != null && metaEl) metaEl.textContent = message;
+        if (message != null && e.metaEl) e.metaEl.textContent = message;
       } else {
         this.show({ value: pct, message: message });
       }
@@ -92,18 +93,26 @@
     },
 
     hide: function (delayMs) {
-      if (!els()) return;
+      var e = els();
+      if (!e.root) {
+        document.body.classList.remove('sm-progress-active');
+        return;
+      }
       clearPulse();
       setBarWidth(100);
       var ms = delayMs == null ? 180 : delayMs;
       if (hideTimer) clearTimeout(hideTimer);
       hideTimer = setTimeout(function () {
-        root.hidden = true;
-        root.setAttribute('aria-hidden', 'true');
-        root.setAttribute('aria-busy', 'false');
+        var e2 = els();
+        if (e2.root) {
+          e2.root.hidden = true;
+          e2.root.setAttribute('hidden', 'hidden');
+          e2.root.setAttribute('aria-hidden', 'true');
+          e2.root.setAttribute('aria-busy', 'false');
+        }
         document.body.classList.remove('sm-progress-active');
         setBarWidth(0);
-        if (metaEl) metaEl.textContent = '';
+        if (e2.metaEl) e2.metaEl.textContent = '';
         hideTimer = null;
       }, ms);
     },

@@ -138,8 +138,9 @@ class NetworkSwitchMarkupRegressionTests(SimpleTestCase):
 class NetworkSwitchRenderedHtmlTests(SimpleTestCase):
     """Ensure live template include still has switch after deploy regressions."""
 
-    def test_head_assets_loads_sm_network_js(self):
-        head = (
-            PROJECT_ROOT / "webApp/templates/webApp/includes/head_assets.html"
+    def test_search_page_loads_sm_network_js_before_vue(self):
+        search = (
+            PROJECT_ROOT / "webApp/templates/webApp/search.html"
         ).read_text()
-        self.assertIn("sm_network.js", head)
+        self.assertIn("sm_network.js", search)
+        self.assertLess(search.find("sm_network.js"), search.find("vue@2"))
