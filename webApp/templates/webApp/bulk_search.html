@@ -92,7 +92,8 @@
       </div>
     </div>
   </div>
-<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
   
   <script>
@@ -100,6 +101,7 @@
     
     new Vue({
       el: '#app',
+      mixins: [typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {}],
       data: {
         query_account: '',
         network_toggle: true,
@@ -108,13 +110,10 @@
       methods: {
         search() {
           if (this.query_account.trim()) {
-            const network = this.network_toggle ? 'public' : 'testnet';
+            const network = this.network_selected || (this.network_toggle ? 'public' : 'testnet');
             window.location.href = `/search?account=${encodeURIComponent(this.query_account)}&network=${network}`;
           }
         },
-        toggleNetwork() {
-          this.network_selected = this.network_toggle ? 'public' : 'testnet';
-        }
       }
     });
   </script>

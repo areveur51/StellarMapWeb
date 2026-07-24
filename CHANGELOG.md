@@ -28,6 +28,7 @@
 - `requirements.txt`: `psycopg2-binary` for Postgres
 
 ### Fixed
+- **Home page purple blank** — shared top bar required `networkLabel` / `toggleNetworkSwitch`; home Vue lacked them so render threw and emptied `#app`. Added `sm_network_mixin` and wired it on home + other shell pages (dashboard, bulk, HVA, query builder)
 - **Search page not fully loading** — progress overlay moved outside Vue `#app`; helpers load before Vue (no defer race); progress DOM re-queried on show/hide
 - **Search shell unit tests** — `test_search_page_shell.py` guards template/script structure regressions
 - **Network PUBLIC/TESTNET switch** — replace bare BV checkbox with accessible switch; `StellarMapNetwork` + unit tests

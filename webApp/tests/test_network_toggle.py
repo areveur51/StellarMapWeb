@@ -114,6 +114,10 @@ class NetworkSwitchMarkupRegressionTests(SimpleTestCase):
             "toggleFromNetwork",
             "normalizeNetwork",
             "StellarMapNetwork",
+            # Required so pages with search_container_include do not blank on Vue mount
+            "sm_network_mixin",
+            "networkLabel",
+            "toggleNetworkSwitch",
         ):
             self.assertIn(name, js)
 
@@ -144,3 +148,26 @@ class NetworkSwitchRenderedHtmlTests(SimpleTestCase):
         ).read_text()
         self.assertIn("sm_network.js", search)
         self.assertLess(search.find("sm_network.js"), search.find("vue@2"))
+
+    def test_shell_pages_load_sm_network_js_before_vue(self):
+        """Home/dashboard/etc. must define networkLabel via mixin or Vue render blanks #app."""
+        pages = (
+            "webApp/templates/webApp/index.html",
+            "webApp/templates/webApp/dashboard.html",
+            "webApp/templates/webApp/bulk_search.html",
+            "webApp/templates/webApp/high_value_accounts.html",
+            "webApp/templates/webApp/query_builder.html",
+        )
+        for rel in pages:
+            text = (PROJECT_ROOT / rel).read_text()
+            self.assertIn("sm_network.js", text, rel)
+            self.assertLess(
+                text.find("sm_network.js"),
+                text.find("vue@2"),
+                f"{rel}: sm_network.js must load before Vue",
+            )
+            self.assertIn(
+                "sm_network_mixin",
+                text,
+                f"{rel}: must use sm_network_mixin so networkLabel exists at render",
+            )

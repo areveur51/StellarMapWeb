@@ -152,6 +152,33 @@ class SearchPageHttpShellTests(SimpleTestCase):
         self.assertIn("sm-progress", html)
         self.assertIn("sm-network-switch", html)
 
+    def test_home_page_shell_will_not_blank_on_vue_mount(self):
+        """
+        Regression: missing networkLabel/toggleNetworkSwitch made Vue render throw
+        and left only the purple body background.
+        """
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode("utf-8")
+        # Landing content present in SSR HTML
+        self.assertIn("landing-content", html)
+        self.assertIn("main-title", html)
+        self.assertIn("What is StellarMap", html)
+        # Progress outside #app
+        self.assertLess(html.find('id="sm-progress"'), html.find('id="app"'))
+        # Helpers before Vue
+        self.assertIn("sm_network.js", html)
+        self.assertIn("sm_progress.js", html)
+        self.assertLess(html.find("sm_network.js"), html.find("vue@2"))
+        # Mixin (or handlers) so shared top bar can render
+        self.assertIn("sm_network_mixin", html)
+        self.assertIn("new Vue", html)
+        # Static API surface for mixin
+        js = (PROJECT_ROOT / "webApp/static/webApp/js/sm_network.js").read_text()
+        self.assertIn("sm_network_mixin", js)
+        self.assertIn("toggleNetworkSwitch", js)
+        self.assertIn("networkLabel", js)
+
 
 class ProgressJsBehaviorTests(SimpleTestCase):
     """Execute StellarMapProgress show/hide in Node with a minimal DOM stub."""

@@ -557,8 +557,9 @@
     </div>
   </div>
 
-  <!-- Load required Bootstrap and BootstrapVue CSS -->
-<!-- Load Vue followed by BootstrapVue -->
+  <!-- Network switch mixin must load before Vue mounts the shared top bar -->
+  <script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
+  <!-- Load Vue followed by BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
   
@@ -630,6 +631,7 @@
 
     var vm = new Vue({
         el: '#app',
+        mixins: [typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {}],
         data: {
           query_account: '',
           network_toggle: true,
@@ -642,9 +644,6 @@
               const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
               window.location.href = searchUrl;
             }
-          },
-          toggleNetwork() {
-            this.network_selected = this.network_toggle ? 'public' : 'testnet'
           },
           async fetchPipelineStats() {
             try {
