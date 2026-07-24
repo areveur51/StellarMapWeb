@@ -1,83 +1,149 @@
-<!-- Shared search container and sidebar component -->
+<!-- Shared top bar + sidebar. Menu is plain HTML/JS so it works without Bootstrap-Vue. -->
 <div class="top-container">
-  {% verbatim %}
-    <div class="search-container">
-      <div class="container-fluid">
-        <div class="row align-items-center">
-          <div class="col-auto">
-            <b-button class="sidebar-button" v-b-toggle href="#sidebar-menu" @click.prevent><i class="fa fa-bars"></i></b-button>
-          </div>
-          <div class="col">
-            <div class="row align-items-center">
-              <b-form-checkbox 
-                v-model="network_toggle" 
-                switch 
-                @change="toggleNetwork"
-                :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
-              >{{network_selected}}</b-form-checkbox>
-              <input type="text" v-model="query_account" @keyup.enter="search" placeholder="Paste a Stellar account address...">
-            </div>
-          </div>
-          <div class="col-auto">
-            <button @click="search"><i class="fa fa-space-shuttle"></i></button>
-          </div>
-        </div>
-      </div>
-    </div>
-  {% endverbatim %}
-</div>
+  <div class="search-container">
+    <div class="sm-topbar">
+      <button type="button"
+              class="sidebar-button sm-menu-btn"
+              id="sm-menu-open"
+              data-sm-menu="open"
+              aria-label="Open menu"
+              aria-expanded="false"
+              aria-controls="sm-sidebar">
+        <i class="fa fa-bars" aria-hidden="true"></i>
+      </button>
 
-<!-- Shared sidebar component -->
-<b-sidebar id="sidebar-menu" title="StellarMap.Network" shadow>
-  <div class="px-3 py-2">
-    <p style="color: #96DDF2; line-height: 1.5;">
-      This web application allows users to generate the lineage of Stellar addresses 
-      and visualize them in a radial, tidy tree format. The tree maps address types 
-      and activity, providing a clear and organized view of the relationships between addresses.
-    </p>
-    
-    <hr style="border-color: #0f3460; margin: 20px 0;">
-    
-    <h6 style="color: #00d4ff; margin-bottom: 15px;">Quick Navigation</h6>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-        <a href="/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            Home
-        </a>
-        <a href="/search" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            Search Accounts
-        </a>
-        <a href="/web/bulk-search/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            Bulk Search
-        </a>
-        <a href="/web/high-value-accounts/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            High Value Accounts
-        </a>
-        <a href="/web/query-builder/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            Query Builder
-        </a>
-        <a href="/dashboard" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            System Dashboard
-        </a>
-        {% if is_manager %}
-        <a href="/admin/" class="btn btn-sm btn-outline-info" style="border-color: #0BE784; color: #0BE784;">
-            Admin Panel
-        </a>
-        <a href="/logout/" class="btn btn-sm btn-outline-info" style="border-color: #E5526F; color: #E5526F;">
-            Manager logout
-        </a>
-        {% else %}
-        <a href="/login/?next=/admin/" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2;">
-            Manager login
-        </a>
-        {% endif %}
+      {% verbatim %}
+      <div class="sm-topbar-main">
+        <b-form-checkbox
+          v-model="network_toggle"
+          switch
+          @change="toggleNetwork"
+          :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
+          class="sm-network-toggle"
+        >{{ network_selected }}</b-form-checkbox>
+        <input
+          type="text"
+          v-model="query_account"
+          @keyup.enter="search"
+          placeholder="Paste a Stellar account…"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          enterkeyhint="search"
+          aria-label="Stellar account address"
+          class="sm-search-input"
+        >
+      </div>
+      <button type="button" class="sm-search-btn" @click="search" aria-label="Search">
+        <i class="fa fa-space-shuttle" aria-hidden="true"></i>
+      </button>
+      {% endverbatim %}
     </div>
   </div>
+</div>
 
-  <template #footer="{ hide }">
-    <div class="d-flex text-light align-items-center px-3 py-2" style="width: 100%;">
-      <button @click="hide" class="btn btn-sm btn-outline-info" style="border-color: #96DDF2; color: #96DDF2; width: 100%;">
-        Close
-      </button>
-    </div>
-  </template>
-</b-sidebar>
+<div class="sm-sidebar-backdrop" id="sm-sidebar-backdrop" data-sm-menu="close" hidden></div>
+<aside class="sm-sidebar" id="sm-sidebar" role="dialog" aria-modal="true" aria-label="StellarMap menu" hidden>
+  <div class="sm-sidebar-header">
+    <strong>StellarMap</strong>
+    <button type="button" class="sm-menu-close" data-sm-menu="close" aria-label="Close menu">&times;</button>
+  </div>
+  <div class="sm-sidebar-body">
+    <p class="sm-sidebar-blurb">
+      Explore Stellar account lineage as interactive radial trees.
+      Search and browse freely — manager login is only for admin tools.
+    </p>
+
+    <hr class="sm-sidebar-hr">
+
+    <div class="sm-sidebar-label">Navigate</div>
+    <nav class="sm-nav" aria-label="Main">
+      <a href="/" class="sm-nav-link"><i class="fa fa-home icon-pad"></i>Home</a>
+      <a href="/search/" class="sm-nav-link"><i class="fa fa-search icon-pad"></i>Search</a>
+      <a href="/web/bulk-search/" class="sm-nav-link"><i class="fa fa-layer-group icon-pad"></i>Bulk search</a>
+      <a href="/web/high-value-accounts/" class="sm-nav-link"><i class="fa fa-gem icon-pad"></i>High value accounts</a>
+      <a href="/web/query-builder/" class="sm-nav-link"><i class="fa fa-database icon-pad"></i>Query builder</a>
+      <a href="/dashboard/" class="sm-nav-link"><i class="fa fa-heartbeat icon-pad"></i>System dashboard</a>
+    </nav>
+
+    <div class="sm-sidebar-label">Manage</div>
+    <nav class="sm-nav" aria-label="Manager">
+      {% if is_manager %}
+      <a href="/admin/" class="sm-nav-link sm-nav-link--ok"><i class="fa fa-cog icon-pad"></i>Admin panel</a>
+      <a href="/logout/" class="sm-nav-link sm-nav-link--danger"><i class="fa fa-sign-out-alt icon-pad"></i>Manager logout</a>
+      {% else %}
+      <a href="/login/?next=/admin/" class="sm-nav-link"><i class="fa fa-user-shield icon-pad"></i>Manager login</a>
+      {% endif %}
+    </nav>
+  </div>
+  <div class="sm-sidebar-footer">
+    <button type="button" class="sm-nav-link" data-sm-menu="close">Close menu</button>
+  </div>
+</aside>
+
+<script>
+/* Document-level handlers so Vue remounts cannot kill the menu. */
+(function () {
+  if (window.__smMenuBound) return;
+  window.__smMenuBound = true;
+
+  function sidebar() { return document.getElementById('sm-sidebar'); }
+  function backdrop() { return document.getElementById('sm-sidebar-backdrop'); }
+  function openBtn() { return document.getElementById('sm-menu-open'); }
+
+  function openMenu() {
+    var sb = sidebar(), bd = backdrop(), btn = openBtn();
+    if (!sb || !bd) return;
+    sb.hidden = false;
+    bd.hidden = false;
+    requestAnimationFrame(function () {
+      sb.classList.add('is-open');
+      bd.classList.add('is-open');
+    });
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('sm-menu-open');
+  }
+
+  function closeMenu() {
+    var sb = sidebar(), bd = backdrop(), btn = openBtn();
+    if (!sb || !bd) return;
+    sb.classList.remove('is-open');
+    bd.classList.remove('is-open');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('sm-menu-open');
+    setTimeout(function () {
+      if (sb && !sb.classList.contains('is-open')) {
+        sb.hidden = true;
+        bd.hidden = true;
+      }
+    }, 220);
+  }
+
+  function toggleMenu() {
+    var sb = sidebar();
+    if (sb && sb.classList.contains('is-open')) closeMenu();
+    else openMenu();
+  }
+
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-sm-menu]') : null;
+    if (!el) return;
+    var action = el.getAttribute('data-sm-menu');
+    if (action === 'open') {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMenu();
+    } else if (action === 'close') {
+      e.preventDefault();
+      closeMenu();
+    }
+  }, true);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  window.smOpenMenu = openMenu;
+  window.smCloseMenu = closeMenu;
+})();
+</script>

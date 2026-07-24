@@ -1,26 +1,18 @@
-<!-- webApp/templates/webApp/base.html -->
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StellarMapWeb</title>
-
-    <!-- Securely load external styles via HTTPS; use static for local files -->
-    {% load static %}
-    <!-- Theme CSS will be loaded dynamically by global theme loader -->
-    <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
-    <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
-    <link rel="stylesheet" href="{% static 'webApp/css/frontend.css' %}">
-
-    <!-- Block for extending templates to add extra head content (e.g., meta tags) -->
-    {% block extra_head %}{% endblock %}
+  <title>{% block title %}StellarMap{% endblock %}</title>
+  {% include 'webApp/includes/head_assets.html' %}
+{% block extra_head %}{% endblock %}
 </head>
-<body>
-    <!-- Main content block; overridden in child templates -->
+<body class="bg-color-261D45">
+  <div id="app">
     {% block content %}{% endblock %}
-
-    <!-- Block for extra JavaScript; place at end for efficient loading -->
-    {% block extra_js %}{% endblock %}
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
+  <script>if (window.Vue) { Vue.use(BootstrapVue); }</script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>

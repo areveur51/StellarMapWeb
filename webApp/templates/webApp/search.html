@@ -1,79 +1,13 @@
 {% load static %}
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>StellarMap Web</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <!-- Global theme loader - syncs with admin portal theme -->
-  <script src="{% static 'webApp/js/global_theme_loader.js' %}"></script>
-  <script src="{% static 'webApp/js/theme_sync.js' %}"></script>
-  <!-- include custom theme -->
-  <link rel="stylesheet" type="text/css" href="{% static 'webApp/css/frontend.css' %}">
-  <!-- Shared visualization controls CSS -->
+  <title>StellarMap — Search</title>
+  {% include 'webApp/includes/head_assets.html' %}
   <link rel="stylesheet" href="{% static 'radialTidyTreeApp/css/visualization_controls.css' %}">
-  <!-- include the Font Awesome library for the search icon -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" crossorigin="anonymous">
-  <!-- include HighlightJS library for the terminal text fields -->
+<!-- include HighlightJS library for the terminal text fields -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/monokai-sublime.min.css" crossorigin="anonymous">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js" crossorigin="anonymous"></script>
-  
-  <!-- Toggle active state CSS -->
-  <style>
-    .toggle-switch.active .toggle-slider {
-      transform: translateX(32px) !important;
-      background: linear-gradient(135deg, #0BE784, #96DDF2) !important;
-    }
-    
-    /* Logs Display Styling - High Contrast for Cyberpunk Theme */
-    .logs-display {
-      max-height: 600px;
-      overflow-y: auto;
-      background-color: #1a1a2e !important;
-      color: #00ff88 !important;
-      padding: 15px;
-      border-radius: 5px;
-      border: 1px solid #0BE784;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-    
-    /* Override highlight.js colors for better visibility */
-    .logs-display .hljs-string,
-    .logs-display .hljs-variable,
-    .logs-display .hljs-title,
-    .logs-display .hljs-keyword {
-      color: #0BE784 !important;
-    }
-    
-    .logs-display .hljs-number,
-    .logs-display .hljs-built_in {
-      color: #96DDF2 !important;
-    }
-    
-    .logs-display .hljs-comment {
-      color: #888 !important;
-    }
-    
-    /* Error Logs - Red/Orange Theme for Errors */
-    .logs-display.error-logs {
-      border-color: #ff6b6b;
-      color: #ff6b6b !important;
-    }
-    
-    .logs-display.error-logs .hljs-string,
-    .logs-display.error-logs .hljs-variable,
-    .logs-display.error-logs .hljs-title,
-    .logs-display.error-logs .hljs-keyword {
-      color: #ff6b6b !important;
-    }
-    
-    .logs-display.error-logs .hljs-number,
-    .logs-display.error-logs .hljs-built_in {
-      color: #ffa500 !important;
-    }
-  </style>
 </head>
 <body class="bg-color-261D45">
   <!-- No CSS overrides - use styling from visualization_toggle_include.html for DRY -->
@@ -106,7 +40,7 @@
     <!-- This element serves as a container for displaying the results of the search function -->
     <div class="results-container">
       {% if is_cached or is_refreshing %}
-        <div class="cache-status-indicator" style="text-align: center; padding: 10px; margin-bottom: 10px;">
+        <div class="cache-status-indicator">
           {% if is_cached %}
             <span class="badge badge-success" style="font-size: 0.9em;">
               <i class="fas fa-clock"></i> Cached Data (Fresh)
@@ -506,9 +440,7 @@
   </div>
 
   <!-- Load required Bootstrap and BootstrapVue CSS -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.css" crossorigin="anonymous">
-  <!-- Load Vue followed by BootstrapVue -->
+<!-- Load Vue followed by BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
   <!-- Load D3.js for visualization -->

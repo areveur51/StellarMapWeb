@@ -2,31 +2,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Approve StellarMapWeb login</title>
-  <style>
-    body { background: #261D45; color: #96DDF2; font-family: system-ui, sans-serif; margin: 0; }
-    .wrap { max-width: 420px; margin: 36px auto; padding: 20px; }
-    .card { background: #1a1530; border: 1px solid #3f2c70; border-radius: 10px; padding: 20px; }
-    h1 { font-size: 1.15rem; text-align: center; }
-    p { font-size: 0.9rem; color: #c4b5fd; line-height: 1.4; }
-    button {
-      width: 100%; padding: 14px; border: none; border-radius: 8px;
-      background: #0BE784; color: #100D23; font-weight: 700; font-size: 1rem; cursor: pointer;
-    }
-    button:disabled { opacity: 0.5; }
-    .err { color: #E5526F; margin-top: 12px; }
-    .ok { color: #0BE784; margin-top: 12px; }
-  </style>
+  <title>Approve StellarMap login</title>
+  {% include 'webApp/includes/head_assets.html' %}
 </head>
-<body>
-  <div class="wrap">
-    <div class="card">
+<body class="bg-color-261D45">
+  <div class="sm-auth-wrap">
+    <div class="sm-auth-card">
       <h1>Approve desktop login?</h1>
-      <p id="info">Checking Tailscale identity…</p>
-      <button type="button" id="btn-approve" disabled>Approve login</button>
+      <p class="sm-auth-sub" id="info">Checking Tailscale identity…</p>
+      <button type="button" class="sm-btn sm-btn--success sm-btn--block" id="btn-approve" disabled>Approve login</button>
       <div id="msg"></div>
+      <div class="sm-auth-links" style="margin-top:18px">
+        <a href="/">Public home</a>
+      </div>
     </div>
   </div>
   {{ challenge_id|default:""|json_script:"challenge-id" }}
@@ -72,15 +60,15 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          msg.className = 'err';
+          msg.className = 'sm-auth-err';
           msg.textContent = data.message || 'Approve failed';
           btn.disabled = false;
           return;
         }
-        msg.className = 'ok';
+        msg.className = 'sm-auth-ok';
         msg.textContent = 'Approved. Return to the desktop browser — it will finish signing in.';
       } catch (e) {
-        msg.className = 'err';
+        msg.className = 'sm-auth-err';
         msg.textContent = String(e);
         btn.disabled = false;
       }
