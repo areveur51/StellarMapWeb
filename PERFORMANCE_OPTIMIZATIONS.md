@@ -14,7 +14,7 @@ Unified **table + siblings + radial tree** aggregation landed on the `developmen
 | **PR2B** | Flag `LINEAGE_WRITE_PROJECTION` → `rebuild_and_cache` on API/BQ/SDK/cron complete | Merged |
 | **PR3** | Flag `LINEAGE_UNIFIED_AGGREGATE` → `search_view` one projection for table+tree | Merged |
 | **PR4** | Lineage APIs via aggregator; process-local response LRU; rate limits | Merged |
-| **PR5** | Progressive / lazy siblings | Deferred (optional) |
+| **PR5** | Progressive / lazy siblings (`LINEAGE_PROGRESSIVE_SIBLINGS`) | This PR (optional, default off) |
 | **PR6b** | Frontend prefers server `tree` when algorithm matches | This PR |
 
 ### Caching (lineage)
@@ -42,6 +42,7 @@ Unified **table + siblings + radial tree** aggregation landed on the `developmen
 | `LINEAGE_UNIFIED_AGGREGATE` | `0` | SSR uses unified service |
 | `LINEAGE_SSR_INCLUDE_SIBLINGS` | `0` | SSR includes siblings (heavier) |
 | `LINEAGE_API_RESPONSE_CACHE` | `1` | Process-local API response LRU |
+| `LINEAGE_PROGRESSIVE_SIBLINGS` | `0` | Path-first API poll then siblings (2 requests) |
 
 ### Query model
 

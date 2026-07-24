@@ -30,12 +30,13 @@ Tree builder matches client `buildTreeFromLineage` rules (lineage always include
 | `LINEAGE_UNIFIED_AGGREGATE` | `0` | `search_view` uses aggregator for table + tree |
 | `LINEAGE_SSR_INCLUDE_SIBLINGS` | `0` | SSR includes siblings (heavier) |
 | `LINEAGE_API_RESPONSE_CACHE` | `1` | Process-local API response cache |
+| `LINEAGE_PROGRESSIVE_SIBLINGS` | `0` | Search UI: structure-first fetch, then siblings |
 
 ## Endpoints
 
 | Endpoint | Role |
 |----------|------|
-| `GET /api/lineage-with-siblings/` | Primary live poll (30/m). Returns path, siblings, `all_account_data`, additive `tree` + `meta`. |
+| `GET /api/lineage-with-siblings/` | Primary live poll (30/m). Returns path, siblings, `all_account_data`, additive `tree` + `meta`. Supports `include_siblings=0` / `structure_only=1` for path-only. |
 | `GET /api/account-lineage/` | Feature-frozen (20/m). Prefer siblings API. DB-only thin wrap. |
 
 ## Pipelines
@@ -49,6 +50,14 @@ On complete, status is always synced without clobbering `cached_json`. When `LIN
 3. Enable `LINEAGE_WRITE_PROJECTION=1` where pipelines run.
 4. Enable `LINEAGE_UNIFIED_AGGREGATE=1` for SSR.
 5. Frontend prefers server `tree` when `meta.tree_build.algorithm === buildTreeFromLineage_v1` (PR6b); client rebuild is fallback.
+
+## Progressive siblings (PR5)
+
+When `LINEAGE_PROGRESSIVE_SIBLINGS=1`:
+
+1. UI requests `structure_only=1` (path + tree without siblings) for first paint.
+2. Then requests full `include_siblings=1` to fill siblings tab and enrich the tree.
+3. Default remains **off** (single full poll) for simpler NAS/lab behavior.
 
 ## Frontend (PR6b)
 

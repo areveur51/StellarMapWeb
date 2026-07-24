@@ -546,6 +546,8 @@
           // PR6b: must match apiApp.helpers.sm_lineage_aggregate.TREE_ALGORITHM
           SERVER_TREE_ALGORITHM: 'buildTreeFromLineage_v1',
           XLM_SIBLING_TREE_THRESHOLD: 1000,
+          // PR5: path-first then siblings when server enables progressive mode
+          lineage_progressive_siblings: {% if lineage_progressive_siblings %}true{% else %}false{% endif %},
           stageExecutionFields: [
             { key: 'stage_number', label: 'Stage', sortable: true },
             { key: 'cron_name', label: 'Cron Job', sortable: true },
@@ -941,6 +943,42 @@
             this.stageExecutionsLoading = false;
           }
         },
+        /**
+         * Apply a lineage-with-siblings API payload to table/siblings/tree.
+         */
+        applyLineageApiPayload(data, sourceLabel) {
+          const allAccountsForTree = this.transformSiblingsToLineage(data);
+          // PR6b: prefer server tree when algorithm matches
+          if (this.canUseServerTree(data)) {
+            this.applyTreeData(data.tree, sourceLabel || 'server-tree');
+          } else {
+            this.buildTreeFromLineage(allAccountsForTree);
+          }
+          this.siblingsData = data;
+        },
+
+        /**
+         * Fetch lineage API with optional siblings (PR5 progressive support).
+         */
+        async fetchLineageApiPayload(includeSiblings) {
+          const params = new URLSearchParams({
+            account: this.query_account,
+            network: this.network_selected,
+            max_siblings_per_level: '50',
+            include_siblings: includeSiblings ? '1' : '0',
+          });
+          if (!includeSiblings) {
+            params.set('structure_only', '1');
+          }
+          const url = `/api/lineage-with-siblings/?${params.toString()}`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to fetch account lineage');
+          }
+          return response.json();
+        },
+
         async fetchAccountLineage() {
           if (!this.query_account || !this.network_selected) {
             return;
@@ -954,34 +992,29 @@
               this.lineageLoading = true;
             }
             this.lineageError = null;
-            
-            // NEW: Fetch lineage WITH siblings for enhanced visualization
-            const url = `/api/lineage-with-siblings/?account=${encodeURIComponent(this.query_account)}&network=${encodeURIComponent(this.network_selected)}&max_siblings_per_level=50`;
-            const response = await fetch(url);
-            
-            if (response.ok) {
-              const data = await response.json();
-              
-              // Transform sibling data - updates account_lineage_data + siblings_data;
-              // returns ALL accounts for client-side tree fallback
-              const allAccountsForTree = this.transformSiblingsToLineage(data);
-              
-              // PR6b: prefer server tree when algorithm matches (table/siblings still from maps)
-              if (this.canUseServerTree(data)) {
-                this.applyTreeData(data.tree, 'server-tree');
-              } else {
-                this.buildTreeFromLineage(allAccountsForTree);
+
+            // PR5: optional progressive — path/structure first, then full siblings
+            if (this.lineage_progressive_siblings) {
+              const structure = await this.fetchLineageApiPayload(false);
+              this.applyLineageApiPayload(structure, 'server-tree-structure');
+              // Allow first paint before heavier siblings request
+              if (isFirstLoad) {
+                this.lineageLoading = false;
               }
-              
-              // Store raw sibling data for future enhancements
-              this.siblingsData = data;
+              try {
+                const full = await this.fetchLineageApiPayload(true);
+                this.applyLineageApiPayload(full, 'server-tree-with-siblings');
+              } catch (e2) {
+                // Keep structure-only UI if siblings phase fails
+                console.warn('Progressive siblings fetch failed; keeping structure-only', e2);
+              }
             } else {
-              const error = await response.json();
-              this.lineageError = error.message || 'Failed to fetch account lineage';
+              const data = await this.fetchLineageApiPayload(true);
+              this.applyLineageApiPayload(data, 'server-tree');
             }
           } catch (e) {
             console.error('Error fetching account lineage:', e);
-            this.lineageError = 'Error fetching account lineage';
+            this.lineageError = e.message || 'Error fetching account lineage';
           } finally {
             this.lineageLoading = false;
           }
