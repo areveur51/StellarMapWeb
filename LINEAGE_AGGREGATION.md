@@ -73,5 +73,30 @@ When `LINEAGE_PROGRESSIVE_SIBLINGS=1`:
 - `apiApp/tests/test_sm_lineage_aggregate.py`
 - `apiApp/tests/test_lineage_write_projection.py`
 - `apiApp/tests/test_lineage_api_pr4.py`
+- `apiApp/tests/test_lineage_progressive_siblings.py`
+- `apiApp/tests/test_lineage_with_siblings_api.py` (Django TestCase; valid Stellar keys)
 - `webApp/tests/test_search_ssr_unified.py`
 - `webApp/tests/test_frontend_server_tree.py`
+
+## Definition of Done (dual-walk removal readiness)
+
+| Check | Status |
+|-------|--------|
+| Golden projection fixtures (depth-3 + XLM sibling filter) | **Done** (`test_sm_lineage_aggregate`) |
+| SSR unified path tests | **Done** (`test_search_ssr_unified`) |
+| lineage-with-siblings parity | **Done** (`test_lineage_with_siblings_api`) |
+| Pipeline complete never writes non-JSON `cached_json` | **Done** (`test_queue_sync_status_only`) |
+| SDK complete status-sync + optional rebuild | **Done** (PR2B + source guards) |
+| Rate limits on both lineage endpoints | **Done** (`test_lineage_api_pr4`) |
+| No Horizon in `LineageAggregateService.build_projection` | **Done** |
+| Frontend server-tree preference + client fallback | **Done** (PR6b) |
+| Progressive siblings optional | **Done** (PR5, default off) |
+| Remove legacy dual walk with flags default-**on** | **Deferred** — keep legacy until lab enables `LINEAGE_UNIFIED_AGGREGATE=1` + `LINEAGE_WRITE_PROJECTION=1` in prod |
+
+### Roadmap complete (PR2A–PR5, PR6a, PR6b)
+
+All design PRs are on `development`. Safe next steps:
+
+1. Lab: enable flags when ready (`LINEAGE_UNIFIED_AGGREGATE`, `LINEAGE_WRITE_PROJECTION`).
+2. Later: open `development` → `main` release PR when you want production promotion.
+3. Later: delete legacy SSR dual walk only after flags are default-on and soak-tested.
