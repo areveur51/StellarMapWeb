@@ -14,13 +14,23 @@
 
       {% verbatim %}
       <div class="sm-topbar-main">
-        <b-form-checkbox
-          v-model="network_toggle"
-          switch
-          @change="toggleNetwork"
-          :class="{ 'text-red': !network_toggle, 'text-green': network_toggle }"
-          class="sm-network-toggle"
-        >{{ network_selected }}</b-form-checkbox>
+        <button
+          type="button"
+          class="sm-network-switch"
+          :class="network_toggle ? 'is-public' : 'is-testnet'"
+          role="switch"
+          :aria-checked="network_toggle ? 'true' : 'false'"
+          :aria-label="'Network ' + networkLabel"
+          :title="'Toggle network (currently ' + networkLabel + ')'"
+          @click="toggleNetworkSwitch"
+          data-testid="network-switch"
+        >
+          <span class="sm-network-switch__option sm-network-switch__option--testnet">TESTNET</span>
+          <span class="sm-network-switch__track" aria-hidden="true">
+            <span class="sm-network-switch__thumb"></span>
+          </span>
+          <span class="sm-network-switch__option sm-network-switch__option--public">PUBLIC</span>
+        </button>
         <input
           type="text"
           v-model="query_account"

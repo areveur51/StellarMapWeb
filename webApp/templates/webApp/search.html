@@ -589,7 +589,14 @@
           const totalSiblings = this.siblings_data ? this.siblings_data.length : 0;
           const filteredSiblings = this.filteredSiblingsData.length;
           return totalSiblings - filteredSiblings;
-        }
+        },
+        /** Uppercase PUBLIC / TESTNET for the switch UI */
+        networkLabel() {
+          if (window.StellarMapNetwork) {
+            return StellarMapNetwork.displayLabel(this.network_selected);
+          }
+          return (this.network_selected || 'public').toUpperCase();
+        },
       },
       methods: {
         async search() {
@@ -618,8 +625,21 @@
           }
         },
         toggleNetwork() {
-          // Method that toggles the value of 'network_selected' between 'testnet' and 'public'
-          this.network_selected = this.network_toggle ? 'public' : 'testnet'
+          // Legacy BV checkbox path (if still used somewhere)
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
+        },
+        /**
+         * PUBLIC ↔ TESTNET switch (search bar). Uses StellarMapNetwork when available.
+         */
+        toggleNetworkSwitch() {
+          if (window.StellarMapNetwork) {
+            const next = StellarMapNetwork.nextState(this.network_selected);
+            this.network_toggle = next.network_toggle;
+            this.network_selected = next.network_selected;
+            return;
+          }
+          this.network_toggle = !this.network_toggle;
+          this.network_selected = this.network_toggle ? 'public' : 'testnet';
         },
         updateJSONDisplay() {
           let dataToDisplay = null;

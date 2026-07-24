@@ -2157,6 +2157,89 @@ body.sm-progress-active {
   gap: 8px;
 }
 
+/* PUBLIC ↔ TESTNET switch (replaces bare BV checkbox) */
+.sm-network-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0.2rem 0.35rem;
+    border: 1px solid #3f2c70;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #1a1530 0%, #100D23 100%);
+    cursor: pointer;
+    user-select: none;
+    font: inherit;
+    line-height: 1;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sm-network-switch:hover {
+    border-color: #96DDF2;
+    box-shadow: 0 0 12px rgba(150, 221, 242, 0.25);
+}
+
+.sm-network-switch:focus-visible {
+    outline: 2px solid #96DDF2;
+    outline-offset: 2px;
+}
+
+.sm-network-switch__option {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.25rem;
+    opacity: 0.45;
+    transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.sm-network-switch__option--testnet {
+    color: #f87171;
+}
+
+.sm-network-switch__option--public {
+    color: #0BE784;
+}
+
+.sm-network-switch.is-testnet .sm-network-switch__option--testnet,
+.sm-network-switch.is-public .sm-network-switch__option--public {
+    opacity: 1;
+}
+
+.sm-network-switch__track {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: rgba(150, 221, 242, 0.15);
+    border: 1px solid rgba(150, 221, 242, 0.35);
+    flex-shrink: 0;
+}
+
+.sm-network-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f87171, #ef4444);
+    box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+    transition: transform 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+}
+
+.sm-network-switch.is-public .sm-network-switch__thumb {
+    transform: translateX(18px);
+    background: linear-gradient(135deg, #0BE784, #96DDF2);
+    box-shadow: 0 0 8px rgba(11, 231, 132, 0.55);
+}
+
+.sm-network-switch.is-testnet .sm-network-switch__thumb {
+    transform: translateX(0);
+}
+
+/* legacy class kept for any leftover markup */
 .sm-network-toggle {
   flex: 0 0 auto;
   white-space: nowrap;

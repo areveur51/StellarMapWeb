@@ -28,6 +28,7 @@
 - `requirements.txt`: `psycopg2-binary` for Postgres
 
 ### Fixed
+- **Network PUBLIC/TESTNET switch** — replace bare BV checkbox with accessible switch; `StellarMapNetwork` + unit tests
 - **Leaked Django comment on Search** — multi-line `{# #}` is invalid; use `{% comment %}` (text no longer shows next to Filters)
 - **Search refresh layout** — results container full-width block (no flex-center left shunt)
 - **DRY progress bar** — `StellarMapProgress` + `sm_progress.html` / `sm_progress.js` used on search (and other main pages)
