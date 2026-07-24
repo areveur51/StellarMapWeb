@@ -290,405 +290,87 @@ def stage_executions_api(request):
     }, safe=False)
 
 
+@ratelimit(key='ip', rate='20/m', method='GET', block=True)
 def account_lineage_api(request):
     """
-    API endpoint that returns account lineage data for a specific address.
-    Used for real-time lineage table updates in the Account Lineage tab.
-    
-    NEW INSTANT SEARCH FLOW:
-    1. Query BigQuery directly for immediate results
-    2. Display results instantly to user
-    3. Queue account for background processing to persist in database
-    
-    Returns hierarchical lineage from newest to oldest, with child accounts 
-    nested under their parent issuers.
-    
+    Feature-frozen compatibility endpoint for account lineage table rows.
+
+    Prefer GET /api/lineage-with-siblings/ for the live search poll path.
+    This view is a thin DB-only wrap around LineageAggregateService
+    (no Horizon age checks, no BigQuery instant path).
+
     Query Parameters:
         account (str): Stellar account address (required)
         network (str): Network name (required, 'public' or 'testnet')
-    
-    Returns:
-        JsonResponse: Hierarchical list of lineage records ordered newest to oldest.
     """
+    from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+    from apiApp.helpers.sm_lineage_aggregate import (
+        AggregateOptions,
+        LineageAggregateService,
+    )
+    from apiApp.helpers.sm_lineage_response_cache import (
+        cache_key,
+        get_cached,
+        set_cached,
+        lineage_response_ttl_seconds,
+    )
+    import logging
+
     account = request.GET.get('account', '').strip()
     network = request.GET.get('network', '').strip()
-    
-    # Validate required parameters
+
     if not account or not network:
         return JsonResponse({
             'error': 'Missing required parameters',
             'message': 'Both account and network parameters are required'
         }, status=400)
-    
-    # Validate address format (basic check)
-    from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+
     if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
         return JsonResponse({
             'error': 'Invalid stellar account address',
             'message': 'Account must be a valid Stellar address'
         }, status=400)
-    
-    # Validate network
+
     if network not in ['public', 'testnet']:
         return JsonResponse({
             'error': 'Invalid network',
             'message': 'Network must be either public or testnet'
         }, status=400)
-    
+
+    key = cache_key(account, network, kind='lineage')
+    cached, hit = get_cached(key)
+    if hit and cached is not None:
+        cached = dict(cached)
+        meta = dict(cached.get('meta') or {})
+        meta['cached'] = True
+        meta['cache_ttl'] = lineage_response_ttl_seconds()
+        cached['meta'] = meta
+        return JsonResponse(cached, safe=False)
+
     try:
-        from apiApp.model_loader import StellarCreatorAccountLineage, USE_CASSANDRA
-        from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
-        from datetime import datetime
-        import json
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        
-        # INSTANT SEARCH: Query BigQuery directly first (only for accounts <1 year old)
-        # In development mode, BigQuery is typically not available, so skip to database
-        from django.conf import settings
-        env_value = getattr(settings, 'ENV', 'development')
-        if env_value in ['production', 'replit']:
-            bigquery_helper = StellarBigQueryHelper()
-            if bigquery_helper.is_available():
-                try:
-                    # Check account age first - only use BigQuery for accounts <1 year old
-                    from stellar_sdk import Server
-                    from datetime import timedelta
-
-                    horizon_server = Server(horizon_url="https://horizon.stellar.org")
-                    try:
-                        # Get account creation date from first transaction
-                        transactions = horizon_server.transactions().for_account(account).order(desc=False).limit(1).call()
-
-                        account_created_at_str = None
-                        if transactions and '_embedded' in transactions and 'records' in transactions['_embedded']:
-                            records = transactions['_embedded']['records']
-                            if records:
-                                account_created_at_str = records[0].get('created_at')
-
-                        if account_created_at_str:
-                            account_created_at = datetime.fromisoformat(account_created_at_str.replace('Z', '+00:00'))
-                            account_age = datetime.now(account_created_at.tzinfo) - account_created_at
-
-                            if account_age > timedelta(days=365):
-                                logger.info(f"Account {account} is {account_age.days} days old (>1 year) - checking for existing data")
-                                # Check if lineage data already exists in database
-                                if USE_CASSANDRA:
-                                    # Cassandra query
-                                    existing = list(StellarCreatorAccountLineage.objects.filter(
-                                        stellar_account=account,
-                                        network_name=network
-                                    ).limit(1))
-                                    existing = existing[0] if existing else None
-                                else:
-                                    # SQL query
-                                    existing = StellarCreatorAccountLineage.objects.filter(
-                                        stellar_account=account,
-                                        network_name=network
-                                    ).first()
-
-                                if existing and existing.status == 'BIGQUERY_COMPLETE':
-                                    # Data exists - skip BigQuery and use database directly
-                                    logger.info(f"Found existing complete lineage data for {account} - skipping BigQuery, using database")
-                                    raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
-                                elif not existing:
-                                    # No data exists - queue for batch pipeline
-                                    StellarCreatorAccountLineage.objects.create(
-                                        stellar_account=account,
-                                        network_name=network,
-                                        status='PENDING'
-                                    )
-                                    logger.info(f"Queued {account} for batch pipeline processing")
-                                    # Return message to user
-                                    return JsonResponse({
-                                        'account': account,
-                                        'network': network,
-                                        'lineage': [],
-                                        'total_records': 0,
-                                        'source': 'queued_for_batch',
-                                        'message': f'Account is {account_age.days} days old. Queued for batch pipeline processing. Check back in a few minutes.'
-                                    }, safe=False)
-                                else:
-                                    # Data exists but not complete - skip BigQuery and use database to show current status
-                                    logger.info(f"Found incomplete lineage data for {account} (status: {existing.status}) - skipping BigQuery, using database")
-                                    raise Exception("Skip_BigQuery_Use_Database")  # Jump to database fallback
-                            else:
-                                logger.info(f"Account {account} is {account_age.days} days old (<1 year) - proceeding with BigQuery instant query")
-                        else:
-                            logger.warning(f"Could not determine account age for {account} - continuing with BigQuery")
-                    except Exception as horizon_error:
-                        if str(horizon_error) == "Skip_BigQuery_Use_Database":
-                            # This is intentional - skip to database fallback
-                            raise
-                        logger.warning(f"Failed to get account age from Horizon: {horizon_error}")
-                        # Continue with BigQuery if we can't determine age
-
-                    logger.info(f"Querying BigQuery directly for instant lineage of {account}")
-                    instant_lineage = bigquery_helper.get_instant_lineage(account)
-
-                    if instant_lineage['account']:
-                        # Format minimal BigQuery lineage data for display
-                        # NOTE: BigQuery now only provides lineage structure (parent-child relationships and dates)
-                        # Assets, balance, home_domain, flags will be fetched from Horizon/Stellar Expert APIs
-                        hierarchical_lineage = []
-
-                        # Add creator if exists
-                        if instant_lineage['creator']:
-                            # Prefer account_creation_date (creator's actual creation), fallback to created_at
-                            creator_created_at = instant_lineage['creator'].get('account_creation_date') or instant_lineage['creator'].get('created_at')
-
-                            creator_record = {
-                                'stellar_account': instant_lineage['creator']['creator_account'],
-                                'stellar_creator_account': None,
-                                'network_name': network,
-                                'stellar_account_created_at': creator_created_at,
-                                'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
-                                'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
-                                'assets': [],  # TODO: Fetch from Stellar Expert
-                                'status': 'BIGQUERY_LIVE',
-                                'created_at': None,
-                                'updated_at': None,
-                                'children': [],
-                                'hierarchy_level': 0
-                            }
-                            hierarchical_lineage.append(creator_record)
-
-                        # Add searched account
-                        creator_address = instant_lineage['creator']['creator_account'] if instant_lineage['creator'] else None
-                        account_record = {
-                            'stellar_account': account,
-                            'stellar_creator_account': creator_address,
-                            'network_name': network,
-                            'stellar_account_created_at': instant_lineage['account'].get('account_creation_date'),
-                            'home_domain': '',  # TODO: Fetch from Horizon/Stellar Expert
-                            'xlm_balance': 0,  # TODO: Fetch from Horizon/Stellar Expert
-                            'assets': [],  # TODO: Fetch from Stellar Expert
-                            'status': 'BIGQUERY_LIVE',
-                            'created_at': None,
-                            'updated_at': None,
-                            'children': [],
-                            'hierarchy_level': 1 if instant_lineage['creator'] else 0
-                        }
-                        hierarchical_lineage.append(account_record)
-
-                        # Queue account for background processing
-                        try:
-                            if USE_CASSANDRA:
-                                # Cassandra query
-                                existing_list = list(StellarCreatorAccountLineage.objects.filter(
-                                    stellar_account=account,
-                                    network_name=network
-                                ).limit(1))
-                                existing = existing_list[0] if existing_list else None
-                            else:
-                                # SQL query
-                                existing = StellarCreatorAccountLineage.objects.filter(
-                                    stellar_account=account,
-                                    network_name=network
-                                ).first()
-
-                            if not existing:
-                                StellarCreatorAccountLineage.objects.create(
-                                    stellar_account=account,
-                                    network_name=network,
-                                    status='PENDING'
-                                )
-                                logger.info(f"Queued {account} for background processing")
-                        except Exception as queue_error:
-                            logger.warning(f"Failed to queue account for background processing: {queue_error}")
-
-                        return JsonResponse({
-                            'account': account,
-                            'network': network,
-                            'lineage': hierarchical_lineage,
-                            'total_records': len(hierarchical_lineage),
-                            'source': 'bigquery_instant'
-                        }, safe=False)
-
-                except Exception as bq_error:
-                    logger.warning(f"BigQuery instant query failed, falling back to database: {bq_error}")
-        else:
-            logger.info(f"Development mode (ENV={env_value}): Skipping BigQuery, using database directly")
-        
-        # FALLBACK: Query database if BigQuery fails or unavailable
-        
-        def convert_timestamp(ts):
-            if ts is None:
-                return None
-            if isinstance(ts, datetime):
-                return ts.isoformat()
-            if isinstance(ts, (int, float)):
-                return datetime.fromtimestamp(ts).isoformat()
-            return str(ts)
-        
-        # First, collect all lineage records in the chain
-        all_records = {}
-        visited_accounts = set()
-        accounts_to_process = [account]
-        
-        while accounts_to_process:
-            current_account = accounts_to_process.pop(0)
-            if current_account in visited_accounts:
-                continue
-            visited_accounts.add(current_account)
-            
-            # Fetch lineage record for current account
-            if USE_CASSANDRA:
-                # Cassandra query
-                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=current_account,
-                    network_name=network
-                ))
-            else:
-                # SQL query
-                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=current_account,
-                    network_name=network
-                ))
-            
-            for record in lineage_records:
-                assets = []
-                if record.horizon_accounts_json:
-                    try:
-                        horizon_data = json.loads(record.horizon_accounts_json)
-                        balances = horizon_data.get('balances', [])
-                        
-                        for balance in balances:
-                            asset_type = balance.get('asset_type', '')
-                            if asset_type != 'native':
-                                asset_code = balance.get('asset_code', '')
-                                asset_issuer = balance.get('asset_issuer', '')
-                                asset_balance = balance.get('balance', '0')
-                                
-                                assets.append({
-                                    'name': asset_code,
-                                    'node_type': 'ASSET',
-                                    'asset_type': asset_type,
-                                    'asset_code': asset_code,
-                                    'asset_issuer': asset_issuer,
-                                    'balance': float(asset_balance) if asset_balance else 0.0
-                                })
-                    except (json.JSONDecodeError, KeyError, ValueError):
-                        pass
-                
-                record_data = {
-                    'stellar_account': record.stellar_account,
-                    'stellar_creator_account': record.stellar_creator_account,
-                    'network_name': record.network_name,
-                    'stellar_account_created_at': convert_timestamp(record.stellar_account_created_at),
-                    'home_domain': record.home_domain,
-                    'xlm_balance': record.xlm_balance,
-                    'assets': assets,
-                    'status': record.status,
-                    'created_at': convert_timestamp(record.created_at),
-                    'updated_at': convert_timestamp(record.updated_at),
-                    'children': []
-                }
-                all_records[record.stellar_account] = record_data
-                
-                # Follow the creator chain upward
-                if record.stellar_creator_account and record.stellar_creator_account not in visited_accounts:
-                    if record.stellar_creator_account not in accounts_to_process:
-                        accounts_to_process.append(record.stellar_creator_account)
-        
-        # Now fetch all child accounts for each record to build hierarchy
-        # Use a separate structure to avoid circular references
-        # PERFORMANCE OPTIMIZATION: Cache child lookups to avoid redundant queries
-        hierarchy_links = {}
-        for account_addr in all_records:
-            hierarchy_links[account_addr] = []
-
-        # PERFORMANCE OPTIMIZATION: For Cassandra, fetch limited set once and cache
-        if USE_CASSANDRA:
-            # Only fetch records that could be children (limit to current lineage + network)
-            # This is much more efficient than fetching ALL records
-            cassandra_cache = {}
-            for account_addr in all_records:
-                # Use the existing record's data to build child relationships
-                # Check if any other record in our current set has this as creator
-                for other_addr, other_rec in all_records.items():
-                    if other_rec['stellar_creator_account'] == account_addr:
-                        if account_addr not in hierarchy_links:
-                            hierarchy_links[account_addr] = []
-                        hierarchy_links[account_addr].append(other_addr)
-        else:
-            # SQL query - can use efficient filtering
-            for account_addr in all_records:
-                try:
-                    child_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=account_addr,
-                        network_name=network
-                    ))
-
-                    for child in child_records:
-                        if child.stellar_account in all_records:
-                            hierarchy_links[account_addr].append(child.stellar_account)
-                except Exception:
-                    pass
-        
-        # Build hierarchical structure starting from root (oldest ancestor)
-        def find_root_accounts():
-            roots = []
-            for acc_addr, rec in all_records.items():
-                if not rec['stellar_creator_account'] or rec['stellar_creator_account'] not in all_records:
-                    roots.append(rec)
-            return roots
-        
-        # Sort children by creation date (newest first) recursively
-        def sort_children_recursive(record):
-            if record['children']:
-                record['children'].sort(
-                    key=lambda x: x.get('stellar_account_created_at') or '', 
-                    reverse=True
-                )
-                for child in record['children']:
-                    sort_children_recursive(child)
-        
-        root_accounts = find_root_accounts()
-        
-        # Sort roots by creation date (newest first)
-        root_accounts.sort(
-            key=lambda x: x.get('stellar_account_created_at') or '', 
-            reverse=True
+        options = AggregateOptions.from_settings(
+            include_siblings=False,
+            use_search_cache=True,
         )
-        
-        # Sort all children recursively
-        for root in root_accounts:
-            sort_children_recursive(root)
-        
-        # Flatten to hierarchical list format with indentation levels
-        def flatten_with_hierarchy(records, level=0):
-            result = []
-            for record in records:
-                # Create a copy of the record without the children array to avoid circular references
-                record_copy = {k: v for k, v in record.items() if k != 'children'}
-                record_copy['hierarchy_level'] = level
-                result.append(record_copy)
-
-                # Add children recursively
-                if record['stellar_account'] in hierarchy_links:
-                    child_accounts = hierarchy_links[record['stellar_account']]
-                    child_records = [all_records[child_addr] for child_addr in child_accounts if child_addr in all_records]
-                    if child_records:
-                        result.extend(flatten_with_hierarchy(child_records, level + 1))
-            return result
-        
-        hierarchical_lineage = flatten_with_hierarchy(root_accounts)
-                        
+        svc = LineageAggregateService()
+        projection = svc.get_projection(account, network, options)
+        payload = svc.to_lineage_api_response(projection)
+        payload['deprecated'] = True
+        payload['prefer'] = '/api/lineage-with-siblings/'
+        meta = dict(projection.get('meta') or {})
+        meta['cached'] = False
+        meta['cache_ttl'] = lineage_response_ttl_seconds()
+        meta['feature_frozen'] = True
+        payload['meta'] = meta
+        set_cached(key, payload)
+        return JsonResponse(payload, safe=False)
     except Exception as e:
+        logging.getLogger(__name__).error('Error in account_lineage_api: %s', e)
         sentry_sdk.capture_exception(e)
         return JsonResponse({
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
-    
-    return JsonResponse({
-        'account': account,
-        'network': network,
-        'lineage': hierarchical_lineage,
-        'total_records': len(hierarchical_lineage)
-    }, safe=False)
 
 
 def fetch_toml_api(request):
@@ -1969,305 +1651,96 @@ def pipeline_stats_api(request):
         }, status=500)
 
 
+@ratelimit(key='ip', rate='30/m', method='GET', block=True)
 def lineage_with_siblings_api(request):
     """
-    API endpoint that returns account lineage with siblings at each level.
-    
-    This endpoint provides both:
-    1. Direct lineage path from searched account to root creator
-    2. Siblings (other children) of each creator in the path
-    
-    Used for enhanced visualization showing family trees with siblings.
-    Color coding strategy:
-    - Nodes: Yellow (assets), Green (issuers)
-    - Links: Red (direct lineage), White/Light-gray (siblings)
-    - Highlight: Cyan glow on searched account
-    
+    Account lineage with siblings at each level (primary live poll API).
+
+    Thin wrapper over LineageAggregateService (DB-only) with process-local
+    response TTL/LRU cache. Additive fields: tree, meta (build_ms, cached, …).
+
     Query Parameters:
         account (str): Stellar account address (required)
         network (str): Network name (required, 'public' or 'testnet')
-        max_siblings_per_level (int): Maximum siblings to return per level (default: 50)
-    
-    Returns:
-        JsonResponse: {
-            'account': str,
-            'network': str,
-            'lineage_path': [list of accounts in direct path, root to searched],
-            'siblings_by_creator': {
-                'GCREATOR1...': [list of sibling accounts],
-                'GCREATOR2...': [list of sibling accounts],
-                ...
-            },
-            'all_account_data': {
-                'GACCOUNT1...': {account details with is_issuer flag},
-                'GACCOUNT2...': {account details},
-                ...
-            }
-        }
+        max_siblings_per_level (int): Cap siblings per creator (default from settings)
     """
     from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
-    from apiApp.model_loader import StellarCreatorAccountLineage, USE_CASSANDRA
-    from datetime import datetime
-    import json
+    from apiApp.helpers.sm_lineage_aggregate import (
+        AggregateOptions,
+        LineageAggregateService,
+    )
+    from apiApp.helpers.sm_lineage_response_cache import (
+        cache_key,
+        get_cached,
+        set_cached,
+        lineage_response_ttl_seconds,
+    )
+    from django.conf import settings
     import logging
-    
+
     account = request.GET.get('account', '').strip()
     network = request.GET.get('network', '').strip()
-    max_siblings = int(request.GET.get('max_siblings_per_level', 50))
-    
-    # Validate required parameters
+
+    light = bool(getattr(settings, 'LIGHT_MODE', False))
+    default_max_sib = 25 if light else 50
+    try:
+        max_siblings = int(request.GET.get('max_siblings_per_level', default_max_sib))
+    except (TypeError, ValueError):
+        max_siblings = default_max_sib
+    max_siblings = max(1, min(max_siblings, 200))
+
     if not account or not network:
         return JsonResponse({
             'error': 'Missing required parameters',
             'message': 'Both account and network parameters are required'
         }, status=400)
-    
-    # Validate address format
+
     if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
         return JsonResponse({
             'error': 'Invalid stellar account address',
             'message': 'Account must be a valid Stellar address'
         }, status=400)
-    
-    # Validate network
+
     if network not in ['public', 'testnet']:
         return JsonResponse({
             'error': 'Invalid network',
             'message': 'Network must be either public or testnet'
         }, status=400)
-    
+
+    key = cache_key(
+        account, network, kind='siblings', max_siblings=max_siblings
+    )
+    cached, hit = get_cached(key)
+    if hit and cached is not None:
+        cached = dict(cached)
+        meta = dict(cached.get('meta') or {})
+        meta['cached'] = True
+        meta['cache_ttl'] = lineage_response_ttl_seconds()
+        cached['meta'] = meta
+        return JsonResponse(cached, safe=False)
+
     try:
-        def convert_timestamp(ts):
-            """Convert timestamp to ISO format string"""
-            if ts is None:
-                return None
-            if isinstance(ts, datetime):
-                return ts.isoformat()
-            if isinstance(ts, (int, float)):
-                return datetime.fromtimestamp(ts).isoformat()
-            return str(ts)
-        
-        def extract_assets(horizon_json):
-            """Extract assets from horizon API JSON"""
-            assets = []
-            if horizon_json:
-                try:
-                    horizon_data = json.loads(horizon_json)
-                    balances = horizon_data.get('balances', [])
-                    
-                    for balance in balances:
-                        asset_type = balance.get('asset_type', '')
-                        if asset_type != 'native':
-                            asset_code = balance.get('asset_code', '')
-                            asset_issuer = balance.get('asset_issuer', '')
-                            asset_balance = balance.get('balance', '0')
-                            
-                            assets.append({
-                                'name': asset_code,
-                                'node_type': 'ASSET',
-                                'asset_type': asset_type,
-                                'asset_code': asset_code,
-                                'asset_issuer': asset_issuer,
-                                'balance': float(asset_balance) if asset_balance else 0.0
-                            })
-                except (json.JSONDecodeError, KeyError, ValueError):
-                    pass
-            return assets
-        
-        # STEP 1: Build direct lineage path (from account to root creator)
-        lineage_path = []  # Will be ordered from searched account to root
-        current_account = account
-        visited = set()
-        max_depth = 50  # Prevent infinite loops
-        
-        while current_account and current_account not in visited and len(lineage_path) < max_depth:
-            visited.add(current_account)
-            
-            # Fetch record for current account
-            if USE_CASSANDRA:
-                records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=current_account,
-                    network_name=network
-                ).limit(1))
-                record = records[0] if records else None
-            else:
-                record = StellarCreatorAccountLineage.objects.filter(
-                    stellar_account=current_account,
-                    network_name=network
-                ).first()
-            
-            if not record:
-                break
-            
-            lineage_path.append(current_account)
-            current_account = record.stellar_creator_account
-        
-        # Reverse to get root → searched account order
-        lineage_path.reverse()
-        
-        # STEP 2: Collect creator addresses from lineage path and fetch siblings in ONE batch query
-        # First, get creator addresses from the lineage we just built
-        creator_addresses = []
-        lineage_path_set = set(lineage_path)
-        
-        # Build a map of account -> creator from the records we already fetched during lineage building
-        account_to_creator = {}
-        
-        # We need to get creators for all lineage accounts - batch fetch them with chunking
-        if lineage_path:
-            lineage_records = []
-            BATCH_SIZE = 25  # Cassandra's IN limit
-            
-            if USE_CASSANDRA:
-                # Cassandra: fetch lineage records in batches of 25
-                for i in range(0, len(lineage_path), BATCH_SIZE):
-                    batch = lineage_path[i:i + BATCH_SIZE]
-                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_account__in=batch,
-                        network_name=network
-                    ))
-                    lineage_records.extend(batch_records)
-            else:
-                # SQL: can handle larger IN clauses
-                lineage_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account__in=lineage_path,
-                    network_name=network
-                ))
-            
-            # Build creator mapping and collect unique creators
-            for rec in lineage_records:
-                if rec.stellar_creator_account:
-                    account_to_creator[rec.stellar_account] = rec.stellar_creator_account
-                    if rec.stellar_creator_account not in creator_addresses:
-                        creator_addresses.append(rec.stellar_creator_account)
-        
-        # BATCH QUERY: Fetch ALL children of ALL creators at once
-        siblings_by_creator = {}
-        all_sibling_addresses = set()
-        
-        if creator_addresses:
-            if USE_CASSANDRA:
-                # For Cassandra, we need to query by creator - but can't use __in for non-primary key
-                # So we'll do individual queries but limit them
-                all_children_records = []
-                for creator_addr in creator_addresses:
-                    children = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_creator_account=creator_addr,
-                        network_name=network
-                    ).limit(max_siblings + 1))
-                    all_children_records.extend(children)
-            else:
-                # SQL: can use __in for indexed columns
-                all_children_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_creator_account__in=creator_addresses,
-                    network_name=network
-                ))
-            
-            # Group children by creator
-            for rec in all_children_records:
-                creator_addr = rec.stellar_creator_account
-                child_addr = rec.stellar_account
-                
-                # Only include siblings (not the lineage path account itself)
-                if child_addr not in lineage_path_set:
-                    if creator_addr not in siblings_by_creator:
-                        siblings_by_creator[creator_addr] = []
-                    
-                    if len(siblings_by_creator[creator_addr]) < max_siblings:
-                        siblings_by_creator[creator_addr].append(child_addr)
-                        all_sibling_addresses.add(child_addr)
-        
-        # STEP 3: BATCH FETCH full data for ALL accounts (lineage + siblings + creators)
-        # IMPORTANT: We need to fetch creators of siblings too, not just lineage creators
-        # First, get all accounts we know about
-        all_accounts_to_fetch = lineage_path_set | all_sibling_addresses | set(creator_addresses)
-        
-        # Fetch these accounts to get their creator addresses
-        temp_records = []
-        if all_sibling_addresses:
-            siblings_list = list(all_sibling_addresses)
-            BATCH_SIZE = 25
-            
-            if USE_CASSANDRA:
-                for i in range(0, len(siblings_list), BATCH_SIZE):
-                    batch = siblings_list[i:i + BATCH_SIZE]
-                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_account__in=batch,
-                        network_name=network
-                    ))
-                    temp_records.extend(batch_records)
-            else:
-                temp_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account__in=siblings_list,
-                    network_name=network
-                ))
-            
-            # Add creators of siblings to the fetch set
-            for rec in temp_records:
-                if rec.stellar_creator_account:
-                    all_accounts_to_fetch.add(rec.stellar_creator_account)
-        
-        all_account_data = {}
-        
-        if all_accounts_to_fetch:
-            # Convert to list for querying
-            accounts_list = list(all_accounts_to_fetch)
-            
-            # OPTIMIZED: Batch query with chunking for Cassandra's 25-value limit
-            all_records = []
-            BATCH_SIZE = 25  # Cassandra's IN limit
-            
-            if USE_CASSANDRA:
-                # Chunk accounts into batches of 25
-                for i in range(0, len(accounts_list), BATCH_SIZE):
-                    batch = accounts_list[i:i + BATCH_SIZE]
-                    batch_records = list(StellarCreatorAccountLineage.objects.filter(
-                        stellar_account__in=batch,
-                        network_name=network
-                    ))
-                    all_records.extend(batch_records)
-            else:
-                # SQL can handle larger IN clauses
-                all_records = list(StellarCreatorAccountLineage.objects.filter(
-                    stellar_account__in=accounts_list,
-                    network_name=network
-                ))
-            
-            # Process all records in memory
-            for record in all_records:
-                acct_addr = record.stellar_account
-                assets = extract_assets(record.horizon_accounts_json)
-                
-                all_account_data[acct_addr] = {
-                    'stellar_account': record.stellar_account,
-                    'stellar_creator_account': record.stellar_creator_account,
-                    'network_name': record.network_name,
-                    'stellar_account_created_at': convert_timestamp(record.stellar_account_created_at),
-                    'home_domain': record.home_domain or '',
-                    'xlm_balance': float(record.xlm_balance) if record.xlm_balance else 0.0,
-                    'assets': assets,
-                    'status': record.status,
-                    'created_at': convert_timestamp(record.created_at),
-                    'updated_at': convert_timestamp(record.updated_at),
-                    'is_issuer': len(assets) > 0,  # Flag for green nodes
-                    'in_lineage_path': acct_addr in lineage_path,  # Flag for red links
-                }
-        
-        return JsonResponse({
-            'account': account,
-            'network': network,
-            'lineage_path': lineage_path,
-            'siblings_by_creator': siblings_by_creator,
-            'all_account_data': all_account_data,
-            'total_accounts': len(all_account_data),
-            'total_siblings': sum(len(siblings) for siblings in siblings_by_creator.values())
-        }, safe=False)
-        
+        options = AggregateOptions.from_settings(
+            include_siblings=True,
+            max_siblings_per_level=max_siblings,
+            use_search_cache=True,
+        )
+        svc = LineageAggregateService()
+        projection = svc.get_projection(account, network, options)
+        payload = svc.to_siblings_response(projection)
+        meta = dict(payload.get('meta') or {})
+        meta['cached'] = False
+        meta['cache_ttl'] = lineage_response_ttl_seconds()
+        payload['meta'] = meta
+        set_cached(key, payload)
+        return JsonResponse(payload, safe=False)
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f'Error in lineage_with_siblings_api: {e}')
+        logging.getLogger(__name__).error(
+            'Error in lineage_with_siblings_api: %s', e
+        )
         sentry_sdk.capture_exception(e)
         return JsonResponse({
             'error': 'Internal server error',
             'message': str(e)
         }, status=500)
+

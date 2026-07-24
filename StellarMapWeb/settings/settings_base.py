@@ -374,6 +374,12 @@ _lineage_ssr_sib_raw = str(
 ).strip().lower()
 LINEAGE_SSR_INCLUDE_SIBLINGS = _lineage_ssr_sib_raw in ('1', 'true', 'yes', 'on')
 
+# Process-local TTL/LRU for lineage API JSON (default on; isolates from LocMem).
+_lineage_api_cache_raw = str(
+    config('LINEAGE_API_RESPONSE_CACHE', default='1')
+).strip().lower()
+LINEAGE_API_RESPONSE_CACHE = _lineage_api_cache_raw in ('1', 'true', 'yes', 'on')
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 

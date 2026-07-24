@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Lineage API aggregator + cache + rate limits (PR4)** — `/api/lineage-with-siblings/` and feature-frozen `/api/account-lineage/` use `LineageAggregateService` (DB-only); process-local response LRU; `@ratelimit` 30/m siblings, 20/m account-lineage; removed Horizon/BigQuery branch from account-lineage
 - **Search SSR unified aggregate (PR3)** — `LINEAGE_UNIFIED_AGGREGATE` flag: `search_view` serves table + tree from one `LineageAggregateService` projection; terminal COMPLETE + invalid body rebuilds without re-PENDING; legacy dual-walk kept when flag off
 - **Write-time projection (PR2B)** — `LINEAGE_WRITE_PROJECTION` flag; on complete, API/BigQuery/SDK pipelines + parent-lineage cron can `rebuild_and_cache` DB-only projection; SDK now status-syncs search cache; `update_cache` rejects non-JSON bodies
 - **LineageAggregateService (PR1)** — `apiApp/helpers/sm_lineage_aggregate.py`: DB-only unified projection (nodes/edges/path/tree/siblings), adapters for table + siblings API + tree parity with client XLM≥1000 filter
