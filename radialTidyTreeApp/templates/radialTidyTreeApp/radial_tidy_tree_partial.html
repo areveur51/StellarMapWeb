@@ -6,53 +6,28 @@
         position: relative;
         width: 100%;
         height: 800px;
+        min-height: 60vh;
+    }
+    #radial-tree-container .sm-tree-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 0.95rem;
+        pointer-events: none;
+        z-index: 0;
+    }
+    #radial-tree-container svg#tree {
+        position: relative;
+        z-index: 1;
     }
 </style>
 
+{# Vue owns all tree rendering via applyTreeData — no early D3 paint here
+   (avoids SSR flash then wipe when fetchAccountLineage updates the tree). #}
 <div id="radial-tree-container">
+    <div class="sm-tree-placeholder" id="sm-tree-placeholder">Loading lineage tree…</div>
     <svg id="tree" width="800" height="800"></svg>
-    
-    <script>
-        // Use the tree data from the parent Vue component via json_script
-        // The tree-data-json element is created in the parent template
-        const renderTreeWhenReady = () => {
-            const treeDataEl = document.getElementById('tree-data-json');
-            if (treeDataEl && typeof renderRadialTree === 'function') {
-                // Use window.currentTreeData for global accessibility
-                window.currentTreeData = JSON.parse(treeDataEl.textContent);
-                console.log('Processing tree data:', window.currentTreeData);
-                console.log('Tree has', window.currentTreeData.children ? window.currentTreeData.children.length : 0, 'children');
-                
-                // Check saved visualization mode from localStorage
-                const savedMode = localStorage.getItem('visualizationMode') || 'radial';
-                
-                // Update toggle UI to match saved preference
-                const toggleSwitch = document.getElementById('layout-toggle');
-                const modeIndicator = document.getElementById('mode-indicator');
-                
-                if (savedMode === 'tidy' && typeof renderTidyTree === 'function') {
-                    if (toggleSwitch) toggleSwitch.classList.add('active');
-                    if (modeIndicator) modeIndicator.textContent = 'Tidy Tree';
-                    renderTidyTree(window.currentTreeData);
-                    console.log('Tidy tree rendered from saved preference');
-                } else {
-                    if (toggleSwitch) toggleSwitch.classList.remove('active');
-                    if (modeIndicator) modeIndicator.textContent = 'Radial';
-                    renderRadialTree(window.currentTreeData);
-                    console.log('Radial tree rendered successfully');
-                }
-            } else {
-                // Retry after a short delay if not ready yet
-                setTimeout(renderTreeWhenReady, 100);
-            }
-        };
-        
-        // Wait for DOM to be ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', renderTreeWhenReady);
-        } else {
-            // DOM is already loaded
-            renderTreeWhenReady();
-        }
-    </script>
 </div>

@@ -305,24 +305,98 @@ a:hover {
     padding-right: 17px;
 }
 
-/* Bootstrap-Vue tabs overrides */
+/* Bootstrap-Vue tabs — full styles without loading Bootstrap CSS
+   (without this, BV renders bare <ul> tab titles as browser bullet lists) */
 .card {
-    border: transparent !important; 
+    border: transparent !important;
 }
 
 .card-header {
     background-color: var(--search-container-bg-color) !important;
+    border-bottom: 1px solid #3f2c70 !important;
+    padding: 0 !important;
 }
 
 .card-body {
     background-color: var(--secondary-bg-color) !important;
+    padding: 1rem !important;
+}
+
+.bv-tabs .card-header {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Horizontal tab strip, not a bullet list */
+.nav,
+.nav-tabs {
+    display: flex !important;
+    flex-wrap: wrap;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0.35rem 0.5rem 0 !important;
+    gap: 0.25rem;
+    border-bottom: 1px solid #3f2c70 !important;
+}
+
+.nav-tabs .nav-item,
+.nav-item {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.nav-tabs .nav-item::marker,
+.nav-item::marker {
+    content: none !important;
+    display: none !important;
+}
+
+.nav-tabs .nav-link,
+.nav-link {
+    display: inline-block;
+    padding: 0.5rem 0.85rem;
+    margin-bottom: -1px;
+    border: 1px solid transparent;
+    border-radius: 6px 6px 0 0;
+    color: #c4b5fd !important;
+    text-decoration: none !important;
+    background: transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #96DDF2 !important;
+    background: rgba(150, 221, 242, 0.08);
+    border-color: transparent;
 }
 
 .nav-tabs .nav-item.show .nav-link,
 .nav-tabs .nav-link.active {
-    color: var(--search-container-text-color) !important;
-    background-color: var(--secondary-bg-color) !important;
-    border-color: transparent !important;
+    color: var(--search-container-text-color, #f3e8ff) !important;
+    background-color: var(--secondary-bg-color, #231B3D) !important;
+    border-color: #3f2c70 #3f2c70 transparent !important;
+    font-weight: 600;
+}
+
+.tab-content {
+    display: block;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active,
+.tab-pane.show {
+    display: block;
+}
+
+/* Hide inactive panes when BV uses fade/active classes without Bootstrap */
+.tab-content > .tab-pane:not(.active):not(.show) {
+    display: none !important;
 }
 
 /* Radial tree visual container */
