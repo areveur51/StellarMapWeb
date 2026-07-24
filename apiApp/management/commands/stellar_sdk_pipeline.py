@@ -20,6 +20,7 @@ Performance:
 import asyncio
 import logging
 from datetime import datetime
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from django.core.management.base import BaseCommand
 from apiApp.model_loader import StellarCreatorAccountLineage, PENDING, PROCESSING, COMPLETE, FAILED, PUBLIC
 from apiApp.helpers.sm_stellar_sdk import StellarSDKHelper, SDKRateLimiter
@@ -167,7 +168,7 @@ class Command(BaseCommand):
     async def _process_single_account(self, account_obj, sdk_helper):
         """Process a single account using SDK helper."""
         account = account_obj.stellar_account
-        start_time = datetime.utcnow()
+        start_time = utc_now()
 
         try:
             self.stdout.write(f'\n  → Processing: {account}')
@@ -224,7 +225,7 @@ class Command(BaseCommand):
 
             # Mark as complete
             account_obj.status = COMPLETE
-            account_obj.processing_completed_at = datetime.utcnow()
+            account_obj.processing_completed_at = utc_now()
             processing_time = (account_obj.processing_completed_at - account_obj.processing_started_at).total_seconds()
             account_obj.processing_time_seconds = int(processing_time)
             account_obj.save()
@@ -348,7 +349,7 @@ class Command(BaseCommand):
             account_obj.trustline_count = len(assets)
             
             # Update timestamp
-            account_obj.updated_at = datetime.utcnow()
+            account_obj.updated_at = utc_now()
             
             account_obj.save()
 

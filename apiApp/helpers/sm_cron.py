@@ -45,11 +45,13 @@ class StellarMapCronHelpers:
     def check_all_crons_health(self) -> dict:
         """Check health of all cron jobs - OPTIMIZED: Limited query instead of full table scan."""
         try:
-            from datetime import datetime, timedelta
+            from datetime import timedelta
+            from apiApp.helpers.sm_datetime import utc_now
+
             cron_statuses = {}
             
             # Only fetch recent health records (last 24 hours) with limit to prevent full table scan
-            recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+            recent_cutoff = utc_now() - timedelta(hours=24)
             cron_healths = ManagementCronHealth.objects.filter(
                 created_at__gte=recent_cutoff
             ).limit(100)

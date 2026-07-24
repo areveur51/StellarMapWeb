@@ -38,3 +38,40 @@ class StellarMapDateTimeHelpers:
             tz_NY)
         df[column_name] = df[column_name].dt.strftime("%Y-%m-%d %H:%M:%S")
         return df
+
+
+# --- Timezone-aware helpers (USE_TZ=True) ---
+from datetime import timezone as dt_timezone
+from django.utils import timezone as dj_timezone
+
+
+def utc_now():
+    """Timezone-aware UTC now for ORM writes and filters."""
+    return dj_timezone.now()
+
+
+def ensure_aware(dt):
+    """
+    Coerce naive datetimes (legacy DB / utcnow) to aware UTC.
+    Safe for age math: utc_now() - ensure_aware(record.updated_at).
+    """
+    if dt is None:
+        return None
+    if dj_timezone.is_aware(dt):
+        return dt
+    try:
+        return dj_timezone.make_aware(dt, dt_timezone.utc)
+    except Exception:
+        # already has tz or Django/pytz edge case
+        return dt
+
+
+def age_seconds(then, now=None):
+    """Seconds between then and now (aware-safe)."""
+    if then is None:
+        return 0
+    now = now or utc_now()
+    then = ensure_aware(then)
+    now = ensure_aware(now)
+    return (now - then).total_seconds()
+

@@ -18,6 +18,7 @@ Data Retrieved:
 import logging
 import json
 from datetime import datetime, timedelta
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from django.core.management.base import BaseCommand
 from apiApp.model_loader import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.sm_bigquery import StellarBigQueryHelper
@@ -239,7 +240,7 @@ class Command(BaseCommand):
         6. Update database
         """
         account = account_obj.stellar_account
-        start_time = datetime.utcnow()
+        start_time = utc_now()
         
         try:
             account_obj.status = 'PROCESSING'
@@ -285,7 +286,7 @@ class Command(BaseCommand):
             except:
                 start_date = '2015-01-01'  # Fallback to Stellar genesis
             
-            end_date = datetime.utcnow().strftime('%Y-%m-%d')
+            end_date = utc_now().strftime('%Y-%m-%d')
             
             self.stdout.write(self.style.SUCCESS(
                 f'    📅 Date window: {start_date} to {end_date}'
@@ -379,7 +380,7 @@ class Command(BaseCommand):
             ))
             
             # Calculate processing time
-            end_time = datetime.utcnow()
+            end_time = utc_now()
             duration = (end_time - start_time).total_seconds()
             self.stdout.write(self.style.SUCCESS(
                 f'  ⏱ Processing time: {duration:.2f} seconds'
@@ -678,7 +679,7 @@ class Command(BaseCommand):
             used_api_fallback = (not creator_info) or (not children)
             
             # Update timestamps and status
-            account_obj.last_fetched_at = datetime.utcnow()
+            account_obj.last_fetched_at = utc_now()
             account_obj.status = 'BIGQUERY_COMPLETE'
             account_obj.pipeline_source = 'BIGQUERY_WITH_API_FALLBACK' if used_api_fallback else 'BIGQUERY'
             account_obj.processing_started_at = None
@@ -778,8 +779,8 @@ class Command(BaseCommand):
                     stellar_account=creator_account,
                     network_name='public',
                     status='PENDING',
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=utc_now(),
+                    updated_at=utc_now()
                 )
                 self.stdout.write(self.style.SUCCESS(
                     f'    ✓ Queued creator account {creator_account} for processing'
@@ -807,8 +808,8 @@ class Command(BaseCommand):
                         network_name='public',
                         stellar_creator_account=parent_account,
                         status='PENDING',
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
+                        created_at=utc_now(),
+                        updated_at=utc_now()
                     )
                     queued += 1
                     

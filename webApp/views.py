@@ -9,6 +9,7 @@ from django.core.cache import cache  # For efficient caching
 from django.http import Http404  # For secure error handling
 from django_ratelimit.decorators import ratelimit
 import sentry_sdk
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from apiApp.helpers.sm_creatoraccountlineage import StellarMapCreatorAccountLineageHelpers
 from apiApp.helpers.sm_validator import StellarMapValidatorHelpers  # For secure validation
 from apiApp.helpers.sm_cache import StellarMapCacheHelpers
@@ -268,7 +269,7 @@ def search_view(request):
             
             def calculate_age_and_stuck(record, status):
                 """Calculate record age and determine if it's stuck."""
-                now = datetime.utcnow()
+                now = utc_now()
                 age_minutes = 0
                 is_stuck = False
                 
@@ -783,7 +784,7 @@ def dashboard_view(request):
         
         # Count fresh vs stale (using cache TTL from config)
         cache_ttl_hours = bigquery_config.cache_ttl_hours if bigquery_config else 12
-        staleness_threshold = datetime.utcnow() - timedelta(hours=cache_ttl_hours)
+        staleness_threshold = utc_now() - timedelta(hours=cache_ttl_hours)
         
         fresh_count = 0
         stale_count = 0
@@ -799,7 +800,7 @@ def dashboard_view(request):
                 # Check if stuck - ONLY for active processing statuses (not completed ones)
                 # Only PENDING and PROCESSING can be "stuck" - completed records should not be counted
                 if record.status in STUCK_STATUSES:
-                    age_minutes = (datetime.utcnow() - record.updated_at).total_seconds() / 60
+                    age_minutes = age_seconds(record.updated_at) / 60
                     # Use model-defined threshold (5 minutes for PENDING/PROCESSING)
                     if age_minutes > STUCK_THRESHOLD_MINUTES:
                         stuck_count += 1
@@ -932,7 +933,7 @@ def dashboard_view(request):
     
     try:
         # Calculate average processing time from completed accounts - DUAL TABLE SCAN
-        now = datetime.utcnow()
+        now = utc_now()
         processing_times = []
         
         # SEARCH CACHE: Fetch DONE_MAKE_PARENT_LINEAGE records

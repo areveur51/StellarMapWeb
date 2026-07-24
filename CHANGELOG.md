@@ -28,6 +28,8 @@
 - `requirements.txt`: `psycopg2-binary` for Postgres
 
 ### Fixed
+- **Timezone-aware datetimes** — replace `datetime.utcnow()` with `timezone.now()` on ORM write/filter paths; add `utc_now`/`ensure_aware`/`age_seconds` helpers (stops USE_TZ RuntimeWarnings in logs)
+- **Login CSRF for QR** — prefer form CSRF token; set `CSRF_COOKIE_HTTPONLY=False` so Tailscale QR start can send `X-CSRFToken`
 - **Search-cache clobber (PR2A)** — `QueueSynchronizer.sync_status_back_to_cache` is **status-only**: never writes `str(dict)` into `cached_json` (was invalid non-JSON and could re-PENDING COMPLETE accounts). API/BigQuery pipelines no longer pass summary payloads; existing tree JSON is preserved. Full display rebuild remains PR2B.
 - Multi-line Django `{# #}` comments leaking as visible text in page heads
 - Unclickable hamburger after UI polish (BV sidebar without Bootstrap grid)

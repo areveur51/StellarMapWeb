@@ -3,6 +3,7 @@
 Simplified helper functions for detecting and recovering stuck pipeline records.
 """
 import datetime
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 import sentry_sdk
 from typing import List, Dict, Any
 from apiApp.model_loader import (
@@ -25,7 +26,7 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
         List of stuck record information dictionaries
     """
     stuck_records = []
-    now = datetime.datetime.utcnow()
+    now = utc_now()
     threshold_delta = datetime.timedelta(minutes=STUCK_THRESHOLD_MINUTES)
     cutoff_time = now - threshold_delta
     
@@ -35,9 +36,9 @@ def detect_stuck_records() -> List[Dict[str, Any]]:
                 records = StellarCreatorAccountLineage.objects.filter(status=status).all()
                 
                 for record in records:
-                    if record.updated_at and record.updated_at < cutoff_time:
-                        age_delta = now - record.updated_at
-                        age_minutes = int(age_delta.total_seconds() / 60)
+                    ua = ensure_aware(record.updated_at)
+                    if ua and ua < cutoff_time:
+                        age_minutes = int(age_seconds(ua, now) / 60)
                         
                         stuck_records.append({
                             'record': record,
