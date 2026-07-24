@@ -182,19 +182,120 @@ a:hover {
     text-shadow: 0 0 15px rgba(150, 221, 242, 0.6);
 }
 
-/* Results and response containers */
+/* Results and response containers — full-width column (not flex-center, which
+   shoved “Refreshing…” / partial content to the left on navigation). */
 .results-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0 12px 28px;
+    box-sizing: border-box;
 }
 
 .response-container {
+    position: relative;
     text-align: left;
     color: #FFF;
     padding-left: 0;
     padding-right: 0;
     width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* ---- DRY progress overlay (sm_progress.html + sm_progress.js) ---- */
+.sm-progress {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: all;
+}
+
+.sm-progress[hidden] {
+    display: none !important;
+}
+
+.sm-progress__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(16, 13, 35, 0.72);
+    backdrop-filter: blur(3px);
+}
+
+.sm-progress__panel {
+    position: relative;
+    z-index: 1;
+    width: min(420px, 92vw);
+    padding: 1.25rem 1.4rem 1.1rem;
+    border-radius: 12px;
+    border: 1px solid #3f2c70;
+    background: linear-gradient(145deg, #261D45 0%, #1a1530 100%);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(150, 221, 242, 0.12);
+    color: #f3e8ff;
+}
+
+.sm-progress__title {
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.02em;
+}
+
+.sm-progress__track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(150, 221, 242, 0.12);
+    overflow: hidden;
+    border: 1px solid rgba(150, 221, 242, 0.25);
+}
+
+.sm-progress__bar {
+    height: 100%;
+    width: 0%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #96DDF2, #0BE784);
+    box-shadow: 0 0 12px rgba(11, 231, 132, 0.45);
+    transition: width 0.18s ease-out;
+}
+
+.sm-progress.is-indeterminate .sm-progress__bar {
+    transition: width 0.12s linear;
+}
+
+.sm-progress__meta {
+    margin-top: 0.65rem;
+    font-size: 0.82rem;
+    color: #c4b5fd;
+    word-break: break-all;
+    min-height: 1.2em;
+}
+
+body.sm-progress-active {
+    overflow: hidden;
+}
+
+/* Thin top indeterminate bar (optional secondary use) */
+.sm-progress-top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 10040;
+    background: transparent;
+    pointer-events: none;
+}
+
+.sm-progress-top__bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #96DDF2, #0BE784);
+    box-shadow: 0 0 8px rgba(11, 231, 132, 0.6);
 }
 
 /* Network selector positioning */

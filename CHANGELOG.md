@@ -28,6 +28,9 @@
 - `requirements.txt`: `psycopg2-binary` for Postgres
 
 ### Fixed
+- **Leaked Django comment on Search** — multi-line `{# #}` is invalid; use `{% comment %}` (text no longer shows next to Filters)
+- **Search refresh layout** — results container full-width block (no flex-center left shunt)
+- **DRY progress bar** — `StellarMapProgress` + `sm_progress.html` / `sm_progress.js` used on search (and other main pages)
 - **Search UI tabs look like a bullet list** — full `.nav-tabs` styles without loading Bootstrap CSS (BV was rendering bare `<ul>` titles)
 - **Radial tree flash then disappear** — single D3 owner path (Vue `paintTreeVisualization`); remove early partial auto-render that fought the lineage poll
 - **Timezone-aware datetimes** — replace `datetime.utcnow()` with `timezone.now()` on ORM write/filter paths; add `utc_now`/`ensure_aware`/`age_seconds` helpers (stops USE_TZ RuntimeWarnings in logs)
