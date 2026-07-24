@@ -13,6 +13,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from apiApp.helpers.sm_datetime import utc_now
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from django.conf import settings
@@ -476,7 +477,7 @@ class LineageAggregateService:
             "schema_version": PROJECTION_SCHEMA_VERSION,
             "account": account,
             "network": network,
-            "built_at": datetime.utcnow().isoformat(),
+            "built_at": utc_now().isoformat(),
             "source": "database",
             "status": status,
             "lineage_path": lineage_path,
@@ -703,7 +704,7 @@ class LineageAggregateService:
                 "schema_version": PROJECTION_SCHEMA_VERSION,
                 "account": account,
                 "network": network,
-                "built_at": datetime.utcnow().isoformat(),
+                "built_at": utc_now().isoformat(),
                 "source": "legacy_cache_tree",
                 "status": getattr(entry, "status", "") or "",
                 "lineage_path": [],

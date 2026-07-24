@@ -4,6 +4,7 @@ These are the original Cassandra models from models.py.
 """
 
 import datetime
+from apiApp.helpers.sm_datetime import utc_now
 import uuid
 from cassandra.cqlengine import columns as cassandra_columns
 from django_cassandra_engine.models import DjangoCassandraModel
@@ -53,8 +54,8 @@ class BaseModel(DjangoCassandraModel):
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save."""
         if not self.created_at:
-            self.created_at = datetime.datetime.utcnow()
-        self.updated_at = datetime.datetime.utcnow()
+            self.created_at = utc_now()
+        self.updated_at = utc_now()
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -97,8 +98,8 @@ class StellarAccountSearchCache(DjangoCassandraModel):
             raise ValueError(f"Invalid network_name: '{self.network_name}' (must be 'public' or 'testnet')")
 
         if not self.created_at:
-            self.created_at = datetime.datetime.utcnow()
-        self.updated_at = datetime.datetime.utcnow()
+            self.created_at = utc_now()
+        self.updated_at = utc_now()
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -152,8 +153,8 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
     def save(self, *args, **kwargs):
         """Auto-set timestamps, HVA tag, and HVA flag on save."""
         if not self.created_at:
-            self.created_at = datetime.datetime.utcnow()
-        self.updated_at = datetime.datetime.utcnow()
+            self.created_at = utc_now()
+        self.updated_at = utc_now()
 
         # Get configurable HVA threshold (default: 100K XLM)
         try:
@@ -211,8 +212,8 @@ class ManagementCronHealth(DjangoCassandraModel):
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save."""
         if not self.created_at:
-            self.created_at = datetime.datetime.utcnow()
-        self.updated_at = datetime.datetime.utcnow()
+            self.created_at = utc_now()
+        self.updated_at = utc_now()
         return super().save(*args, **kwargs)
 
     class Meta:
@@ -263,8 +264,8 @@ class StellarAccountStageExecution(DjangoCassandraModel):
             raise ValueError(f"Invalid network_name: '{self.network_name}'")
 
         if not self.created_at:
-            self.created_at = datetime.datetime.utcnow()
-        self.updated_at = datetime.datetime.utcnow()
+            self.created_at = utc_now()
+        self.updated_at = utc_now()
         return super().save(*args, **kwargs)
 
     class Meta:

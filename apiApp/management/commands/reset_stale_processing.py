@@ -10,6 +10,7 @@ Usage:
     python manage.py reset_stale_processing --reset-pending --minutes 1440  # Reset PENDING >24 hours
 """
 import datetime
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from django.core.management.base import BaseCommand
 from apiApp.model_loader import StellarAccountSearchCache, StellarCreatorAccountLineage
 
@@ -72,7 +73,7 @@ class Command(BaseCommand):
         # Cassandra models use objects.filter().all() while Django uses objects.filter()
         USE_CASSANDRA = hasattr(StellarAccountSearchCache, '__default_ttl__')
         
-        stale_threshold = datetime.datetime.utcnow() - datetime.timedelta(minutes=minutes)
+        stale_threshold = datetime.utc_now() - datetime.timedelta(minutes=minutes)
         
         search_cache_reset = 0
         lineage_reset = 0
@@ -104,7 +105,7 @@ class Command(BaseCommand):
                     is_stale = record.updated_at and record.updated_at < stale_threshold
                     
                     if is_stale:
-                        age_minutes = int((datetime.datetime.utcnow() - record.updated_at).total_seconds() / 60)
+                        age_minutes = int((datetime.utc_now() - record.updated_at).total_seconds() / 60)
                         self.stdout.write(
                             self.style.WARNING(
                                 f"  • {record.stellar_account[:8]}... stuck for {age_minutes} min in '{record.status}'"
@@ -137,7 +138,7 @@ class Command(BaseCommand):
             ).filter(status_filter)
             
             for record in stale_records:
-                age_minutes = int((datetime.datetime.utcnow() - record.updated_at).total_seconds() / 60)
+                age_minutes = int((datetime.utc_now() - record.updated_at).total_seconds() / 60)
                 self.stdout.write(
                     self.style.WARNING(
                         f"  • {record.stellar_account[:8]}... stuck for {age_minutes} min in '{record.status}'"
@@ -178,10 +179,10 @@ class Command(BaseCommand):
                     
                     if hasattr(record, 'processing_started_at') and record.processing_started_at:
                         is_stale = record.processing_started_at < stale_threshold
-                        age_minutes = int((datetime.datetime.utcnow() - record.processing_started_at).total_seconds() / 60)
+                        age_minutes = int((datetime.utc_now() - record.processing_started_at).total_seconds() / 60)
                     elif record.updated_at:
                         is_stale = record.updated_at < stale_threshold
-                        age_minutes = int((datetime.datetime.utcnow() - record.updated_at).total_seconds() / 60)
+                        age_minutes = int((datetime.utc_now() - record.updated_at).total_seconds() / 60)
                     
                     if is_stale:
                         self.stdout.write(
@@ -222,9 +223,9 @@ class Command(BaseCommand):
             
             for record in stale_records:
                 if hasattr(record, 'processing_started_at') and record.processing_started_at:
-                    age_minutes = int((datetime.datetime.utcnow() - record.processing_started_at).total_seconds() / 60)
+                    age_minutes = int((datetime.utc_now() - record.processing_started_at).total_seconds() / 60)
                 else:
-                    age_minutes = int((datetime.datetime.utcnow() - record.updated_at).total_seconds() / 60)
+                    age_minutes = int((datetime.utc_now() - record.updated_at).total_seconds() / 60)
                 
                 self.stdout.write(
                     self.style.WARNING(

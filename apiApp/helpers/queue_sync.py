@@ -15,6 +15,7 @@ This ensures both tables stay in sync and all searches get processed.
 
 import logging
 from datetime import datetime
+from apiApp.helpers.sm_datetime import utc_now
 from apiApp.model_loader import (
     StellarAccountSearchCache,
     StellarCreatorAccountLineage,
@@ -85,8 +86,8 @@ class QueueSynchronizer:
                             stellar_account=cache_record.stellar_account,
                             network_name=cache_record.network_name,
                             status='PENDING',
-                            created_at=datetime.utcnow(),
-                            updated_at=datetime.utcnow(),
+                            created_at=utc_now(),
+                            updated_at=utc_now(),
                             notes=f'Promoted from Search Cache (user search at {cache_record.created_at})'
                         )
                         promoted += 1
@@ -199,7 +200,7 @@ class QueueSynchronizer:
             # (last_fetched_at means a full display payload was written).
             old_status = cache_record.status
             cache_record.status = cache_status
-            cache_record.updated_at = datetime.utcnow()
+            cache_record.updated_at = utc_now()
             cache_record.save()
 
             logger.info(

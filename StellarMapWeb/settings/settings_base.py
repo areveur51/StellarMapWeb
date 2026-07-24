@@ -223,6 +223,10 @@ CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_NAME = config('SESSION_COOKIE_NAME', default='stellarmap.sid')
+# JS login QR needs to read csrftoken cookie
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_NAME = 'csrftoken'
 
 # Export auth settings for helpers that read os.environ
 os.environ.setdefault('AUTH_MODE', str(AUTH_MODE))

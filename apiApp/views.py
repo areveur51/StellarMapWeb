@@ -3,6 +3,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 import sentry_sdk
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds as dt_age_seconds
 
 def api_home(request):
     """Simple API home view"""
@@ -106,7 +107,7 @@ def pending_accounts_api(request):
 
     # Check cache first
     if cache['data'] and cache['timestamp']:
-        age_seconds = (datetime.utcnow() - cache['timestamp']).total_seconds()
+        age_seconds = (utc_now() - cache['timestamp']).total_seconds()
         if age_seconds < cache['ttl']:
             # Mark response as cached before returning
             cached_response = cache['data'].copy()
@@ -128,8 +129,7 @@ def pending_accounts_api(request):
         def calculate_age_minutes(updated_at):
             if not updated_at:
                 return 0
-            age_delta = datetime.utcnow() - updated_at
-            return int(age_delta.total_seconds() / 60)
+            return int(dt_age_seconds(updated_at) / 60)
         
         # Fetch records with optimization
         if USE_CASSANDRA:
@@ -171,7 +171,7 @@ def pending_accounts_api(request):
         
         # Update cache
         cache['data'] = response_data
-        cache['timestamp'] = datetime.utcnow()
+        cache['timestamp'] = utc_now()
         
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -901,8 +901,8 @@ def bulk_queue_accounts_api(request):
                     stellar_account=account,
                     network_name=network,
                     status='PENDING',
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=utc_now(),
+                    updated_at=utc_now()
                 )
                 queued.append(account)
             except Exception as e:
@@ -974,9 +974,9 @@ def cassandra_query_api(request):
                 return None
             try:
                 if isinstance(updated_at, datetime):
-                    age_delta = datetime.utcnow() - updated_at
+                    age_delta = utc_now() - updated_at
                 else:
-                    age_delta = datetime.utcnow() - datetime.fromtimestamp(updated_at.timestamp())
+                    age_delta = utc_now() - datetime.fromtimestamp(updated_at.timestamp())
                 return int(age_delta.total_seconds() / 60)
             except:
                 return None
@@ -1014,7 +1014,7 @@ def cassandra_query_api(request):
             visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at']
             
             # Use model-defined threshold (5 minutes for PENDING/PROCESSING statuses)
-            cutoff_time = datetime.utcnow() - timedelta(minutes=STUCK_THRESHOLD_MINUTES)
+            cutoff_time = utc_now() - timedelta(minutes=STUCK_THRESHOLD_MINUTES)
             
             if USE_CASSANDRA:
                 # Cassandra limitation: Cannot filter by updated_at/status (non-PK fields)
@@ -1121,7 +1121,7 @@ def cassandra_query_api(request):
             description = 'Stale Records (>12 hours old)'
             visible_columns = ['status', 'age_minutes', 'updated_at']
             
-            cutoff_time = datetime.utcnow() - timedelta(hours=12)
+            cutoff_time = utc_now() - timedelta(hours=12)
             
             if USE_CASSANDRA:
                 # Cassandra limitation: updated_at not in PK
@@ -1149,7 +1149,7 @@ def cassandra_query_api(request):
             description = 'Fresh Records (Recently Updated)'
             visible_columns = ['status', 'age_minutes', 'updated_at']
             
-            cutoff_time = datetime.utcnow() - timedelta(hours=1)
+            cutoff_time = utc_now() - timedelta(hours=1)
             
             if USE_CASSANDRA:
                 # Cassandra limitation: updated_at not in PK
@@ -1202,7 +1202,7 @@ def cassandra_query_api(request):
             visible_columns = ['status', 'age_minutes', 'retry_count', 'updated_at', 'table_source']
             
             from datetime import datetime, timedelta
-            stale_threshold = datetime.utcnow() - timedelta(minutes=30)  # Processing older than 30 min is stale
+            stale_threshold = utc_now() - timedelta(minutes=30)  # Processing older than 30 min is stale
             
             processing = []
             
@@ -1573,7 +1573,7 @@ def pipeline_stats_api(request):
         }
         
         # Calculate 24h cutoff
-        cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+        cutoff_24h = utc_now() - timedelta(hours=24)
         
         # Query records
         if USE_CASSANDRA:
@@ -1636,7 +1636,7 @@ def pipeline_stats_api(request):
             stats['last_24h']['sdk'] = recent_records.filter(pipeline_source='SDK').count()
         
         # Add metadata
-        stats['timestamp'] = datetime.utcnow().isoformat()
+        stats['timestamp'] = utc_now().isoformat()
         stats['total_accounts'] = stats['bigquery_total'] + stats['bigquery_with_fallback_total'] + stats['api_total'] + stats['sdk_total']
         
         return JsonResponse(stats, status=200)

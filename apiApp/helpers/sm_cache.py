@@ -1,6 +1,7 @@
 # apiApp/helpers/sm_cache.py
 import datetime
 import json
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from apiApp.model_loader import (
     StellarAccountSearchCache, 
     StellarCreatorAccountLineage,
@@ -33,8 +34,7 @@ class StellarMapCacheHelpers:
             )
             
             if cache_entry.last_fetched_at:
-                time_since_fetch = datetime.datetime.utcnow() - cache_entry.last_fetched_at
-                hours_since_fetch = time_since_fetch.total_seconds() / 3600
+                hours_since_fetch = age_seconds(cache_entry.last_fetched_at) / 3600
                 
                 is_fresh = hours_since_fetch < self.CACHE_FRESHNESS_HOURS
                 return is_fresh, cache_entry
@@ -87,7 +87,7 @@ class StellarMapCacheHelpers:
                 network_name=network_name
             )
             cache_entry.cached_json = body
-            cache_entry.last_fetched_at = datetime.datetime.utcnow()
+            cache_entry.last_fetched_at = utc_now()
             cache_entry.status = status
             cache_entry.save()
             return cache_entry
@@ -97,10 +97,10 @@ class StellarMapCacheHelpers:
                 stellar_account=stellar_account,
                 network_name=network_name,
                 cached_json=body,
-                last_fetched_at=datetime.datetime.utcnow(),
+                last_fetched_at=utc_now(),
                 status=status,
-                created_at=datetime.datetime.utcnow(),
-                updated_at=datetime.datetime.utcnow()
+                created_at=utc_now(),
+                updated_at=utc_now()
             )
             return cache_entry
     
@@ -130,7 +130,7 @@ class StellarMapCacheHelpers:
             
             # Set to PENDING if in terminal state
             cache_entry.status = PENDING
-            cache_entry.updated_at = datetime.datetime.utcnow()
+            cache_entry.updated_at = utc_now()
             cache_entry.save()
             
         except StellarAccountSearchCache.DoesNotExist:
@@ -138,8 +138,8 @@ class StellarMapCacheHelpers:
                 stellar_account=stellar_account,
                 network_name=network_name,
                 status=PENDING,
-                created_at=datetime.datetime.utcnow(),
-                updated_at=datetime.datetime.utcnow()
+                created_at=utc_now(),
+                updated_at=utc_now()
             )
         
         # Create or update lineage entry for BigQuery pipeline
@@ -152,7 +152,7 @@ class StellarMapCacheHelpers:
             # Only reset to PENDING if in terminal state
             if lineage_entry.status in [BIGQUERY_COMPLETE, COMPLETE, 'FAILED', 'INVALID']:
                 lineage_entry.status = PENDING
-                lineage_entry.updated_at = datetime.datetime.utcnow()
+                lineage_entry.updated_at = utc_now()
                 lineage_entry.save()
                 
         except StellarCreatorAccountLineage.DoesNotExist:
@@ -160,8 +160,8 @@ class StellarMapCacheHelpers:
                 stellar_account=stellar_account,
                 network_name=network_name,
                 status=PENDING,
-                created_at=datetime.datetime.utcnow(),
-                updated_at=datetime.datetime.utcnow()
+                created_at=utc_now(),
+                updated_at=utc_now()
             )
         
         return cache_entry

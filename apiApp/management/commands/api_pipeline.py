@@ -20,6 +20,7 @@ Use Cases:
 
 import logging
 from datetime import datetime, timedelta
+from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
 from django.core.management.base import BaseCommand
 from apiApp.model_loader import StellarCreatorAccountLineage, BigQueryPipelineConfig
 from apiApp.helpers.env import EnvHelpers
@@ -138,7 +139,7 @@ class Command(BaseCommand):
         try:
             from apiApp.models_cassandra import STUCK_THRESHOLD_MINUTES
             
-            stuck_threshold = datetime.utcnow() - timedelta(minutes=STUCK_THRESHOLD_MINUTES)
+            stuck_threshold = utc_now() - timedelta(minutes=STUCK_THRESHOLD_MINUTES)
             
             stuck_accounts = StellarCreatorAccountLineage.objects.filter(
                 network_name='public',
@@ -189,7 +190,7 @@ class Command(BaseCommand):
         5. Update database
         """
         account = account_obj.stellar_account
-        start_time = datetime.utcnow()
+        start_time = utc_now()
         
         try:
             # Mark as PROCESSING and record start time
@@ -256,7 +257,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('    ✓ Database updated'))
             
             # Calculate processing time
-            end_time = datetime.utcnow()
+            end_time = utc_now()
             duration = (end_time - start_time).total_seconds()
             self.stdout.write(self.style.SUCCESS(f'  ⏱ Processing time: {duration:.2f} seconds'))
             
@@ -499,8 +500,8 @@ class Command(BaseCommand):
                     stellar_account=creator_account,
                     network_name='public',
                     status='PENDING',
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    created_at=utc_now(),
+                    updated_at=utc_now()
                 )
                 self.stdout.write(self.style.SUCCESS(
                     f'    ✓ Queued creator account {creator_account[:8]}... for processing'
@@ -534,8 +535,8 @@ class Command(BaseCommand):
                         network_name='public',
                         stellar_creator_account=parent_account,
                         status='PENDING',
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
+                        created_at=utc_now(),
+                        updated_at=utc_now()
                     )
                     queued += 1
                     

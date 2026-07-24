@@ -80,10 +80,12 @@
     let challengeId = null;
 
     function csrfToken() {
+      // Prefer form token (always present after render); cookie may lag on first paint
+      const input = document.querySelector('input[name=csrfmiddlewaretoken]');
+      if (input && input.value) return input.value;
       const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
       if (m) return decodeURIComponent(m[1]);
-      const input = document.querySelector('input[name=csrfmiddlewaretoken]');
-      return input ? input.value : '';
+      return '';
     }
     function showErr(msg) {
       if (!errEl) return;
