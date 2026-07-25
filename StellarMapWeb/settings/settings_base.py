@@ -417,6 +417,14 @@ _lineage_prog_raw = str(
 ).strip().lower()
 LINEAGE_PROGRESSIVE_SIBLINGS = _lineage_prog_raw in ('1', 'true', 'yes', 'on')
 
+# High Value Accounts page (bounded Cassandra scan + short cache)
+HVA_DISPLAY_LIMIT = int(config('HVA_DISPLAY_LIMIT', default='100'))
+HVA_CACHE_TTL_SEC = int(config('HVA_CACHE_TTL_SEC', default='120'))
+HVA_CASSANDRA_MAX_SCAN = int(config('HVA_CASSANDRA_MAX_SCAN', default='2500'))
+# 0 on Cassandra RO by default (avoid N partition reads); SQL can enrich lightly
+_hva_enrich_default = '0' if CASSANDRA_READ_ONLY or (ENV in ['production', 'replit']) else '20'
+HVA_RANK_ENRICH_LIMIT = int(config('HVA_RANK_ENRICH_LIMIT', default=_hva_enrich_default))
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 

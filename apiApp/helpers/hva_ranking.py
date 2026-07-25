@@ -30,7 +30,12 @@ class HVARankingHelper:
     
     @classmethod
     def get_supported_thresholds(cls):
-        """Get list of supported HVA thresholds from admin config."""
+        """Get list of supported HVA thresholds from admin config (cached briefly)."""
+        from django.core.cache import cache
+
+        cached = cache.get("hva_supported_thresholds_v1")
+        if cached is not None:
+            return cached
         try:
             from apiApp.models import BigQueryPipelineConfig
             config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
@@ -45,22 +50,30 @@ class HVARankingHelper:
                         pass
                 
                 if thresholds:
-                    return sorted(thresholds)  # Return sorted list
+                    result = sorted(thresholds)
+                    cache.set("hva_supported_thresholds_v1", result, 300)
+                    return result
             
             # Fall back to default if config doesn't exist or parsing fails
-            return cls.DEFAULT_SUPPORTED_THRESHOLDS
+            cache.set("hva_supported_thresholds_v1", list(cls.DEFAULT_SUPPORTED_THRESHOLDS), 300)
+            return list(cls.DEFAULT_SUPPORTED_THRESHOLDS)
         except Exception:
-            return cls.DEFAULT_SUPPORTED_THRESHOLDS
+            return list(cls.DEFAULT_SUPPORTED_THRESHOLDS)
     
     @classmethod
     def get_hva_threshold(cls):
-        """Get current HVA threshold from config (default: 100K XLM)."""
+        """Get current HVA threshold from config (default: 100K XLM; cached briefly)."""
+        from django.core.cache import cache
+
+        cached = cache.get("hva_threshold_xlm_v1")
+        if cached is not None:
+            return cached
         try:
             from apiApp.models import BigQueryPipelineConfig
             config = BigQueryPipelineConfig.objects.filter(config_id='default').first()
-            if config:
-                return config.hva_threshold_xlm
-            return 100000.0  # Default if no config exists
+            value = float(config.hva_threshold_xlm) if config else 100000.0
+            cache.set("hva_threshold_xlm_v1", value, 300)
+            return value
         except Exception:
             return 100000.0  # Default fallback
     
@@ -77,34 +90,32 @@ class HVARankingHelper:
         Returns:
             List of (rank, account) tuples, ordered by xlm_balance DESC
         """
-        from apiApp.model_loader import StellarCreatorAccountLineage
-        
-        # Use admin-configured threshold if not specified
+        # Use shared bounded leaderboard path (never full-table list on Cassandra)
+        from apiApp.helpers.hva_leaderboard import build_hva_leaderboard
+
         if xlm_threshold is None:
             xlm_threshold = cls.get_hva_threshold()
-        
+
         try:
-            # Query all accounts above the threshold
-            all_accounts = StellarCreatorAccountLineage.objects.filter(
-                network_name=network_name
-            ).all()
-            
-            # Filter accounts meeting the threshold (in-memory filter for Cassandra)
-            qualifying_accounts = [
-                acc for acc in all_accounts 
-                if acc.xlm_balance and acc.xlm_balance >= xlm_threshold
-            ]
-            
-            # Sort by balance (Cassandra doesn't support ORDER BY on non-clustering columns)
-            sorted_accounts = sorted(
-                qualifying_accounts, 
-                key=lambda x: x.xlm_balance if x.xlm_balance else 0, 
-                reverse=True
-            )[:limit]
-            
-            # Return with ranks (1-indexed)
-            return [(rank + 1, account) for rank, account in enumerate(sorted_accounts)]
-            
+            from types import SimpleNamespace
+
+            payload = build_hva_leaderboard(
+                network_name=network_name,
+                selected_threshold=xlm_threshold,
+                display_limit=min(int(limit or 100), 500),
+                use_cache=True,
+                enrich_rank_changes=False,
+            )
+            # Lightweight stand-ins (callers only need account + balance fields)
+            result = []
+            for row in payload.get("hva_accounts") or []:
+                acc = SimpleNamespace(
+                    stellar_account=row["stellar_account"],
+                    network_name=row["network_name"],
+                    xlm_balance=row["xlm_balance"],
+                )
+                result.append((row["current_rank"], acc))
+            return result
         except Exception as e:
             logger.error(f"Error fetching HVA rankings for threshold {xlm_threshold}: {e}")
             return []
