@@ -284,307 +284,131 @@ function renderRadialTree(jsonData) {
             };
         }
 
-        console.log('Processing tree data:', processedData);
-
-        // Pre-analyze tree to calculate optimal radius where nodes TOUCH but DON'T OVERLAP
+        // Pre-analyze tree: adapt radius so the densest sibling ring fills a full circle
         const tempRoot = d3.hierarchy(processedData);
         const tempDescendants = tempRoot.descendants();
-        
-        // Count nodes at each depth level
         const nodesPerDepth = {};
         let maxDepth = 0;
+        let maxSiblingsAtDepth = 1;
         tempDescendants.forEach(d => {
             nodesPerDepth[d.depth] = (nodesPerDepth[d.depth] || 0) + 1;
             maxDepth = Math.max(maxDepth, d.depth);
-        });
-        
-        // Calculate compact radius following Bostock's pattern
-        // Use smaller label width for standard sizes, and apply compactness factor
-        const labelWidth = 50; // pixels per node label (compact spacing)
-        let minRadius = 200; // reduced absolute minimum for compactness
-        
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            const nodeCount = nodesPerDepth[depth] || 0;
-            if (nodeCount > 0) {
-                // Calculate radius and apply compactness factor to shorten child lines
-                const requiredRadius = (nodeCount * labelWidth * maxDepth) / (2 * Math.PI * depth);
-                minRadius = Math.max(minRadius, requiredRadius * RADIAL_COMPACTNESS);
+            if (d.depth > 0) {
+                maxSiblingsAtDepth = Math.max(maxSiblingsAtDepth, nodesPerDepth[d.depth]);
             }
+        });
+        // Also consider widest sibling group under a single parent
+        tempRoot.each(d => {
+            if (d.children && d.children.length > maxSiblingsAtDepth) {
+                maxSiblingsAtDepth = d.children.length;
+            }
+        });
+
+        // Arc spacing: enough px along circumference for label + node (last-7 labels ~42px)
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        const minArcPx = Math.max(28, 36 * spacingMultiplier); // chord budget per sibling
+        // circumference ≈ 2π r  =>  r >= (siblings * minArc) / 2π
+        const radiusFromSiblings = (maxSiblingsAtDepth * minArcPx) / (2 * Math.PI);
+        // Depth budget so multi-level trees remain readable
+        const radiusFromDepth = Math.max(1, maxDepth) * (maxSiblingsAtDepth < 20 ? 90 : 70);
+        let calculatedRadius = Math.max(180, radiusFromSiblings, radiusFromDepth * RADIAL_COMPACTNESS);
+        // Cap for mobile viewports
+        const vw = Math.min(
+            (typeof window !== 'undefined' && window.innerWidth) || 800,
+            (document.getElementById('radial-tree-container') || {}).clientWidth || 800
+        );
+        const vh = Math.min(
+            (typeof window !== 'undefined' && window.innerHeight) || 800,
+            (document.getElementById('radial-tree-container') || {}).clientHeight || 640
+        );
+        const viewportCap = Math.max(160, Math.min(vw, vh) * 0.42);
+        if (calculatedRadius > viewportCap * 1.8) {
+            calculatedRadius = viewportCap * 1.8;
         }
-        
-        // Use calculated radius for compact tree
-        const calculatedRadius = Math.floor(minRadius);
-        
-        console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
-        console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
-        console.log(`[Radial Tree] Calculated compact radius: ${calculatedRadius}px`);
-        console.log(`[Radial Tree] Standard sizes - Node: ${RADIAL_NODE_SIZE}px, Text: ${RADIAL_TEXT_SIZE}px, Compactness: ${RADIAL_COMPACTNESS}`);
-        
-        // Set canvas size based on radius to fit whole tree on screen
-        const size = Math.floor((calculatedRadius + 150) * 2); // Reduced margin for compact layout
+        calculatedRadius = Math.floor(calculatedRadius);
+        const size = Math.floor((calculatedRadius + 80) * 2);
         const radius = calculatedRadius;
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
             d3.select('body').append('svg').attr('id', 'tree');
         }
-        
+
         const svg = d3.select('#tree')
             .attr('width', '100%')
             .attr('height', '100%')
             .attr('viewBox', `0 0 ${size} ${size}`)
-            .attr('preserveAspectRatio', 'xMidYMid meet');
-            
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .style('touch-action', 'none'); // pan/zoom without page scroll fighting
+
         svg.selectAll('*').remove();
 
-        // Create main group for zoom/pan transformations
         const g = svg.append('g')
             .attr('transform', `translate(${size / 2},${size / 2})`);
-        
-        // Set up D3 zoom behavior
+
         const zoom = d3.zoom()
-            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .scaleExtent([0.15, 8])
             .on('zoom', (event) => {
-                g.attr('transform', `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`);
+                g.attr(
+                    'transform',
+                    `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`
+                );
             });
-        
-        // Apply zoom to SVG
         svg.call(zoom);
-        
-        // Store zoom and SVG in global scope for zoom controls
         window.zoomBehavior = zoom;
         window.svg = svg;
-        
-        // Reset zoom function for "Fit to Window" button
-        window.resetZoom = function() {
-            svg.transition().duration(750)
-                .call(zoom.transform, d3.zoomIdentity);
+        window.resetZoom = function () {
+            svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
         };
 
         const breadcrumbContainer = svg.append('g')
             .attr('class', 'breadcrumb-container')
             .attr('transform', 'translate(20, 20)');
 
-        // Get spacing multiplier from global variable (controlled by slider)
-        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
-        console.log('[Radial Tree] Rendering with spacing multiplier:', spacingMultiplier);
-        console.log('[Radial Tree] Using Mike Bostock approach: .size([2π, radius])');
-        
-        // Use Mike Bostock's canonical approach from https://gist.github.com/mbostock/4063550
-        // Key: .size([2 * Math.PI, radius]) ensures siblings naturally spread around full 360° arc
+        // Full-circle layout: angles span [0, 2π] so siblings complete a radial ring
+        // (no lineage-sector clamp — that left half the circle empty with few siblings)
         const tree = d3.tree()
-            .size([2 * Math.PI, radius * 0.9])  // Full circle, use 90% for inner content + label space
+            .size([2 * Math.PI, radius * 0.88])
             .separation((a, b) => {
-                // Bostock's separation formula: siblings closer, non-siblings farther
-                return (a.parent === b.parent ? 1 : 2) / a.depth;
+                // Equal weight among siblings so a ring fills evenly;
+                // slight extra gap between different parents
+                if (a.parent === b.parent) {
+                    return 1;
+                }
+                return 1.35;
             });
 
         const root = d3.hierarchy(processedData);
-        console.log('[Radial Tree] Tree has', root.children ? root.children.length : 0, 'children');
-
-        // Run D3 tree layout - with .size([2π, radius]), angles are already distributed 0 to 2π
         tree(root);
-        
         const descendants = root.descendants();
-        console.log('[Radial Tree] Layout complete - angles naturally span 0 to 2π');
-        console.log('[Radial Tree] Total nodes:', descendants.length);
-        
-        // LINEAGE-FIRST POSITIONING: Position lineage nodes sequentially, then fit others around them
-        // Extract lineage chain in hierarchical order (root → searched account)
-        const lineageChain = [];
-        descendants.forEach(d => {
-            if (d.data && d.data.is_lineage_path) {
-                lineageChain.push(d);
-            }
-        });
-        
-        // Sort lineage by depth to get correct order (parent → child)
-        lineageChain.sort((a, b) => a.depth - b.depth);
-        
-        console.log('[Lineage-First Layout] Found', lineageChain.length, 'lineage nodes');
-        
-        // Store original angles from D3 layout BEFORE we modify anything
-        const originalAngles = new Map();
-        descendants.forEach(d => originalAngles.set(d, d.x));
-        
-        // ADAPTIVE LINE LENGTH: Adjust radius based on node count for better readability
-        // Fewer nodes = longer lines (more spread out), many nodes = shorter lines (compact)
-        const totalNodeCount = descendants.length;
-        let lineageRadiusMultiplier, nonLineageRadiusMultiplier;
-        
-        if (totalNodeCount < 50) {
-            // Few nodes: make lines long for readability
-            lineageRadiusMultiplier = 0.75;
-            nonLineageRadiusMultiplier = 0.95;
-        } else if (totalNodeCount < 150) {
-            // Medium nodes: moderate compression
-            lineageRadiusMultiplier = 0.6;
-            nonLineageRadiusMultiplier = 0.92;
-        } else {
-            // Many nodes: keep compact
-            lineageRadiusMultiplier = 0.5;
-            nonLineageRadiusMultiplier = 0.9;
-        }
-        
-        console.log('[Lineage-First Layout] Adaptive radii for', totalNodeCount, 'nodes:',
-                   'lineage=' + (lineageRadiusMultiplier * 100).toFixed(0) + '%,',
-                   'non-lineage=' + (nonLineageRadiusMultiplier * 100).toFixed(0) + '%');
-        
-        if (lineageChain.length > 1) {
-            // FIBONACCI SPIRAL: Use golden angle for natural, organic spacing
-            // Golden angle ≈ 137.508° (2π / φ², where φ is the golden ratio)
-            const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.399963 radians ≈ 137.508°
-            
-            console.log('[Lineage-First Layout] Using Fibonacci spiral with golden angle:', 
-                       (goldenAngle * 180 / Math.PI).toFixed(3), '°');
-            
-            // Calculate angle per node, scaling down for compactness
-            // But ensure the total sector never exceeds reasonable bounds
-            const maxSectorSize = Math.PI; // Max 180° for lineage (leave half circle for others)
-            let anglePerNode = goldenAngle * 0.05; // Start with ~6.9° per node for tight spiral
-            
-            // Adjust if lineage chain would exceed max sector
-            let lineageSectorSize = (lineageChain.length - 1) * anglePerNode;
-            if (lineageSectorSize > maxSectorSize) {
-                // Scale down to fit within max sector
-                anglePerNode = maxSectorSize / (lineageChain.length - 1);
-                lineageSectorSize = maxSectorSize;
-                console.log('[Lineage-First Layout] Adjusted angle per node to fit:', 
-                           (anglePerNode * 180 / Math.PI).toFixed(1), '°');
-            }
-            
-            // Center the spiral around 0 radians (top of circle)
-            // This ensures the median lineage node sits on the vertical axis
-            const lineageSectorStart = -(lineageSectorSize / 2);
-            const lineageSectorEnd = +(lineageSectorSize / 2);
-            
-            console.log('[Lineage-First Layout] Fibonacci sector:', 
-                       (lineageSectorStart * 180 / Math.PI).toFixed(1), '° to',
-                       (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
-                       '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
-            
-            // Find the max depth in lineage chain
-            const maxLineageDepth = Math.max(...lineageChain.map(d => d.depth));
-            const maxLineageRadius = radius * lineageRadiusMultiplier;
-            
-            // Position lineage nodes sequentially in spiral pattern
-            lineageChain.forEach((node, i) => {
-                // Progress through the sector following fibonacci-inspired spacing
-                node.x = lineageSectorStart + (i * anglePerNode);
-                
-                // Compress radial position to keep spiral compact
-                // Map depth 0..maxLineageDepth to radius 0..maxLineageRadius
-                const depthRatio = maxLineageDepth > 0 ? node.depth / maxLineageDepth : 0;
-                node.y = depthRatio * maxLineageRadius;
-                
-                console.log(`  Lineage[${i}] ${node.data.stellar_account || node.data.name} →`, 
-                           (node.x * 180 / Math.PI).toFixed(1), '°,',
-                           'r=' + node.y.toFixed(1) + 'px');
-            });
-            
-            // REDISTRIBUTE NON-LINEAGE PARENT GROUPS to utilize full circle space
-            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
-            
-            // Find max depth of all nodes to determine safe radius cap
-            const maxDepth = Math.max(...descendants.map(d => d.depth));
-            const maxSafeRadius = radius * nonLineageRadiusMultiplier; // Use adaptive radius cap
-            
-            // Group non-lineage nodes by their parent
-            const parentGroups = new Map();
-            nonLineageNodes.forEach(node => {
-                const parentId = node.parent ? (node.parent.data.stellar_account || node.parent.data.name) : 'root';
-                if (!parentGroups.has(parentId)) {
-                    parentGroups.set(parentId, {
-                        parent: node.parent,
-                        children: [],
-                        descendantCount: 0
-                    });
-                }
-                const group = parentGroups.get(parentId);
-                group.children.push(node);
-                // Count all descendants recursively for weighting
-                group.descendantCount += 1 + (node.descendants ? node.descendants().length - 1 : 0);
-            });
-            
-            console.log('[Lineage-First Layout] Found', parentGroups.size, 'parent groups with',
-                       nonLineageNodes.length, 'total non-lineage nodes');
-            
-            // Calculate available angular space (full circle minus lineage sector)
-            const availableAngle = 2 * Math.PI - lineageSectorSize;
-            const availableStart = lineageSectorEnd;
-            const availableEnd = availableStart + availableAngle;
-            
-            // Distribute parent groups evenly across available space
-            const groupsArray = Array.from(parentGroups.values());
-            const totalDescendants = groupsArray.reduce((sum, g) => sum + g.descendantCount, 0);
-            
-            let currentAngle = availableStart;
-            groupsArray.forEach((group, groupIndex) => {
-                // Allocate angular space proportional to group size
-                const groupWeight = totalDescendants > 0 ? group.descendantCount / totalDescendants : 1 / groupsArray.length;
-                const groupAngleSpan = availableAngle * groupWeight;
-                const groupCenterAngle = currentAngle + (groupAngleSpan / 2);
-                
-                console.log(`  Group[${groupIndex}] (${group.children.length} children,`,
-                           `${group.descendantCount} descendants) → center angle:`,
-                           (groupCenterAngle * 180 / Math.PI).toFixed(1), '°');
-                
-                // Position each child in the group relative to group center
-                group.children.forEach(node => {
-                    if (node.parent) {
-                        // Calculate angular offset from parent in original D3 layout
-                        const originalParentAngle = originalAngles.get(node.parent);
-                        const originalNodeAngle = originalAngles.get(node);
-                        let angularOffset = originalNodeAngle - originalParentAngle;
-                        
-                        // Normalize offset to [-π, π]
-                        while (angularOffset > Math.PI) angularOffset -= 2 * Math.PI;
-                        while (angularOffset < -Math.PI) angularOffset += 2 * Math.PI;
-                        
-                        // Position child relative to group center angle (preserves sibling spacing)
-                        node.x = (groupCenterAngle + angularOffset) % (2 * Math.PI);
-                        if (node.x < 0) node.x += 2 * Math.PI;
-                    } else {
-                        // Root node or orphan - use group center angle
-                        node.x = groupCenterAngle;
-                    }
-                    
-                    // SCALE radius adaptively: extend for small graphs, compress for large
-                    // D3 layout defaults to 0.9 * radius, so scale relative to that baseline
-                    const baselineMultiplier = 0.9;
-                    const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
-                    node.y = node.y * scaleFactor;
-                    
-                    // Additional safety cap at adaptive threshold
-                    const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
-                    node.y = Math.min(node.y, depthRatio * maxSafeRadius);
-                });
-                
-                currentAngle += groupAngleSpan;
-            });
-            
-            console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
-        } else {
-            console.log('[Lineage-First Layout] Skipping lineage spiral - only', lineageChain.length, 'lineage node(s)');
-            
-            // Still apply adaptive scaling to all non-lineage nodes
-            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
-            const baselineMultiplier = 0.9;
-            const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
-            
-            console.log('[Lineage-First Layout] Applying adaptive scaling to', nonLineageNodes.length,
-                       'non-lineage nodes with factor:', scaleFactor.toFixed(3));
-            
-            nonLineageNodes.forEach(node => {
-                node.y = node.y * scaleFactor;
-            });
-        }
-        
-        // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
-        // around the full 360° circle, so no manual redistribution needed!
 
-        // Debug counter for logging
-        let linkCounter = 0;
+        // Normalize angles into [0, 2π] after layout (stable for polar projection)
+        let minX = Infinity;
+        let maxX = -Infinity;
+        descendants.forEach(d => {
+            if (d.x < minX) minX = d.x;
+            if (d.x > maxX) maxX = d.x;
+        });
+        const spanX = maxX - minX || 1;
+        if (Math.abs(spanX - 2 * Math.PI) > 0.05 || minX < -0.01 || maxX > 2 * Math.PI + 0.01) {
+            // Normalize angles to [0, 2π] so the ring is complete
+            descendants.forEach(d => {
+                d.x = ((d.x - minX) / spanX) * 2 * Math.PI;
+            });
+        }
+
+        // Soft radial scale: few nodes stretch outward; dense trees stay compact
+        const totalNodeCount = descendants.length;
+        let radialScale = 1;
+        if (totalNodeCount < 30) radialScale = 1.05;
+        else if (totalNodeCount > 200) radialScale = 0.92;
+        if (radialScale !== 1) {
+            descendants.forEach(d => {
+                d.y = d.y * radialScale;
+            });
+        }
+
+        const debugRadial = !!(typeof window !== 'undefined' && window.SM_DEBUG_RADIAL);
         
         // Custom link generator for lineage paths that takes the shortest angular path
         // Uses manual SVG arc construction to ensure shortest path around the circle
@@ -649,15 +473,6 @@ function renderRadialTree(jsonData) {
                 }
             })
             .style('stroke', d => {
-                // Debug: Log link metadata for first 5 links
-                if (linkCounter < 5) {
-                    console.log('[Radial Link Color]', 
-                        'target:', d.target.data.stellar_account || d.target.data.name,
-                        'is_lineage_path:', d.target.data.is_lineage_path,
-                        'is_sibling:', d.target.data.is_sibling);
-                    linkCounter++;
-                }
-                
                 // Color coding: Red for direct lineage path, Gray for siblings
                 if (d.target.data && d.target.data.is_lineage_path) {
                     return '#ff3366';  // Red for direct lineage path
@@ -738,6 +553,13 @@ function renderRadialTree(jsonData) {
             .on('mouseover', function(event, d) { showTooltip(event, d); })
             .on('mouseout', function(event, d) { hideTooltip(); });
 
+        // Dense sibling rings: slightly smaller labels so arcs stay readable
+        const labelPx = maxSiblingsAtDepth > 48
+            ? Math.max(11, RADIAL_TEXT_SIZE - 4)
+            : maxSiblingsAtDepth > 24
+                ? Math.max(13, RADIAL_TEXT_SIZE - 2)
+                : RADIAL_TEXT_SIZE;
+
         node.append('text')
             .attr('dy', '.31em')
             .attr('x', d => d.x < Math.PI ? 12 : -12)
@@ -752,9 +574,10 @@ function renderRadialTree(jsonData) {
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', RADIAL_TEXT_SIZE + 'px')
+            .style('font-size', labelPx + 'px')
             .style('font-weight', '500')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('pointer-events', 'none')
             .style('opacity', d => {
                 // Reduce opacity for muted nodes
                 if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
@@ -942,7 +765,14 @@ function renderRadialTree(jsonData) {
             breadcrumbContainer.selectAll('*').remove();
         }
 
-        console.log('Radial tree rendered successfully');
+        if (debugRadial) {
+            console.log('Radial tree rendered', {
+                nodes: totalNodeCount,
+                maxSiblingsAtDepth,
+                radius,
+                size
+            });
+        }
         
     } catch (error) {
         console.error('Error rendering radial tree:', error);

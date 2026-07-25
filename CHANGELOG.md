@@ -23,6 +23,7 @@
 - **Astra read-only lab mode** — `CASSANDRA_READ_ONLY=1` loads Cassandra models and routes `apiApp` reads to Astra while ENV stays `development`; model saves and cache queue writes are blocked (safe with a read-only token)
 
 ### Changed
+- **Radial tree UX** — full-circle layout adapts radius to sibling density; lineage sector clamp removed; tree controls collapsible on iPad/mobile (no overlay blocking); filter slider re-renders debounced
 - **Search default tree** — `/search/` with no account shows a canned **example** radial tree: dense structure from original `test.json` converted to real `buildTreeFromLineage_v1` fields (path + siblings + assets + flags); not live public/testnet data; search box starts empty
 - **HVA page performance** — prefer `is_hva` filter (no full network table scan), cap list length, limit rank-change enrichment queries
 - **System Dashboard UI** — metric sections use the same elevated panel + compact card language as Dependency Heartbeat (no more fixed 180×180 square tiles); shared `.dash-panel` styles

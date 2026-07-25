@@ -2,18 +2,57 @@
 
 .visualization-controls {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    z-index: 9999 !important;
-    background: linear-gradient(135deg, rgba(38, 29, 69, 0.95), rgba(150, 221, 242, 0.15));
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    max-width: min(300px, calc(100% - 24px));
+    max-height: min(70vh, 520px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: linear-gradient(135deg, rgba(38, 29, 69, 0.96), rgba(26, 21, 48, 0.96));
     border: 2px solid #96DDF2;
-    border-radius: 25px;
-    padding: 15px 20px;
+    border-radius: 16px;
+    padding: 10px 12px 12px;
     display: flex !important;
     flex-direction: column;
-    gap: 15px;
-    box-shadow: 0 0 20px rgba(150, 221, 242, 0.3);
-    transition: all 0.3s ease;
+    gap: 10px;
+    box-shadow: 0 0 20px rgba(150, 221, 242, 0.28);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    pointer-events: auto;
+}
+
+.viz-controls-toggle {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    margin: 0;
+    border: 1px solid #3f2c70;
+    border-radius: 10px;
+    background: rgba(16, 13, 35, 0.65);
+    color: #96DDF2;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.viz-controls-toggle__chev {
+    transition: transform 0.2s ease;
+}
+.visualization-controls.is-collapsed .viz-controls-toggle__chev {
+    transform: rotate(-90deg);
+}
+.viz-controls-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.visualization-controls.is-collapsed .viz-controls-body {
+    display: none;
 }
 
 .visualization-controls:hover {
@@ -215,16 +254,33 @@
     color: rgba(150, 221, 242, 0.5);
 }
 
-/* Mobile / iPad friendly placement */
-@media (max-width: 991px) {
+/* iPad + phones: controls sit ABOVE the tree (not over it) and collapse by default */
+@media (max-width: 1024px) {
+  .response-container {
+    display: flex;
+    flex-direction: column;
+  }
   .visualization-controls {
-    top: 8px;
-    right: 8px;
-    left: auto;
-    max-width: min(280px, calc(100vw - 24px));
-    padding: 10px 12px;
-    gap: 10px;
-    border-radius: 14px;
+    position: relative !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    order: -1;
+    z-index: 5;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    /* Do not steal taps from the SVG when collapsed */
+  }
+  .visualization-controls.is-collapsed {
+    max-height: none;
+    overflow: visible;
+  }
+  .viz-controls-toggle {
+    display: flex !important;
   }
   .toggle-label {
     font-size: 0.75em;
@@ -234,35 +290,40 @@
     font-size: 0.85em;
   }
   .spacing-slider {
-    width: 110px;
+    width: 100%;
+    max-width: 100%;
   }
   .zoom-btn {
     min-width: 44px;
     min-height: 44px;
     padding: 8px 12px;
   }
-}
-
-@media (max-width: 600px) {
-  .visualization-controls {
-    position: relative;
-    top: 0;
-    right: 0;
-    margin: 0 auto 10px;
-    max-width: 100%;
-    width: 100%;
-    border-radius: 12px;
-  }
-  .visualization-toggle,
-  .spacing-control,
-  .zoom-controls {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
   .filter-input {
     font-size: 16px; /* prevent iOS zoom */
     min-height: 44px;
     padding: 8px 10px;
     width: 100%;
+  }
+  .visualization-toggle,
+  .spacing-control,
+  .zoom-controls {
+    flex-wrap: wrap;
+  }
+  .radial-tree-visual {
+    min-height: min(62dvh, 560px);
+  }
+  #radial-tree-container {
+    height: min(62dvh, 560px);
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 600px) {
+  .radial-tree-visual {
+    min-height: min(58dvh, 480px);
+  }
+  #radial-tree-container {
+    height: min(58dvh, 480px);
+    min-height: 280px;
   }
 }

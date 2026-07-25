@@ -2055,23 +2055,40 @@ body.sm-progress-active {
   margin: 12px 0 16px;
   background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   border: 1px solid #3f2c70;
   border-radius: 10px;
   position: relative;
   overflow: hidden;
+  padding: 8px;
+}
+.response-container {
+  position: relative;
 }
 #radial-tree-container {
   width: 100%;
   height: min(70vh, 640px);
-  min-height: 420px;
+  min-height: 360px;
   position: relative;
+  flex: 1 1 auto;
 }
 #radial-tree-container svg#tree {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+}
+@media (max-width: 1024px) {
+  .radial-tree-visual {
+    min-height: min(62dvh, 560px);
+    padding: 6px;
+  }
+  #radial-tree-container {
+    height: min(62dvh, 560px);
+    min-height: 300px;
+  }
 }
 
 /* Tables: allow horizontal scroll on small screens */
