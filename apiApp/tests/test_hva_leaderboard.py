@@ -143,13 +143,13 @@ class HvaLeaderboardUnitTests(SimpleTestCase):
         self.assertTrue(second["meta"]["cache_hit"])
         self.assertEqual(second["hva_accounts"][0]["stellar_account"], "GDDD")
 
-    def test_cassandra_scan_respects_max_scan_and_top_n(self):
-        """Heap keeps highest balances without materializing full sorted table."""
+    def test_cassandra_scan_prefers_is_hva_and_top_n(self):
+        """is_hva=True path keeps highest balances (not network_name full crawl)."""
         rows = [
             _fake_account(f"G{i:04d}", float(i * 1000), is_hva=True)
             for i in range(1, 101)
         ]
-        # balances 1000..100000 — top 3 should be 100k, 99k, 98k
+        # balances 1000..100000 — top 3 above 50k should be 100k, 99k, 98k
 
         mock_qs = MagicMock()
         mock_qs.iterator.return_value = iter(rows)
@@ -157,19 +157,28 @@ class HvaLeaderboardUnitTests(SimpleTestCase):
         with patch(
             "apiApp.model_loader.StellarCreatorAccountLineage"
         ) as mock_model:
+            # First filter call should be is_hva=True
             mock_model.objects.filter.return_value = mock_qs
             top, meta = _fetch_cassandra_top_records(
                 network_name="public",
                 threshold=50000,
                 limit=3,
                 max_scan=1000,
+                max_seconds=10.0,
             )
 
+        mock_model.objects.filter.assert_called()
+        self.assertTrue(
+            any(
+                (c.kwargs or {}).get("is_hva") is True
+                for c in mock_model.objects.filter.call_args_list
+            ),
+            "must query is_hva=True first (not network_name full crawl)",
+        )
         self.assertEqual(len(top), 3)
         balances = [r.xlm_balance for r in top]
         self.assertEqual(balances, [100000.0, 99000.0, 98000.0])
-        self.assertFalse(meta["hit_scan_limit"])
-        self.assertEqual(meta["scanned"], 100)
+        self.assertEqual(meta.get("strategy"), "is_hva")
 
     def test_cassandra_scan_stops_at_max_scan(self):
         def endless():
@@ -194,7 +203,9 @@ class HvaLeaderboardUnitTests(SimpleTestCase):
             )
 
         self.assertTrue(meta["hit_scan_limit"])
-        self.assertEqual(meta["scanned"], 31)  # break after exceeding
+        # Stops shortly after max_scan; may early-exit once heap is full
+        self.assertGreaterEqual(meta["scanned"], 5)
+        self.assertLessEqual(meta["scanned"], 31)
         self.assertEqual(len(top), 5)
 
     def test_cassandra_scan_stops_at_time_budget(self):

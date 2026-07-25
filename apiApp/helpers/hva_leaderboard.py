@@ -141,6 +141,17 @@ def _fetch_sql_records(network_name: str, threshold: float, limit: int) -> List[
     return list(qs)
 
 
+def _push_heap(heap, counter, bal, record, limit):
+    item = (bal, counter, record)
+    if len(heap) < limit:
+        heapq.heappush(heap, item)
+        return True
+    if bal > heap[0][0]:
+        heapq.heapreplace(heap, item)
+        return True
+    return False
+
+
 def _fetch_cassandra_top_records(
     network_name: str,
     threshold: float,
@@ -149,8 +160,12 @@ def _fetch_cassandra_top_records(
     max_seconds: Optional[float] = None,
 ) -> Tuple[List[Any], dict]:
     """
-    Bounded Cassandra scan. Walk at most max_scan rows OR max_seconds wall time;
-    keep top-N by balance with a min-heap. Never materializes the full table.
+    Cassandra HVA fetch.
+
+    IMPORTANT: Prefer ``is_hva=True`` (works well with ALLOW FILTERING on Astra
+    and returns the sparse HVA set in sub-second). Filtering by network_name
+    first is effectively a full-table crawl and often finds zero HVAs within
+    the time budget.
     """
     from apiApp.model_loader import StellarCreatorAccountLineage
 
@@ -164,59 +179,111 @@ def _fetch_cassandra_top_records(
         "qualifying_seen": 0,
         "max_scan": max_scan,
         "max_seconds": max_seconds,
+        "strategy": "is_hva",
     }
-    # heap of (balance, counter, record) — counter breaks ties for heapq
     heap: List[Tuple[float, int, Any]] = []
     counter = 0
     deadline = time.monotonic() + float(max_seconds)
 
-    # network_name is not the partition key — this is still an expensive scan,
-    # so we always enforce row + wall-clock caps.
-    try:
-        qs = StellarCreatorAccountLineage.objects.filter(network_name=network_name)
-    except Exception:
-        qs = StellarCreatorAccountLineage.objects.all()
-
-    try:
-        stream = qs.iterator() if hasattr(qs, "iterator") else iter(qs)
+    def _consume(stream, require_network: bool = True):
+        nonlocal counter
         for record in stream:
             if time.monotonic() >= deadline:
                 meta["hit_time_limit"] = True
-                break
+                return
             meta["scanned"] += 1
             if meta["scanned"] > max_scan:
                 meta["hit_scan_limit"] = True
-                break
+                return
 
-            bal = getattr(record, "xlm_balance", None) or 0.0
-            is_hva = bool(getattr(record, "is_hva", False))
-            # Accept HVA flag or explicit balance above selected threshold
-            if not (is_hva or bal >= threshold):
+            if require_network and getattr(record, "network_name", None) != network_name:
                 continue
+
+            bal = float(getattr(record, "xlm_balance", None) or 0.0)
             if bal < threshold:
                 continue
 
             meta["qualifying_seen"] += 1
             counter += 1
-            item = (bal, counter, record)
-            if len(heap) < limit:
-                heapq.heappush(heap, item)
-            elif bal > heap[0][0]:
-                heapq.heapreplace(heap, item)
+            _push_heap(heap, counter, bal, record, limit)
+            # Do not early-exit while the stream is ordered arbitrarily —
+            # higher balances may appear later (heap keeps the top-N).
 
-            # Early exit if we already filled the leaderboard with strong HVAs
-            # and have scanned a reasonable sample (best-effort completeness)
-            if (
-                len(heap) >= limit
-                and meta["scanned"] >= max(limit * 20, 200)
-                and heap[0][0] >= threshold * 2
-            ):
-                break
+    # Strategy 1: is_hva=True (fast sparse set on Astra — measured ~0.3s / ~100 rows)
+    try:
+        qs = StellarCreatorAccountLineage.objects.filter(is_hva=True)
+        stream = qs.iterator() if hasattr(qs, "iterator") else iter(qs)
+        _consume(stream, require_network=True)
     except Exception as e:
-        logger.error("Cassandra HVA scan failed: %s", e, exc_info=True)
+        logger.error("Cassandra is_hva scan failed: %s", e, exc_info=True)
         meta["error"] = str(e)
 
-    # Highest balance first
+    # Strategy 2: if still empty and time remains, try network filter (slow — short budget)
+    if not heap and not meta.get("hit_time_limit"):
+        meta["strategy"] = "network_fallback"
+        remaining = max(0.5, deadline - time.monotonic())
+        if remaining > 0.5:
+            try:
+                qs = StellarCreatorAccountLineage.objects.filter(
+                    network_name=network_name
+                )
+                stream = qs.iterator() if hasattr(qs, "iterator") else iter(qs)
+                # tighter remaining deadline already enforced in _consume
+                _consume(stream, require_network=False)
+            except Exception as e:
+                logger.error("Cassandra network fallback failed: %s", e, exc_info=True)
+                meta["fallback_error"] = str(e)
+
+    # Strategy 3: seed from standing-change events (often small table)
+    if not heap and not meta.get("hit_time_limit"):
+        meta["strategy"] = "standing_changes"
+        try:
+            from apiApp.model_loader import HVAStandingChange
+
+            best: Dict[str, Tuple[float, Any]] = {}
+            n = 0
+            for c in HVAStandingChange.objects.all():
+                if time.monotonic() >= deadline:
+                    meta["hit_time_limit"] = True
+                    break
+                n += 1
+                if n > max_scan:
+                    break
+                net = getattr(c, "network_name", None)
+                if net and net != network_name:
+                    continue
+                bal = float(getattr(c, "new_balance", None) or 0.0)
+                if bal < threshold:
+                    continue
+                acct = c.stellar_account
+                if acct not in best or bal > best[acct][0]:
+                    # synthetic record-like object for _record_to_row
+                    rec = type(
+                        "HVAStandingRow",
+                        (),
+                        {
+                            "stellar_account": acct,
+                            "network_name": getattr(c, "network_name", None)
+                            or network_name,
+                            "xlm_balance": bal,
+                            "stellar_creator_account": None,
+                            "home_domain": getattr(c, "home_domain", None) or "",
+                            "tags": "HVA",
+                            "status": getattr(c, "event_type", "") or "",
+                            "created_at": getattr(c, "created_at", None),
+                            "updated_at": getattr(c, "created_at", None),
+                        },
+                    )()
+                    best[acct] = (bal, rec)
+            for bal, rec in best.values():
+                counter += 1
+                meta["qualifying_seen"] += 1
+                _push_heap(heap, counter, bal, rec, limit)
+            meta["scanned"] += n
+        except Exception as e:
+            logger.error("HVA standing_changes seed failed: %s", e, exc_info=True)
+            meta["standing_error"] = str(e)
+
     sorted_items = sorted(heap, key=lambda t: t[0], reverse=True)
     return [t[2] for t in sorted_items], meta
 
@@ -431,11 +498,20 @@ def build_hva_leaderboard(
     }
 
     if use_cache and _cache_ttl() > 0:
-        # Do not cache empty results forever when scan hit limit with 0 hits —
-        # short TTL so we retry soon after data appears.
         ttl = _cache_ttl()
-        if not hva_accounts and meta.get("hit_scan_limit"):
-            ttl = min(ttl, 30)
+        # Never poison the cache with empty timeout/scan-budget misses — retry soon
+        if not hva_accounts and (
+            meta.get("timed_out")
+            or meta.get("hit_time_limit")
+            or meta.get("hit_scan_limit")
+            or meta.get("error")
+        ):
+            ttl = min(ttl, 15)
+        elif hva_accounts:
+            ttl = _cache_ttl()
+        else:
+            # Genuine empty set (scan finished, zero HVAs) — still short TTL
+            ttl = min(ttl, 60)
         cache.set(ck, payload, ttl)
 
     return payload
