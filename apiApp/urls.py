@@ -13,6 +13,7 @@ urlpatterns = [
     path('lineage-with-siblings/', views.lineage_with_siblings_api, name='lineage_with_siblings_api'),
     path('fetch-toml/', views.fetch_toml_api, name='fetch_toml_api'),
     path('retry-failed-account/', views.retry_failed_account_api, name='retry_failed_account_api'),
+    path('queue-lineage/', views.queue_lineage_api, name='queue_lineage_api'),
     path('refresh-enrichment/', views.refresh_enrichment_api, name='refresh_enrichment_api'),
     path('server-logs/', views.server_logs_api, name='server_logs_api'),
     path('error-logs/', views.error_logs_api, name='error_logs_api'),

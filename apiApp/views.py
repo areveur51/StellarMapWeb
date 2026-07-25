@@ -510,6 +510,83 @@ def fetch_toml_api(request):
         }, status=500)
 
 
+@ratelimit(key='ip', rate='12/m', method='POST', block=True)
+@require_http_methods(['POST'])
+def queue_lineage_api(request):
+    """
+    Interest-driven queue: mark account PENDING for the near-RT SDK worker.
+
+    Public (rate-limited). Does not call Horizon itself — only writes queue state.
+    Blocked when CASSANDRA_READ_ONLY=1.
+
+    POST body (form or JSON): account, network (public|testnet)
+    """
+    from django.conf import settings
+    from apiApp.helpers.sm_cache import StellarMapCacheHelpers
+    from apiApp.helpers.sm_stage_execution import initialize_stage_executions
+    from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
+
+    if getattr(settings, 'CASSANDRA_READ_ONLY', False):
+        return JsonResponse(
+            {
+                'error': 'read_only',
+                'message': (
+                    'CASSANDRA_READ_ONLY=1: cannot queue lineage. '
+                    'Disable RO and use a write token, then run '
+                    'manage.py run_sdk_near_rt_worker.'
+                ),
+            },
+            status=503,
+        )
+
+    account = request.POST.get('account') or request.GET.get('account')
+    network = request.POST.get('network') or request.GET.get('network') or 'public'
+    if not account and request.body:
+        try:
+            import json
+            body = json.loads(request.body.decode('utf-8') or '{}')
+            account = body.get('account') or account
+            network = body.get('network') or network
+        except Exception:
+            pass
+
+    if not account:
+        return JsonResponse({'error': 'Missing account'}, status=400)
+    account = str(account).strip()
+    network = str(network or 'public').strip().lower()
+    if network not in ('public', 'testnet'):
+        network = 'public'
+
+    if not StellarMapValidatorHelpers.validate_stellar_account_address(account):
+        return JsonResponse({'error': 'Invalid Stellar account address'}, status=400)
+
+    try:
+        helpers = StellarMapCacheHelpers()
+        entry = helpers.create_pending_entry(account, network)
+        try:
+            initialize_stage_executions(account, network)
+        except Exception as stage_err:
+            sentry_sdk.capture_exception(stage_err)
+        status_val = getattr(entry, 'status', 'PENDING') if entry else 'PENDING'
+        return JsonResponse(
+            {
+                'success': True,
+                'account': account,
+                'network': network,
+                'status': status_val,
+                'message': 'Queued for near-RT SDK processing',
+            }
+        )
+    except PermissionError as e:
+        return JsonResponse({'error': 'read_only', 'message': str(e)}, status=503)
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        return JsonResponse(
+            {'error': 'queue_failed', 'message': str(e)[:200]},
+            status=500,
+        )
+
+
 def refresh_enrichment_api(request):
     """
     API endpoint to refresh enrichment data by setting account status to PENDING.
