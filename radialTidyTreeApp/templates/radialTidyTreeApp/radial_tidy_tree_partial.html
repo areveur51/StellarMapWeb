@@ -6,8 +6,10 @@
 {% endcomment %}
 
 <style>
+    /* Stage: block layout so overlays pin to edges (not flex-centered with the SVG) */
     #radial-tree-container {
-        position: relative;
+        position: relative !important;
+        display: block !important;
         width: 100%;
         height: min(70vh, 640px);
         min-height: 360px;
@@ -25,8 +27,10 @@
         pointer-events: none;
         z-index: 0;
     }
+    /* Zoom/pan only affects SVG internals — never these overlays */
     #radial-tree-container svg#tree {
-        position: relative;
+        position: absolute !important;
+        inset: 0;
         z-index: 1;
         width: 100%;
         height: 100%;
@@ -34,26 +38,31 @@
         touch-action: none;
     }
 
-    /* Breadcrumbs: top-left of the visual (HTML overlay, not tiny SVG text) */
-    .sm-tree-breadcrumbs {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        right: auto;
-        max-width: min(72%, calc(100% - 300px));
-        z-index: 6;
+    /* Breadcrumbs: pinned top-left of the visual */
+    #radial-tree-container > .sm-tree-breadcrumbs {
+        position: absolute !important;
+        top: 10px !important;
+        left: 10px !important;
+        right: auto !important;
+        bottom: auto !important;
+        max-width: min(70%, calc(100% - 280px));
+        z-index: 30 !important;
         display: none;
         flex-wrap: wrap;
         align-items: center;
         gap: 6px;
+        margin: 0 !important;
         padding: 8px 10px;
         border-radius: 12px;
         background: rgba(16, 13, 35, 0.92);
         border: 1px solid #96DDF2;
         box-shadow: 0 0 16px rgba(150, 221, 242, 0.25);
         pointer-events: auto;
+        transform: none !important;
     }
-    .sm-tree-breadcrumbs.is-visible { display: flex; }
+    #radial-tree-container > .sm-tree-breadcrumbs.is-visible {
+        display: flex !important;
+    }
     .sm-tree-breadcrumbs__chip {
         display: inline-flex;
         align-items: center;
@@ -88,20 +97,22 @@
     }
 
     /*
-     * Properties popup — same look as the original node tooltip:
-     * purple card for issuers, yellow for assets; bold labels + line breaks.
+     * Properties popup — pinned top-right of the visual (not in SVG).
+     * Same purple/yellow theme as original node tooltip.
      */
-    .sm-tree-props {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        bottom: auto;
+    #radial-tree-container > .sm-tree-props {
+        position: absolute !important;
+        top: 12px !important;
+        right: 12px !important;
+        left: auto !important;
+        bottom: auto !important;
         width: min(260px, calc(100% - 24px));
         max-height: min(70%, 360px);
-        z-index: 6;
+        z-index: 30 !important;
         display: none;
         flex-direction: column;
         gap: 0;
+        margin: 0 !important;
         padding: 0;
         border-radius: 6px;
         border: none;
@@ -111,14 +122,17 @@
         overflow: hidden;
         pointer-events: auto;
         font: 12px sans-serif;
+        transform: none !important;
     }
-    .sm-tree-props.is-visible { display: flex; }
-    .sm-tree-props--asset {
+    #radial-tree-container > .sm-tree-props.is-visible {
+        display: flex !important;
+    }
+    #radial-tree-container > .sm-tree-props.sm-tree-props--asset {
         background: rgba(252, 236, 4, 0.94);
         color: #111;
         box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.28);
     }
-    .sm-tree-props--issuer {
+    #radial-tree-container > .sm-tree-props.sm-tree-props--issuer {
         background: rgba(63, 44, 112, 0.94);
         color: #fff;
     }
@@ -131,7 +145,7 @@
         min-height: 0;
     }
     .sm-tree-props__title {
-        display: none; /* original popup had no title bar */
+        display: none;
     }
     .sm-tree-props__close {
         min-width: 28px;
@@ -163,7 +177,6 @@
         word-wrap: break-word;
         font: 12px sans-serif;
     }
-    /* Original tooltip markup: <b>Label:</b> value<br> */
     .sm-tree-props__body b,
     #sm-tree-props-body b {
         font-weight: 700;
@@ -179,22 +192,22 @@
             height: min(62dvh, 560px);
             min-height: 300px;
         }
-        .sm-tree-breadcrumbs {
+        #radial-tree-container > .sm-tree-breadcrumbs {
             max-width: calc(100% - 20px);
-            font-size: 0.9rem;
         }
         .sm-tree-breadcrumbs__chip {
             font-size: 0.8rem;
             padding: 7px 10px;
             min-height: 36px;
         }
-        .sm-tree-props {
-            top: auto;
-            bottom: 12px;
-            right: 12px;
-            left: auto;
+        /* Stay top-right on tablet/phone too — never re-center with the tree */
+        #radial-tree-container > .sm-tree-props {
+            top: 12px !important;
+            right: 12px !important;
+            left: auto !important;
+            bottom: auto !important;
             width: min(280px, calc(100% - 24px));
-            max-height: min(38%, 220px);
+            max-height: min(45%, 240px);
         }
     }
 </style>

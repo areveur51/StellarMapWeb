@@ -55,7 +55,12 @@ class RadialLayoutContractTests(SimpleTestCase):
         self.assertIn("sm-tree-breadcrumbs", partial)
         self.assertIn("sm-tree-props--issuer", partial)
         self.assertIn("rgba(63, 44, 112", partial)
-        self.assertIn("left: 10px", partial)
+        # Pinned overlays (must not flex-center with the SVG)
+        self.assertIn("#radial-tree-container > .sm-tree-breadcrumbs", partial)
+        self.assertIn("left: 10px !important", partial)
+        self.assertIn("right: 12px !important", partial)
+        self.assertIn("ensureTreeChrome", self.js)
+        self.assertIn("host.appendChild(crumbs)", self.js)
 
     def test_mobile_controls_compact(self):
         self.assertIn("max-height: min(38vh", self.css)

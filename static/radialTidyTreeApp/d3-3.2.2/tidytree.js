@@ -764,27 +764,65 @@ function ensureTreeChrome() {
     const host = document.getElementById('radial-tree-container');
     if (!host) return;
 
-    if (!document.getElementById('sm-tree-breadcrumbs')) {
-        const nav = document.createElement('nav');
-        nav.id = 'sm-tree-breadcrumbs';
-        nav.className = 'sm-tree-breadcrumbs';
-        nav.setAttribute('aria-label', 'Node path');
-        nav.hidden = true;
-        host.appendChild(nav);
+    // Host must be the positioning context (not flex-centered with the SVG)
+    host.style.position = 'relative';
+    host.style.display = 'block';
+    host.style.overflow = 'hidden';
+
+    let crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (!crumbs) {
+        crumbs = document.createElement('nav');
+        crumbs.id = 'sm-tree-breadcrumbs';
+        crumbs.className = 'sm-tree-breadcrumbs';
+        crumbs.setAttribute('aria-label', 'Node path');
+        crumbs.hidden = true;
+        host.appendChild(crumbs);
     }
-    if (!document.getElementById('sm-tree-props')) {
-        const aside = document.createElement('aside');
-        aside.id = 'sm-tree-props';
-        aside.className = 'sm-tree-props sm-tree-props--issuer';
-        aside.setAttribute('aria-label', 'Node properties');
-        aside.hidden = true;
-        aside.innerHTML =
+    let pane = document.getElementById('sm-tree-props');
+    if (!pane) {
+        pane = document.createElement('aside');
+        pane.id = 'sm-tree-props';
+        pane.className = 'sm-tree-props sm-tree-props--issuer';
+        pane.setAttribute('aria-label', 'Node properties');
+        pane.hidden = true;
+        pane.innerHTML =
             '<div class="sm-tree-props__header">' +
             '<h3 class="sm-tree-props__title">Properties</h3>' +
             '<button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>' +
             '</div><div id="sm-tree-props-body" class="sm-tree-props__body"></div>';
-        host.appendChild(aside);
+        host.appendChild(pane);
     }
+
+    // Always re-parent as direct children of the host AFTER the SVG so they
+    // stay outside the zoom/pan transform and above the canvas.
+    const svg = host.querySelector('svg#tree');
+    if (crumbs.parentNode !== host) host.appendChild(crumbs);
+    if (pane.parentNode !== host) host.appendChild(pane);
+    if (svg) {
+        // Keep SVG first for paint order; overlays last => on top
+        if (svg.nextSibling !== crumbs) host.insertBefore(svg, host.firstChild);
+        host.appendChild(crumbs);
+        host.appendChild(pane);
+    }
+
+    // Inline pin (beats stray flex/center rules from older CSS)
+    crumbs.style.position = 'absolute';
+    crumbs.style.top = '10px';
+    crumbs.style.left = '10px';
+    crumbs.style.right = 'auto';
+    crumbs.style.bottom = 'auto';
+    crumbs.style.zIndex = '30';
+    crumbs.style.transform = 'none';
+    crumbs.style.margin = '0';
+
+    pane.style.position = 'absolute';
+    pane.style.top = '12px';
+    pane.style.right = '12px';
+    pane.style.left = 'auto';
+    pane.style.bottom = 'auto';
+    pane.style.zIndex = '30';
+    pane.style.transform = 'none';
+    pane.style.margin = '0';
 }
 
 function clearTreeSelectionUI() {
