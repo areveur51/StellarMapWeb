@@ -354,7 +354,7 @@ LOGGING = {
     },
 }
 
-# UI / API poll cadence (ms) — search page + pending-accounts cache honor this
+# UI / API poll cadence (ms) — dashboard / general background
 # LIGHT_MODE defaults to 60s to cut background request load on NAS
 POLL_INTERVAL_MS = int(
     config('POLL_INTERVAL_MS', default='60000' if LIGHT_MODE else '30000')
@@ -363,6 +363,23 @@ POLL_INTERVAL_MS = int(
 PENDING_ACCOUNTS_LIMIT = int(
     config('PENDING_ACCOUNTS_LIMIT', default='50' if LIGHT_MODE else '100')
 )
+
+# Near-real-time (interest-driven SDK worker + faster search poll). Default off.
+# Requires write-capable DB (CASSANDRA_READ_ONLY must be 0 for queueing).
+_near_rt_raw = str(config('NEAR_RT_ENABLED', default='0')).strip().lower()
+NEAR_RT_ENABLED = _near_rt_raw in ('1', 'true', 'yes', 'on')
+# Search-page lineage poll only (dashboard keeps POLL_INTERVAL_MS)
+NEAR_RT_SEARCH_POLL_MS = int(
+    config(
+        'NEAR_RT_SEARCH_POLL_MS',
+        default='30000' if NEAR_RT_ENABLED else str(POLL_INTERVAL_MS),
+    )
+)
+# SDK worker loop (management command run_sdk_near_rt_worker)
+NEAR_RT_WORKER_INTERVAL_SEC = int(config('NEAR_RT_WORKER_INTERVAL_SEC', default='45'))
+NEAR_RT_WORKER_LIMIT = int(config('NEAR_RT_WORKER_LIMIT', default='5'))
+NEAR_RT_WORKER_CONCURRENT = int(config('NEAR_RT_WORKER_CONCURRENT', default='3'))
+NEAR_RT_WORKER_NETWORK = str(config('NEAR_RT_WORKER_NETWORK', default='public')).strip() or 'public'
 
 # Lineage aggregation flags (see docs/StellarMapWeb/design-lineage-aggregation.md)
 # When 1: pipelines + parent-lineage cron write full projection JSON via
@@ -390,10 +407,13 @@ _lineage_api_cache_raw = str(
 ).strip().lower()
 LINEAGE_API_RESPONSE_CACHE = _lineage_api_cache_raw in ('1', 'true', 'yes', 'on')
 
-# When 1: search UI fetches path/structure first, then siblings in a second request
-# (faster first paint for deep trees). Default off — one full poll is simpler.
+# When 1: search UI fetches path/structure first, then siblings in a second request.
+# Default on when NEAR_RT_ENABLED (faster first paint while worker fills data).
 _lineage_prog_raw = str(
-    config('LINEAGE_PROGRESSIVE_SIBLINGS', default='0')
+    config(
+        'LINEAGE_PROGRESSIVE_SIBLINGS',
+        default='1' if NEAR_RT_ENABLED else '0',
+    )
 ).strip().lower()
 LINEAGE_PROGRESSIVE_SIBLINGS = _lineage_prog_raw in ('1', 'true', 'yes', 'on')
 

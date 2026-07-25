@@ -42,8 +42,8 @@
 
     <!-- This element serves as a container for displaying the results of the search function -->
     <div class="results-container">
-      {% if is_cached or is_refreshing %}
-        <div class="cache-status-indicator">
+      <div class="cache-status-indicator" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px;">
+        {% if is_cached or is_refreshing %}
           {% if is_cached %}
             <span class="badge badge-success" style="font-size: 0.9em;">
               <i class="fas fa-clock"></i> Cached Data (Fresh)
@@ -53,8 +53,27 @@
               <i class="fas fa-sync fa-spin"></i> Refreshing Data...
             </span>
           {% endif %}
-        </div>
-      {% endif %}
+        {% endif %}
+        {% if near_rt_enabled %}
+          <span class="badge badge-info" style="font-size: 0.85em;" title="Near-RT mode: progressive lineage + faster poll">
+            Near-RT
+          </span>
+        {% endif %}
+        {% if cassandra_read_only %}
+          <span class="badge badge-secondary" style="font-size: 0.85em;" title="Astra reads only — queue/refresh disabled">
+            Read-only
+          </span>
+        {% endif %}
+        <button type="button"
+                class="btn btn-sm btn-outline-info"
+                style="border-color:#96DDF2;color:#96DDF2;"
+                :disabled="queueLineageLoading || !query_account"
+                @click="queueLineageRefresh"
+                title="{% if can_queue_lineage %}Queue this account for the free SDK near-RT worker{% else %}Requires write mode (CASSANDRA_READ_ONLY=0) + SDK worker{% endif %}">
+          <i class="fas fa-bolt" :class="{'fa-spin': queueLineageLoading}"></i>
+          {% if can_queue_lineage %}Refresh / queue{% else %}Refresh (write mode off){% endif %}
+        </button>
+      </div>
       <div class="response-container" style="position: relative;">
         <!-- Include visualization controls next to the tree -->
         {% include 'radialTidyTreeApp/visualization_toggle_include.html' %}
@@ -540,6 +559,9 @@
           XLM_SIBLING_TREE_THRESHOLD: 1000,
           // PR5: path-first then siblings when server enables progressive mode
           lineage_progressive_siblings: {% if lineage_progressive_siblings %}true{% else %}false{% endif %},
+          near_rt_enabled: {% if near_rt_enabled %}true{% else %}false{% endif %},
+          can_queue_lineage: {% if can_queue_lineage %}true{% else %}false{% endif %},
+          queueLineageLoading: false,
           stageExecutionFields: [
             { key: 'stage_number', label: 'Stage', sortable: true },
             { key: 'cron_name', label: 'Cron Job', sortable: true },
@@ -1476,6 +1498,52 @@
           }
           return cookieValue;
         },
+        async queueLineageRefresh() {
+          const account = (this.query_account || '').trim();
+          const network = this.network_selected || 'public';
+          if (!account) return;
+          if (!this.can_queue_lineage) {
+            this.$bvToast && this.$bvToast.toast(
+              'Set CASSANDRA_READ_ONLY=0 with a write token and run manage.py run_sdk_near_rt_worker.',
+              { title: 'Write mode off', variant: 'warning', solid: true, autoHideDelay: 5000 }
+            );
+            return;
+          }
+          this.queueLineageLoading = true;
+          this.smProgressShow && this.smProgressShow({
+            title: 'Queueing account…',
+            message: account,
+            indeterminate: true,
+          });
+          try {
+            const formData = new FormData();
+            formData.append('account', account);
+            formData.append('network', network);
+            const response = await fetch('/api/queue-lineage/', {
+              method: 'POST',
+              body: formData,
+              headers: { 'X-CSRFToken': this.getCSRFToken() },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(data.message || data.error || ('HTTP ' + response.status));
+            }
+            this.$bvToast && this.$bvToast.toast(
+              'Queued for SDK near-RT worker. Lineage will update as the worker runs.',
+              { title: 'Queued', variant: 'success', solid: true, autoHideDelay: 4000 }
+            );
+            this.smProgressSet && this.smProgressSet(100, 'Queued');
+            setTimeout(() => this.fetchAccountLineage(), 800);
+          } catch (err) {
+            this.$bvToast && this.$bvToast.toast(
+              (err && err.message) || 'Queue failed',
+              { title: 'Queue failed', variant: 'danger', solid: true, autoHideDelay: 4500 }
+            );
+          } finally {
+            this.queueLineageLoading = false;
+            this.smProgressHide && this.smProgressHide(250);
+          }
+        },
         async refreshAccountEnrichment(accountData) {
           if (!accountData || !accountData.stellar_account || !accountData.network_name) {
             console.error('Invalid account data for refresh');
@@ -1622,8 +1690,9 @@
           // Clear any existing intervals first
           this.stopPolling();
           
-          // Poll cadence from server (LIGHT_MODE / POLL_INTERVAL_MS; default 60s on NAS)
+          // Background lists: general poll (often 60s). Lineage: near-RT search poll (often 30s).
           const pollMs = {{ poll_interval_ms|default:60000 }};
+          const lineagePollMs = {{ search_poll_interval_ms|default:30000 }};
           this.pendingAccountsInterval = setInterval(() => {
             if (!document.hidden) {
               this.fetchPendingAccounts();
@@ -1647,7 +1716,7 @@
               if (!document.hidden) {
                 this.fetchAccountLineage();
               }
-            }, pollMs);
+            }, lineagePollMs);
           }
         };
         

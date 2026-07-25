@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Near-RT Phase 1** — `NEAR_RT_ENABLED` (faster search poll + progressive siblings); `run_sdk_near_rt_worker` (SDK PENDING loop); public `POST /api/queue-lineage/`; search **Refresh / queue** button; `STELLARMAP_NEAR_RT_WORKER=1` in stellarmapctl
 - **App-wide DRY progress navigation** — sidebar + shell links use `StellarMapProgress.navigate`; elapsed time shown on overlay; `searchAccount` helper on all pages
 - **Aggregation closeout** — rewrite `test_lineage_with_siblings_api` as Django TestCase (no pytest; valid keys); document Definition of Done in `LINEAGE_AGGREGATION.md`
 - **Progressive siblings (PR5)** — optional `LINEAGE_PROGRESSIVE_SIBLINGS`; API `include_siblings` / `structure_only`; search UI path-first then siblings second fetch
