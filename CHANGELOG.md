@@ -24,6 +24,7 @@
 
 ### Changed
 - **HVA leaderboard performance** — bounded Cassandra scan + response cache; no full-table list; rank-change N+1 disabled on Cassandra RO
+- **Gunicorn + Cassandra** — removed `--preload` (forked workers inherited broken Astra sessions; HVA page hung/empty)
 - **Radial tree UX** — full-circle layout adapts radius to sibling density; non-overlapping node placement; click opens right-side properties pane; large top-left HTML breadcrumbs; tree controls collapsible on iPad/mobile; filter re-renders debounced
 - **Radial node UX** — non-overlapping nodes; click opens right properties pane; breadcrumbs as large top-left overlay
 - **Search default tree** — `/search/` with no account shows a canned **example** radial tree: dense structure from original `test.json` converted to real `buildTreeFromLineage_v1` fields (path + siblings + assets + flags); not live public/testnet data; search box starts empty
