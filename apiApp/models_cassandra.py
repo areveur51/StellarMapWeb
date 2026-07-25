@@ -10,6 +10,16 @@ from cassandra.cqlengine import columns as cassandra_columns
 from django_cassandra_engine.models import DjangoCassandraModel
 from django.conf import settings
 
+
+def _guard_cassandra_write(model_name: str = ''):
+    """Refuse model saves when lab CASSANDRA_READ_ONLY is enabled."""
+    if getattr(settings, 'CASSANDRA_READ_ONLY', False):
+        raise PermissionError(
+            f'CASSANDRA_READ_ONLY=1: writes disabled'
+            + (f' ({model_name})' if model_name else '')
+        )
+
+
 # Simplified Status Constants (5 total)
 PENDING = 'PENDING'
 PROCESSING = 'PROCESSING'
@@ -53,6 +63,7 @@ class BaseModel(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save."""
+        _guard_cassandra_write(self.__class__.__name__)
         if not self.created_at:
             self.created_at = utc_now()
         self.updated_at = utc_now()
@@ -87,6 +98,7 @@ class StellarAccountSearchCache(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save with full validation to prevent data corruption."""
+        _guard_cassandra_write(self.__class__.__name__)
         from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
 
         # Validate stellar_account format (56 chars, G-prefix, crypto check)
@@ -152,6 +164,7 @@ class StellarCreatorAccountLineage(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps, HVA tag, and HVA flag on save."""
+        _guard_cassandra_write(self.__class__.__name__)
         if not self.created_at:
             self.created_at = utc_now()
         self.updated_at = utc_now()
@@ -211,6 +224,7 @@ class ManagementCronHealth(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save."""
+        _guard_cassandra_write(self.__class__.__name__)
         if not self.created_at:
             self.created_at = utc_now()
         self.updated_at = utc_now()
@@ -253,6 +267,7 @@ class StellarAccountStageExecution(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps on save with validation."""
+        _guard_cassandra_write(self.__class__.__name__)
         from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
 
         # Validate stellar_account format
@@ -318,6 +333,7 @@ class HVAStandingChange(DjangoCassandraModel):
 
     def save(self, *args, **kwargs):
         """Auto-set timestamps and calculate derived fields."""
+        _guard_cassandra_write(self.__class__.__name__)
         from apiApp.helpers.sm_validator import StellarMapValidatorHelpers
         from django.utils import timezone
         

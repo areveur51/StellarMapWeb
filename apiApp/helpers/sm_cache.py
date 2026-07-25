@@ -2,6 +2,8 @@
 import datetime
 import json
 from apiApp.helpers.sm_datetime import utc_now, ensure_aware, age_seconds
+from django.conf import settings
+
 from apiApp.model_loader import (
     StellarAccountSearchCache, 
     StellarCreatorAccountLineage,
@@ -11,6 +13,10 @@ from apiApp.model_loader import (
     BIGQUERY_COMPLETE,
     USE_CASSANDRA,
 )
+
+
+def _cassandra_read_only():
+    return bool(getattr(settings, 'CASSANDRA_READ_ONLY', False))
 
 
 class StellarMapCacheHelpers:
@@ -69,6 +75,16 @@ class StellarMapCacheHelpers:
             tree_data: dict (legacy D3 tree or schema_version projection) or
                 a JSON string already produced with json.dumps.
         """
+        if _cassandra_read_only():
+            # Lab RO: never write; return existing entry if present
+            try:
+                return StellarAccountSearchCache.objects.get(
+                    stellar_account=stellar_account,
+                    network_name=network_name,
+                )
+            except StellarAccountSearchCache.DoesNotExist:
+                return None
+
         if isinstance(tree_data, str):
             # Validate string is JSON; reject Python repr bodies
             try:
@@ -117,6 +133,16 @@ class StellarMapCacheHelpers:
         Returns:
             StellarAccountSearchCache: Cache entry
         """
+        if _cassandra_read_only():
+            # Lab RO: do not queue pipeline work; return existing or None
+            try:
+                return StellarAccountSearchCache.objects.get(
+                    stellar_account=stellar_account,
+                    network_name=network_name,
+                )
+            except StellarAccountSearchCache.DoesNotExist:
+                return None
+
         # Create or update cache entry
         try:
             cache_entry = StellarAccountSearchCache.objects.get(

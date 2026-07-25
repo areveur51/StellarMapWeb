@@ -15,6 +15,7 @@ APP_PATH = config('APP_PATH')
 CASSANDRA_KEYSPACE = config('CASSANDRA_KEYSPACE')
 # Environment-based database selection
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
+USE_CASSANDRA = bool(getattr(settings, 'USE_CASSANDRA', ENV in ['production', 'replit']))
 # CASSANDRA_HOST no longer needed with cloud connection
 # Removed CLIENT_ID and CLIENT_SECRET - now using ASTRA_DB_TOKEN for authentication
 
@@ -69,28 +70,29 @@ class CassandraConnectionsHelpers:
         self.cluster = None
         self.cql_query = None
 
-        # Only initialize Cassandra connection in production/replit
-        if ENV in ['production', 'replit']:
-            self.cloud_config = {
-                'secure_connect_bundle':
-                f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip"
-            }
+        # Production / replit / lab CASSANDRA_READ_ONLY (USE_CASSANDRA)
+        if USE_CASSANDRA:
+            bundle = getattr(
+                settings,
+                'SECURE_CONNECT_BUNDLE_PATH',
+                f"{APP_PATH}/secure-connect-stellarmapwebastradb.zip",
+            )
+            self.cloud_config = {'secure_connect_bundle': str(bundle)}
             self.auth_provider = PlainTextAuthProvider("token", config('ASTRA_DB_TOKEN'))
             self.cluster = Cluster(cloud=self.cloud_config,
                                    auth_provider=self.auth_provider,
                                    )
             self.session = self.cluster.connect(CASSANDRA_KEYSPACE)
         else:
-            # In development, we use SQLite - no Cassandra connection needed
-            logger.info("Development mode: Skipping Cassandra connection (using SQLite)")
+            # In development without RO flag: SQLite/Postgres only
+            logger.info("Development mode: Skipping Cassandra connection (using SQL default DB)")
 
     def set_cql_query(self, cql_query: str):
         self.cql_query = cql_query
 
     def execute_cql(self):
         try:
-            if ENV not in ['production', 'replit']:
-                # In development, we don't execute CQL queries (using SQLite instead)
+            if not USE_CASSANDRA:
                 logger.warning(f"Development mode: Skipping CQL execution: {self.cql_query}")
                 return []  # Return empty result set for compatibility
 
@@ -103,7 +105,6 @@ class CassandraConnectionsHelpers:
             raise e
 
     def close_connection(self):
-        if ENV in ['production', 'replit'] and self.session and self.cluster:
+        if USE_CASSANDRA and self.session and self.cluster:
             self.session.shutdown()
             self.cluster.shutdown()
-        # In development, no connection to close

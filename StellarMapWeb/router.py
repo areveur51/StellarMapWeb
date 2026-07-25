@@ -11,12 +11,19 @@ Documentation: Methods include docstrings with behavior notes.
 from django.conf import settings
 
 
+class CassandraReadOnlyError(PermissionError):
+    """Raised when a write is attempted while CASSANDRA_READ_ONLY is enabled."""
+
+
 class DatabaseAppsRouter:
     """
     Router directing DB operations by app_label.
 
     Uses settings.DATABASE_APPS_MAPPING (dict: app_label -> db_alias).
     Fallback to 'default' if not mapped.
+
+    When settings.CASSANDRA_READ_ONLY is True, writes for apiApp Cassandra
+    models are refused so a read-only Astra token cannot be used for pipelines.
     """
 
     def db_for_read(self, model, **hints):
@@ -27,10 +34,17 @@ class DatabaseAppsRouter:
         return self._get_db_for_app(model._meta.app_label)
 
     def db_for_write(self, model, **hints):
-        """Determine write DB for model."""
+        """Determine write DB for model; block apiApp writes in RO lab mode."""
         # Check if model should use default database
         if self._should_use_default_db(model):
             return 'default'
+        if getattr(settings, 'CASSANDRA_READ_ONLY', False):
+            # Admin config models already handled above; refuse lineage/cache writes
+            if model._meta.app_label == 'apiApp':
+                raise CassandraReadOnlyError(
+                    'CASSANDRA_READ_ONLY=1: writes to Astra/Cassandra are disabled '
+                    f'(model={model.__name__})'
+                )
         return self._get_db_for_app(model._meta.app_label)
 
     def _get_db_for_app(self, app_label):

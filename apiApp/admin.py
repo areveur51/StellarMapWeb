@@ -15,9 +15,9 @@ from .models import (
 from .helpers.sm_conn import CassandraConnectionsHelpers
 from .helpers.sm_enrichment import StellarMapEnrichmentHelper
 
-# Environment-based admin selection
+# Environment-based admin selection (includes lab CASSANDRA_READ_ONLY)
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
-USE_CASSANDRA_ADMIN = (ENV in ['production', 'replit'])
+USE_CASSANDRA_ADMIN = bool(getattr(settings, 'USE_CASSANDRA', ENV in ['production', 'replit']))
 
 
 class CassandraAdminMixin:

@@ -18,6 +18,7 @@
 - **Dependency heartbeat** — dashboard panel + `GET /api/heartbeat/` (internal/external probes)
 - **Postgres support** — `DATABASE_DRIVER=pg` + `DATABASE_URL` (lab: `StellarMapDB` on shared Postgres)
 - **Light-footprint defaults** — `LIGHT_MODE` (locmem cache, quieter logs, longer UI poll, lean SQLite PRAGMAs)
+- **Astra read-only lab mode** — `CASSANDRA_READ_ONLY=1` loads Cassandra models and routes `apiApp` reads to Astra while ENV stays `development`; model saves and cache queue writes are blocked (safe with a read-only token)
 
 ### Changed
 - **System Dashboard UI** — metric sections use the same elevated panel + compact card language as Dependency Heartbeat (no more fixed 180×180 square tiles); shared `.dash-panel` styles

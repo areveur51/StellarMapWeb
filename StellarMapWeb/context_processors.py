@@ -15,4 +15,6 @@ def nas_runtime(request):
         'light_mode': getattr(settings, 'LIGHT_MODE', False),
         'is_manager': is_manager,
         'manager_login_url': '/login/',
+        'cassandra_read_only': getattr(settings, 'CASSANDRA_READ_ONLY', False),
+        'use_cassandra': getattr(settings, 'USE_CASSANDRA', False),
     }

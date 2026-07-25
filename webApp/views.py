@@ -233,6 +233,9 @@ def search_view(request):
     
     # Helper function to fetch pending accounts from BOTH tables
     def fetch_pending_accounts():
+        # Lab RO: never full-scan Cassandra by status (no secondary index → multi-minute hang)
+        if getattr(settings, 'CASSANDRA_READ_ONLY', False):
+            return []
         pending_accounts_data = []
         try:
             from apiApp.models import (
@@ -762,9 +765,15 @@ def dashboard_view(request):
         'accounts_with_lineage': 0,
         'orphan_accounts': 0,
     }
+
+    # Lab RO: full-table Cassandra scans hang for minutes (no secondary indexes).
+    # Keep heartbeat + config; skip multi-scan aggregate counters.
+    _skip_full_scans = bool(getattr(settings, 'CASSANDRA_READ_ONLY', False))
     
     # Count cache records
     try:
+        if _skip_full_scans:
+            raise RuntimeError('skip full cache scan in CASSANDRA_READ_ONLY')
         all_cache_records = StellarAccountSearchCache.objects.all()
         db_stats['total_cached_accounts'] = len(list(all_cache_records))
         
@@ -897,6 +906,8 @@ def dashboard_view(request):
     
     # Count lineage records
     try:
+        if _skip_full_scans:
+            raise RuntimeError('skip full lineage scan in CASSANDRA_READ_ONLY')
         all_lineage_records = StellarCreatorAccountLineage.objects.all()
         db_stats['total_lineage_records'] = len(list(all_lineage_records))
         
@@ -932,6 +943,8 @@ def dashboard_view(request):
     }
     
     try:
+        if _skip_full_scans:
+            raise RuntimeError('skip performance dual scan in CASSANDRA_READ_ONLY')
         # Calculate average processing time from completed accounts - DUAL TABLE SCAN
         now = utc_now()
         processing_times = []
@@ -1052,14 +1065,17 @@ def dashboard_view(request):
     }
     
     try:
-        cron_records = ManagementCronHealth.objects.all()
-        cron_list = list(cron_records)
-        cron_health['total_runs'] = len(cron_list)
-        
-        if cron_list:
-            latest_cron = max(cron_list, key=lambda x: x.created_at if hasattr(x, 'created_at') and x.created_at else datetime.min)
-            cron_health['last_run'] = latest_cron.created_at.isoformat() if hasattr(latest_cron, 'created_at') and latest_cron.created_at else None
-            cron_health['status'] = latest_cron.status if hasattr(latest_cron, 'status') else 'UNKNOWN'
+        if _skip_full_scans:
+            cron_health['status'] = 'SKIPPED_RO'
+        else:
+            cron_records = ManagementCronHealth.objects.all()
+            cron_list = list(cron_records)
+            cron_health['total_runs'] = len(cron_list)
+            
+            if cron_list:
+                latest_cron = max(cron_list, key=lambda x: x.created_at if hasattr(x, 'created_at') and x.created_at else datetime.min)
+                cron_health['last_run'] = latest_cron.created_at.isoformat() if hasattr(latest_cron, 'created_at') and latest_cron.created_at else None
+                cron_health['status'] = latest_cron.status if hasattr(latest_cron, 'status') else 'UNKNOWN'
     
     except Exception as e:
         sentry_sdk.capture_exception(e)
@@ -1073,6 +1089,8 @@ def dashboard_view(request):
     }
     
     try:
+        if _skip_full_scans:
+            raise RuntimeError('skip stage scan in CASSANDRA_READ_ONLY')
         stage_records = StellarAccountStageExecution.objects.all()
         stage_list = list(stage_records)
         stage_health['total_stage_executions'] = len(stage_list)

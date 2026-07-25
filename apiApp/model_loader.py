@@ -3,16 +3,18 @@ Environment-aware model loader for StellarMapWeb.
 
 This module dynamically imports the correct model classes based on the environment:
 - ENV in ['production', 'replit']: Use Cassandra models from models_cassandra.py
-- ENV='development': Use SQL models from models.py
+- CASSANDRA_READ_ONLY=1 + token (lab): same Cassandra models, writes blocked in router
+- else ENV='development': Use SQL models from models_local.py
 
 This prevents SQL queries from being sent to Cassandra, which causes syntax errors.
 """
 
 from django.conf import settings
 
-# Detect environment
+# Detect environment / lab RO mode (settings computes USE_CASSANDRA)
 ENV = settings.ENV if hasattr(settings, 'ENV') else 'development'
-USE_CASSANDRA = (ENV in ['production', 'replit'])
+USE_CASSANDRA = bool(getattr(settings, 'USE_CASSANDRA', ENV in ['production', 'replit']))
+CASSANDRA_READ_ONLY = bool(getattr(settings, 'CASSANDRA_READ_ONLY', False))
 
 # Import the correct models based on environment
 if USE_CASSANDRA:
@@ -86,5 +88,6 @@ __all__ = [
     'PUBLIC',
     'NETWORK_CHOICES',
     'USE_CASSANDRA',
+    'CASSANDRA_READ_ONLY',
     'ENV',
 ]
