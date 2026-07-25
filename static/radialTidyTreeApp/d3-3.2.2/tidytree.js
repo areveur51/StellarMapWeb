@@ -775,14 +775,14 @@ function ensureTreeChrome() {
     if (!document.getElementById('sm-tree-props')) {
         const aside = document.createElement('aside');
         aside.id = 'sm-tree-props';
-        aside.className = 'sm-tree-props';
+        aside.className = 'sm-tree-props sm-tree-props--issuer';
         aside.setAttribute('aria-label', 'Node properties');
         aside.hidden = true;
         aside.innerHTML =
             '<div class="sm-tree-props__header">' +
             '<h3 class="sm-tree-props__title">Properties</h3>' +
             '<button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>' +
-            '</div><div id="sm-tree-props-body"></div>';
+            '</div><div id="sm-tree-props-body" class="sm-tree-props__body"></div>';
         host.appendChild(aside);
     }
 }
@@ -796,7 +796,7 @@ function clearTreeSelectionUI() {
     }
     const pane = document.getElementById('sm-tree-props');
     if (pane) {
-        pane.classList.remove('is-visible');
+        pane.classList.remove('is-visible', 'sm-tree-props--asset', 'sm-tree-props--issuer');
         pane.hidden = true;
     }
     const body = document.getElementById('sm-tree-props-body');
@@ -859,42 +859,30 @@ function renderTreePropertiesPane(hierarchyNode) {
 
     const d = hierarchyNode.data || {};
     const isAsset = d.node_type === 'ASSET';
-    const rows = [];
 
-    function add(label, value) {
+    // Match original floating tooltip field order and <b>Label:</b> value formatting
+    let html = '';
+    function line(label, value) {
         if (value === undefined || value === null || value === '') value = 'N/A';
-        rows.push([label, String(value)]);
+        html += '<span class="sm-tree-props__line"><b>' + escapeHtml(label) + ':</b> ' +
+            escapeHtml(String(value)) + '</span>';
     }
 
-    add('Type', d.node_type || (isAsset ? 'ASSET' : 'ACCOUNT'));
+    line('Name', d.stellar_account || d.asset_code || d.name || 'Unnamed');
     if (isAsset) {
-        add('Asset code', d.asset_code || d.name);
-        add('Issuer', d.asset_issuer);
-        add('Asset type', d.asset_type);
-        add('Balance', formatTreeNumber(d.balance));
+        line('Issuer', d.asset_issuer);
+        line('Asset Type', d.asset_type);
+        line('Balance', formatTreeNumber(d.balance));
     } else {
-        add('Account', d.stellar_account || d.name);
-        add('Created', d.created);
-        add('Home domain', d.home_domain);
-        add('XLM balance', formatTreeNumber(d.xlm_balance));
-        add('Creator', d.creator_account);
-        if (d.assets && d.assets.length) {
-            add('Assets', d.assets.length);
-        }
+        line('Created', d.created);
+        line('Home Domain', d.home_domain);
+        line('XLM Balance', formatTreeNumber(d.xlm_balance));
+        line('Creator', d.creator_account);
     }
-    if (d.is_searched_account) add('Role', 'Searched account');
-    if (d.is_lineage_path) add('Lineage', 'On direct path');
-    if (d.is_sibling) add('Lineage', 'Sibling');
 
-    let html = '<span class="sm-tree-props__badge' + (isAsset ? ' sm-tree-props__badge--asset' : '') + '">' +
-        (isAsset ? 'Asset' : 'Issuer / Account') + '</span>';
-    html += '<dl class="sm-tree-props__dl">';
-    rows.forEach(function (pair) {
-        html += '<dt>' + escapeHtml(pair[0]) + '</dt><dd>' + escapeHtml(pair[1]) + '</dd>';
-    });
-    html += '</dl>';
-    html += '<p class="sm-tree-props__hint">Click the node again or press × to close. Click empty canvas to deselect.</p>';
     body.innerHTML = html;
+    pane.classList.remove('sm-tree-props--asset', 'sm-tree-props--issuer');
+    pane.classList.add(isAsset ? 'sm-tree-props--asset' : 'sm-tree-props--issuer');
     pane.hidden = false;
     pane.classList.add('is-visible');
 }

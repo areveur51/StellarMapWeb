@@ -54,6 +54,36 @@
 .visualization-controls.is-collapsed .viz-controls-body {
     display: none;
 }
+/* Layout + zoom on one row when space allows */
+.viz-controls-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+.viz-controls-toolbar .visualization-toggle,
+.viz-controls-toolbar .zoom-controls {
+    padding-top: 0;
+    border-top: none;
+}
+.viz-controls-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+.viz-controls-actions .filter-control {
+    flex: 1 1 auto;
+    min-width: 120px;
+    padding-top: 0;
+    border-top: none;
+}
+.viz-controls-actions #reset-filters-btn {
+    width: auto;
+    min-width: 96px;
+    flex: 0 0 auto;
+}
 
 .visualization-controls:hover {
     box-shadow: 0 0 30px rgba(150, 221, 242, 0.5);
@@ -269,45 +299,106 @@
     z-index: 5;
     width: 100%;
     max-width: 100%;
-    max-height: none;
-    margin: 0 0 10px;
-    padding: 8px 10px;
-    border-radius: 12px;
-    /* Do not steal taps from the SVG when collapsed */
+    max-height: min(38vh, 280px);
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    gap: 4px;
+    border-radius: 10px;
+    border-width: 1px;
   }
   .visualization-controls.is-collapsed {
     max-height: none;
     overflow: visible;
   }
+  .visualization-controls:not(.is-collapsed) {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   .viz-controls-toggle {
     display: flex !important;
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+  }
+  .viz-controls-body {
+    gap: 4px;
+    padding-top: 2px;
+  }
+  .viz-controls-toolbar {
+    gap: 6px 10px;
+    padding-bottom: 2px;
   }
   .toggle-label {
-    font-size: 0.75em;
+    font-size: 0.65em;
+    letter-spacing: 0.4px;
   }
   .mode-indicator {
-    min-width: 64px;
-    font-size: 0.85em;
+    min-width: 48px;
+    font-size: 0.75em;
+  }
+  .toggle-switch {
+    width: 46px;
+    height: 22px;
+  }
+  .toggle-slider {
+    width: 18px;
+    height: 18px;
+  }
+  .toggle-switch.active .toggle-slider {
+    transform: translateX(22px);
+  }
+  .spacing-control,
+  .filter-control,
+  .zoom-controls {
+    padding-top: 4px;
+    gap: 4px;
+    border-top-color: rgba(150, 221, 242, 0.18);
   }
   .spacing-slider {
     width: 100%;
     max-width: 100%;
+    height: 4px;
+  }
+  .spacing-slider::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+  }
+  .spacing-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+  }
+  .spacing-value {
+    font-size: 0.75em;
+    min-width: 28px;
   }
   .zoom-btn {
-    min-width: 44px;
-    min-height: 44px;
-    padding: 8px 12px;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 4px 8px;
+    font-size: 0.8em;
+    border-radius: 6px;
   }
   .filter-input {
     font-size: 16px; /* prevent iOS zoom */
-    min-height: 44px;
-    padding: 8px 10px;
+    min-height: 36px;
+    padding: 4px 8px;
     width: 100%;
   }
   .visualization-toggle,
   .spacing-control,
   .zoom-controls {
     flex-wrap: wrap;
+    gap: 6px;
+  }
+  /* Tighter dual balance sliders */
+  .filter-control .filter-range-meta {
+    font-size: 0.65em !important;
+    margin-bottom: 0 !important;
+    color: #9ca3af !important;
+  }
+  .filter-control .filter-range-row {
+    gap: 4px !important;
   }
   .radial-tree-visual {
     min-height: min(62dvh, 560px);
@@ -319,6 +410,10 @@
 }
 
 @media (max-width: 600px) {
+  .visualization-controls {
+    max-height: min(34vh, 240px);
+    padding: 5px 6px;
+  }
   .radial-tree-visual {
     min-height: min(58dvh, 480px);
   }

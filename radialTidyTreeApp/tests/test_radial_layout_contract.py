@@ -42,7 +42,10 @@ class RadialLayoutContractTests(SimpleTestCase):
         self.assertIn("renderTreeBreadcrumbs", self.js)
         self.assertIn("sm-tree-props", self.js)
         self.assertIn("sm-tree-breadcrumbs", self.js)
-        # Click selects; floating hover tooltip no longer owns selection UX
+        # Original tooltip field labels
+        self.assertIn("Name", self.js)
+        self.assertIn("XLM Balance", self.js)
+        self.assertIn("sm-tree-props--asset", self.js)
         self.assertIn("selectNode", self.js)
         partial = (
             PROJECT_ROOT
@@ -50,8 +53,14 @@ class RadialLayoutContractTests(SimpleTestCase):
         ).read_text()
         self.assertIn("sm-tree-props", partial)
         self.assertIn("sm-tree-breadcrumbs", partial)
-        self.assertIn("top: 10px", partial)
+        self.assertIn("sm-tree-props--issuer", partial)
+        self.assertIn("rgba(63, 44, 112", partial)
         self.assertIn("left: 10px", partial)
+
+    def test_mobile_controls_compact(self):
+        self.assertIn("max-height: min(38vh", self.css)
+        self.assertIn("viz-controls-toolbar", self.css)
+        self.assertIn("viz-controls-toolbar", self.include)
 
     def test_angle_normalization_present(self):
         self.assertIn("Normalize angles", self.js)
