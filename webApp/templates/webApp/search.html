@@ -64,10 +64,19 @@
             Read-only
           </span>
         {% endif %}
+        {% if is_example_dataset %}
+          <span class="badge badge-warning" style="font-size: 0.9em;"
+                title="Canned demo tree — not live public/testnet data. Paste a G… address to aggregate real surrounding accounts.">
+            <i class="fas fa-flask"></i> Example dataset
+          </span>
+          <span class="text-muted" style="font-size:0.85em;color:#c4b5fd;">
+            Demo of creator path + siblings + assets. Paste a Stellar account to scan live lineage.
+          </span>
+        {% endif %}
         <button type="button"
                 class="btn btn-sm btn-outline-info"
                 style="border-color:#96DDF2;color:#96DDF2;"
-                :disabled="queueLineageLoading || !query_account"
+                :disabled="queueLineageLoading || !query_account || isExampleDataset"
                 @click="queueLineageRefresh"
                 title="{% if can_queue_lineage %}Queue this account for the free SDK near-RT worker{% else %}Requires write mode (CASSANDRA_READ_ONLY=0) + SDK worker{% endif %}">
           <i class="fas fa-bolt" :class="{'fa-spin': queueLineageLoading}"></i>
@@ -523,7 +532,8 @@
           typeof sm_progress_mixin !== 'undefined' ? [sm_progress_mixin] : []
         ),
         data: {
-          query_account: '{{ account|default:"GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD" }}',
+          query_account: '{{ account|default:""|escapejs }}',
+          isExampleDataset: {% if is_example_dataset %}true{% else %}false{% endif %},
           loading: false,
           progressValue: 0,
           response: '',
@@ -1677,6 +1687,13 @@
         window.__smTreeReady = true;
         if (this.tree_data && Object.keys(this.tree_data).length > 0) {
           this.$nextTick(() => this.paintTreeVisualization('ssr-mount'));
+        }
+
+        // Example landing (/search/ with no account): demo tree only — not a live inquiry
+        if (this.isExampleDataset || !(this.query_account || '').trim()) {
+          this.lineageLoading = false;
+          this.loading_animation = false;
+          return;
         }
         
         // Fetch pending accounts immediately on mount

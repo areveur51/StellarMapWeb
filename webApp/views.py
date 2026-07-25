@@ -23,7 +23,125 @@ def _skeleton_tree(account):
         'node_type': 'ISSUER',
         'stellar_account': account or '',
         'children': [],
+        'is_lineage_path': True,
+        'is_sibling': False,
+        'is_searched_account': True,
+        'is_issuer': False,
     }
+
+
+def _lineage_example_paths():
+    """Candidate paths for the demo radial tree (schema matches buildTreeFromLineage_v1)."""
+    base = settings.BASE_DIR.parent
+    return [
+        os.path.join(
+            base,
+            'radialTidyTreeApp',
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'lineage_example.json',
+        ),
+        os.path.join(
+            base,
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'lineage_example.json',
+        ),
+        # Legacy fallback (older schema) only if example file missing
+        os.path.join(
+            base,
+            'radialTidyTreeApp',
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'test_small.json',
+        ),
+    ]
+
+
+def _load_lineage_example_tree():
+    """
+    Load the canned example tree for /search/ with no account param.
+
+    This is **not** live public/testnet data — it demonstrates how real
+    aggregated lineage + siblings + assets should appear in the radial tree.
+    """
+    last_err = None
+    for path in _lineage_example_paths():
+        try:
+            if not os.path.isfile(path):
+                continue
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, dict) and (
+                data.get('stellar_account') or data.get('name') or data.get('children') is not None
+            ):
+                return data, path
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        sentry_sdk.capture_exception(last_err)
+    return None, None
+
+
+def _find_searched_account_in_tree(node):
+    """Prefer the node flagged is_searched_account; else deepest lineage leaf."""
+    if not isinstance(node, dict):
+        return ''
+    if node.get('is_searched_account') and node.get('stellar_account'):
+        return node['stellar_account']
+    for child in node.get('children') or []:
+        if not isinstance(child, dict):
+            continue
+        if child.get('node_type') == 'ASSET':
+            continue
+        found = _find_searched_account_in_tree(child)
+        if found:
+            return found
+    if node.get('is_lineage_path') and node.get('stellar_account'):
+        # leaf-ish: no ISSUER children
+        issuer_kids = [
+            c for c in (node.get('children') or [])
+            if isinstance(c, dict) and c.get('node_type') != 'ASSET'
+        ]
+        if not issuer_kids:
+            return node['stellar_account']
+    return node.get('stellar_account') or node.get('name') or ''
+
+
+def _example_table_rows_from_tree(tree):
+    """Flatten ISSUER nodes into a simple lineage-table-shaped list for the demo."""
+    rows = []
+
+    def walk(n, level=0):
+        if not isinstance(n, dict):
+            return
+        if n.get('node_type') == 'ASSET':
+            return
+        addr = n.get('stellar_account') or n.get('name') or ''
+        if addr:
+            rows.append({
+                'stellar_account': addr,
+                'stellar_creator_account': n.get('creator_account') or '',
+                'network_name': 'public',
+                'stellar_account_created_at': n.get('created') or '',
+                'home_domain': n.get('home_domain') or '',
+                'xlm_balance': n.get('xlm_balance') if n.get('xlm_balance') is not None else '',
+                'status': 'EXAMPLE',
+                'is_lineage_path': bool(n.get('is_lineage_path')),
+                'is_sibling': bool(n.get('is_sibling')),
+                'is_searched_account': bool(n.get('is_searched_account')),
+                'hierarchy_level': level,
+            })
+        for c in n.get('children') or []:
+            if isinstance(c, dict) and c.get('node_type') != 'ASSET':
+                walk(c, level + 1)
+
+    walk(tree or {}, 0)
+    return rows
 
 
 def _is_terminal_search_cache_status(status):
@@ -351,79 +469,61 @@ def search_view(request):
     account = request.GET.get('account')  # No default, check if provided
     network = request.GET.get('network', 'public')  # Secure default
     
-    # Check if this is a default view (no account parameter provided)
+    # No account param: show canned example tree (schema matches real aggregate output).
+    # This is a demo of creator-path + siblings + assets — not live network data.
     if not account:
-        # Load default test data from test.json
-        # Use BASE_DIR.parent since apps are at workspace root, not in StellarMapWeb/
-        test_json_path = os.path.join(
-            settings.BASE_DIR.parent, 
-            'radialTidyTreeApp', 
-            'static', 
-            'radialTidyTreeApp', 
-            'json', 
-            'test.json'
+        tree_data, example_path = _load_lineage_example_tree()
+        if not tree_data:
+            tree_data = _skeleton_tree(
+                'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD'
+            )
+            tree_data['home_domain'] = 'example.stellarmap.demo'
+            tree_data['is_searched_account'] = True
+
+        network = 'public'
+        demo_account = _find_searched_account_in_tree(tree_data) or tree_data.get(
+            'stellar_account', ''
         )
-        try:
-            with open(test_json_path, 'r') as f:
-                tree_data = json.load(f)
-            
-            # Set default display values from test data
-            account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
-            network = 'public'  # Default to public network
-            
-            # Fetch pending accounts for default view - use helper function
-            pending_accounts_data = fetch_pending_accounts()
-            
-            context = {
-                'search_variable': 'Default Tree Data',
-                'ENV': config('ENV', default='development'),
-                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
-                'account_genealogy_items': [],  # Could parse from tree_data if needed
-                'tree_data': tree_data,
-                'account': account,  # Template expects 'account' not 'query_account'
-                'network': network,  # Template expects 'network' not 'network_selected'
-                'query_account': account,  # For form persistence
-                'network_selected': network,  # For form persistence
-                'radial_tidy_tree_variable': tree_data,  # For the tree template
-                'pending_accounts_data': pending_accounts_data,
-                'request_status_data': {},
-                'account_lineage_data': [],
-            }
-            response = render(request, 'webApp/search.html', context)
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            return response
-            
-        except Exception as e:
-            sentry_sdk.capture_exception(e)
-            # Fallback: Create simple default tree structure
-            tree_data = {
-                'stellar_account': 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB',
-                'node_type': 'ISSUER',
-                'created': '2015-09-30 13:15:54',
-                'children': []
-            }
-            account = tree_data['stellar_account']
-            network = 'public'
-            
-            context = {
-                'search_variable': 'Fallback Tree Data',
-                'ENV': config('ENV', default='development'),
-                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
-                'account_genealogy_items': [],
-                'tree_data': tree_data,
-                'account': account,
-                'network': network,
-                'query_account': account,
-                'network_selected': network,
-                'radial_tidy_tree_variable': tree_data,
-            }
-            response = render(request, 'webApp/search.html', context)
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            return response
+        # Search box starts empty so users paste a real G… address to inquire
+        account_lineage_data = _example_table_rows_from_tree(tree_data)
+        pending_accounts_data = fetch_pending_accounts()
+
+        context = {
+            'search_variable': 'Example lineage visualization',
+            'ENV': config('ENV', default='development'),
+            'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+            'account_genealogy_items': [],
+            'tree_data': tree_data,
+            'account': '',  # empty — not a live inquiry
+            'network': network,
+            'query_account': '',
+            'network_selected': network,
+            'radial_tidy_tree_variable': tree_data,
+            'pending_accounts_data': pending_accounts_data,
+            'request_status_data': {
+                'status': 'EXAMPLE_DATASET',
+                'cache_status': 'DEMO',
+                'message': (
+                    'Example radial tidy tree (not live public/testnet data). '
+                    'Paste a Stellar account above to scan and aggregate real '
+                    'creator-path + related accounts for that address.'
+                ),
+                'example_demo_account': demo_account,
+                'example_source': example_path or 'fallback',
+            },
+            'account_lineage_data': account_lineage_data,
+            'is_cached': False,
+            'is_refreshing': False,
+            'is_example_dataset': True,
+            'lineage_progressive_siblings': bool(
+                getattr(settings, 'LINEAGE_PROGRESSIVE_SIBLINGS', False)
+            ),
+        }
+        response = render(request, 'webApp/search.html', context)
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
     
     # If account was provided, validate and process
     # Secure validation

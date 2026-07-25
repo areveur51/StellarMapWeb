@@ -23,6 +23,7 @@
 - **Astra read-only lab mode** — `CASSANDRA_READ_ONLY=1` loads Cassandra models and routes `apiApp` reads to Astra while ENV stays `development`; model saves and cache queue writes are blocked (safe with a read-only token)
 
 ### Changed
+- **Search default tree** — `/search/` with no account shows a canned **example** lineage tree (`lineage_example.json`) matching real `buildTreeFromLineage_v1` shape (creator path + siblings + assets); not live public/testnet data; search box starts empty
 - **HVA page performance** — prefer `is_hva` filter (no full network table scan), cap list length, limit rank-change enrichment queries
 - **System Dashboard UI** — metric sections use the same elevated panel + compact card language as Dependency Heartbeat (no more fixed 180×180 square tiles); shared `.dash-panel` styles
 - Menu no longer depends on Bootstrap-Vue `b-sidebar` (plain HTML/JS drawer; always clickable)

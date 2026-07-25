@@ -1,0 +1,116 @@
+{
+  "name": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+  "node_type": "ISSUER",
+  "stellar_account": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+  "created": "2015-09-30T13:15:54Z",
+  "home_domain": "example-root.stellarmap.demo",
+  "xlm_balance": 0,
+  "creator_account": "",
+  "is_lineage_path": true,
+  "is_sibling": false,
+  "is_searched_account": false,
+  "is_issuer": true,
+  "children": [
+    {
+      "name": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+      "node_type": "ISSUER",
+      "stellar_account": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+      "created": "2015-10-01T00:15:01Z",
+      "home_domain": "example-creator.stellarmap.demo",
+      "xlm_balance": 5000,
+      "creator_account": "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7",
+      "is_lineage_path": true,
+      "is_sibling": false,
+      "is_searched_account": false,
+      "is_issuer": true,
+      "children": [
+        {
+          "name": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+          "node_type": "ISSUER",
+          "stellar_account": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+          "created": "2015-10-01T20:26:34Z",
+          "home_domain": "example-mid.stellarmap.demo",
+          "xlm_balance": 1200,
+          "creator_account": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+          "is_lineage_path": true,
+          "is_sibling": false,
+          "is_searched_account": false,
+          "is_issuer": false,
+          "children": [
+            {
+              "name": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+              "node_type": "ISSUER",
+              "stellar_account": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+              "created": "2015-11-02T18:26:57Z",
+              "home_domain": "example-searched.stellarmap.demo",
+              "xlm_balance": 58.99,
+              "creator_account": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+              "is_lineage_path": true,
+              "is_sibling": false,
+              "is_searched_account": true,
+              "is_issuer": true,
+              "children": [
+                {
+                  "name": "DEMO",
+                  "node_type": "ASSET",
+                  "asset_type": "credit_alphanum4",
+                  "asset_code": "DEMO",
+                  "asset_issuer": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+                  "balance": "1000.0000000",
+                  "children": []
+                },
+                {
+                  "name": "MAP",
+                  "node_type": "ASSET",
+                  "asset_type": "credit_alphanum4",
+                  "asset_code": "MAP",
+                  "asset_issuer": "GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD",
+                  "balance": "250.5000000",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "name": "GB6YPGW5JFMMP2QB2USQ33EUWTXVL4ZT5ITUNCY3YKVWOJPP57CANOF3",
+              "node_type": "ISSUER",
+              "stellar_account": "GB6YPGW5JFMMP2QB2USQ33EUWTXVL4ZT5ITUNCY3YKVWOJPP57CANOF3",
+              "created": "2016-01-15T12:00:00Z",
+              "home_domain": "example-sibling.stellarmap.demo",
+              "xlm_balance": 2500,
+              "creator_account": "GBCXF42Q26WFS2KJ5XDM5KGOWR5M4GHR3DBTFBJVRYKRUYJK4DBIH3RX",
+              "is_lineage_path": false,
+              "is_sibling": true,
+              "is_searched_account": false,
+              "is_issuer": false,
+              "children": []
+            }
+          ]
+        },
+        {
+          "name": "GBEZOC5U4TVH7ZY5N3FLYHTCZSI6VFGTULG7PBITLF5ZEBPJXFT46YZM",
+          "node_type": "ISSUER",
+          "stellar_account": "GBEZOC5U4TVH7ZY5N3FLYHTCZSI6VFGTULG7PBITLF5ZEBPJXFT46YZM",
+          "created": "2015-10-02T08:00:00Z",
+          "home_domain": "example-sib-high.stellarmap.demo",
+          "xlm_balance": 15000,
+          "creator_account": "GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB",
+          "is_lineage_path": false,
+          "is_sibling": true,
+          "is_searched_account": false,
+          "is_issuer": true,
+          "children": [
+            {
+              "name": "GOLD",
+              "node_type": "ASSET",
+              "asset_type": "credit_alphanum4",
+              "asset_code": "GOLD",
+              "asset_issuer": "GBEZOC5U4TVH7ZY5N3FLYHTCZSI6VFGTULG7PBITLF5ZEBPJXFT46YZM",
+              "balance": "42.0000000",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
