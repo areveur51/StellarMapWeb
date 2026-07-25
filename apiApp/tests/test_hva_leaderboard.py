@@ -7,6 +7,7 @@ Guards against regressions that caused multi-minute page loads:
 - missing response cache
 """
 
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -188,11 +189,43 @@ class HvaLeaderboardUnitTests(SimpleTestCase):
                 threshold=100000,
                 limit=5,
                 max_scan=30,
+                max_seconds=30.0,
             )
 
         self.assertTrue(meta["hit_scan_limit"])
         self.assertEqual(meta["scanned"], 31)  # break after exceeding
         self.assertEqual(len(top), 5)
+
+    def test_cassandra_scan_stops_at_time_budget(self):
+        """Wall-clock budget must stop iteration even if max_scan is huge."""
+
+        def slow_endless():
+            i = 0
+            while True:
+                i += 1
+                time.sleep(0.05)
+                yield _fake_account(f"G{i}", 200000.0)
+
+        mock_qs = MagicMock()
+        mock_qs.iterator.return_value = slow_endless()
+
+        with patch(
+            "apiApp.model_loader.StellarCreatorAccountLineage"
+        ) as mock_model:
+            mock_model.objects.filter.return_value = mock_qs
+            t0 = time.monotonic()
+            top, meta = _fetch_cassandra_top_records(
+                network_name="public",
+                threshold=100000,
+                limit=50,
+                max_scan=100000,
+                max_seconds=0.2,
+            )
+            elapsed = time.monotonic() - t0
+
+        self.assertTrue(meta["hit_time_limit"])
+        self.assertLess(elapsed, 1.5)
+        self.assertGreaterEqual(len(top), 1)
 
     @override_settings(USE_CASSANDRA=True, HVA_RANK_ENRICH_LIMIT=0)
     @patch("apiApp.helpers.hva_ranking.HVARankingHelper.get_supported_thresholds")

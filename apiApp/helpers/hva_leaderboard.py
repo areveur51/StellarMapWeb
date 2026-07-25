@@ -28,6 +28,8 @@ DEFAULT_DISPLAY_LIMIT = 100
 DEFAULT_CACHE_TTL_SEC = 120
 # Hard cap on Cassandra rows walked per request (prevents multi-minute hangs)
 DEFAULT_CASSANDRA_MAX_SCAN = 2500
+# Wall-clock budget for Cassandra iteration (Astra full scans are very slow)
+DEFAULT_CASSANDRA_MAX_SECONDS = 4.0
 # Rank-change enrichment does N partition reads — keep tiny or off on Cassandra
 DEFAULT_RANK_ENRICH_SQL = 20
 DEFAULT_RANK_ENRICH_CASSANDRA = 0
@@ -46,7 +48,22 @@ def _cache_ttl() -> int:
 
 
 def _max_scan() -> int:
-    return int(getattr(settings, "HVA_CASSANDRA_MAX_SCAN", DEFAULT_CASSANDRA_MAX_SCAN))
+    # LIGHT_MODE / RO lab: keep scans short so the single gunicorn worker stays free
+    default = DEFAULT_CASSANDRA_MAX_SCAN
+    if getattr(settings, "LIGHT_MODE", False) or getattr(
+        settings, "CASSANDRA_READ_ONLY", False
+    ):
+        default = min(default, 400)
+    return int(getattr(settings, "HVA_CASSANDRA_MAX_SCAN", default))
+
+
+def _max_scan_seconds() -> float:
+    default = DEFAULT_CASSANDRA_MAX_SECONDS
+    if getattr(settings, "LIGHT_MODE", False) or getattr(
+        settings, "CASSANDRA_READ_ONLY", False
+    ):
+        default = min(default, 3.0)
+    return float(getattr(settings, "HVA_CASSANDRA_MAX_SECONDS", default))
 
 
 def _rank_enrich_limit() -> int:
@@ -129,31 +146,43 @@ def _fetch_cassandra_top_records(
     threshold: float,
     limit: int,
     max_scan: int,
+    max_seconds: Optional[float] = None,
 ) -> Tuple[List[Any], dict]:
     """
-    Bounded Cassandra scan. Walk at most max_scan rows; keep top-N by balance
-    with a min-heap. Prefer is_hva when set; also accept balance >= threshold.
+    Bounded Cassandra scan. Walk at most max_scan rows OR max_seconds wall time;
+    keep top-N by balance with a min-heap. Never materializes the full table.
     """
     from apiApp.model_loader import StellarCreatorAccountLineage
+
+    if max_seconds is None:
+        max_seconds = _max_scan_seconds()
 
     meta = {
         "scanned": 0,
         "hit_scan_limit": False,
+        "hit_time_limit": False,
         "qualifying_seen": 0,
+        "max_scan": max_scan,
+        "max_seconds": max_seconds,
     }
     # heap of (balance, counter, record) — counter breaks ties for heapq
     heap: List[Tuple[float, int, Any]] = []
     counter = 0
+    deadline = time.monotonic() + float(max_seconds)
 
-    # network_name alone is not a partition key either; filter still helps
-    # django-cassandra push ALLOW FILTERING in some versions. Bound the walk.
+    # network_name is not the partition key — this is still an expensive scan,
+    # so we always enforce row + wall-clock caps.
     try:
         qs = StellarCreatorAccountLineage.objects.filter(network_name=network_name)
     except Exception:
         qs = StellarCreatorAccountLineage.objects.all()
 
     try:
-        for record in qs.iterator() if hasattr(qs, "iterator") else qs:
+        stream = qs.iterator() if hasattr(qs, "iterator") else iter(qs)
+        for record in stream:
+            if time.monotonic() >= deadline:
+                meta["hit_time_limit"] = True
+                break
             meta["scanned"] += 1
             if meta["scanned"] > max_scan:
                 meta["hit_scan_limit"] = True
@@ -174,8 +203,18 @@ def _fetch_cassandra_top_records(
                 heapq.heappush(heap, item)
             elif bal > heap[0][0]:
                 heapq.heapreplace(heap, item)
+
+            # Early exit if we already filled the leaderboard with strong HVAs
+            # and have scanned a reasonable sample (best-effort completeness)
+            if (
+                len(heap) >= limit
+                and meta["scanned"] >= max(limit * 20, 200)
+                and heap[0][0] >= threshold * 2
+            ):
+                break
     except Exception as e:
         logger.error("Cassandra HVA scan failed: %s", e, exc_info=True)
+        meta["error"] = str(e)
 
     # Highest balance first
     sorted_items = sorted(heap, key=lambda t: t[0], reverse=True)
@@ -312,6 +351,7 @@ def build_hva_leaderboard(
             threshold=selected_threshold,
             limit=limit,
             max_scan=_max_scan(),
+            max_seconds=_max_scan_seconds(),
         )
         meta.update(scan_meta)
     else:
