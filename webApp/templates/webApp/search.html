@@ -42,8 +42,8 @@
 
     <!-- This element serves as a container for displaying the results of the search function -->
     <div class="results-container">
+      {% if is_cached or is_refreshing %}
       <div class="cache-status-indicator" style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px;">
-        {% if is_cached or is_refreshing %}
           {% if is_cached %}
             <span class="badge badge-success" style="font-size: 0.9em;">
               <i class="fas fa-clock"></i> Cached Data (Fresh)
@@ -53,36 +53,8 @@
               <i class="fas fa-sync fa-spin"></i> Refreshing Data...
             </span>
           {% endif %}
-        {% endif %}
-        {% if near_rt_enabled %}
-          <span class="badge badge-info" style="font-size: 0.85em;" title="Near-RT mode: progressive lineage + faster poll">
-            Near-RT
-          </span>
-        {% endif %}
-        {% if cassandra_read_only %}
-          <span class="badge badge-secondary" style="font-size: 0.85em;" title="Astra reads only — queue/refresh disabled">
-            Read-only
-          </span>
-        {% endif %}
-        {% if is_example_dataset %}
-          <span class="badge badge-warning" style="font-size: 0.9em;"
-                title="Canned demo tree — not live public/testnet data. Paste a G… address to aggregate real surrounding accounts.">
-            <i class="fas fa-flask"></i> Example dataset
-          </span>
-          <span class="text-muted" style="font-size:0.85em;color:#c4b5fd;">
-            Demo of creator path + siblings + assets. Paste a Stellar account to scan live lineage.
-          </span>
-        {% endif %}
-        <button type="button"
-                class="btn btn-sm btn-outline-info"
-                style="border-color:#96DDF2;color:#96DDF2;"
-                :disabled="queueLineageLoading || !query_account || isExampleDataset"
-                @click="queueLineageRefresh"
-                title="{% if can_queue_lineage %}Queue this account for the free SDK near-RT worker{% else %}Requires write mode (CASSANDRA_READ_ONLY=0) + SDK worker{% endif %}">
-          <i class="fas fa-bolt" :class="{'fa-spin': queueLineageLoading}"></i>
-          {% if can_queue_lineage %}Refresh / queue{% else %}Refresh (write mode off){% endif %}
-        </button>
       </div>
+      {% endif %}
       <div class="response-container" style="position: relative;">
         <!-- Include visualization controls next to the tree -->
         {% include 'radialTidyTreeApp/visualization_toggle_include.html' %}
