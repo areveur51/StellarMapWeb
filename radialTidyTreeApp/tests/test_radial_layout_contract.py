@@ -76,8 +76,13 @@ class RadialLayoutContractTests(SimpleTestCase):
         self.assertIn("viz-controls-toggle", self.include)
         self.assertIn("is-collapsed", self.css)
         self.assertIn("max-width: 1024px", self.css)
-        # Controls must not stay absolute overlay on iPad
-        self.assertIn("position: relative !important", self.css)
+        # Controls must never absolute-overlay the tree (looked like a pinned node)
+        self.assertIn("position: relative", self.css)
+        self.assertNotIn(
+            "position: absolute;\n    top: 12px;\n    right: 12px;",
+            self.css.replace("\r\n", "\n"),
+        )
+        self.assertIn("Default closed", self.include)
 
     def test_filter_debounce_present(self):
         self.assertIn("applyTreeFiltersDebounced", self.include)

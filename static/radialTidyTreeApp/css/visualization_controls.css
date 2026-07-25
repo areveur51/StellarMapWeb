@@ -1,34 +1,47 @@
 /* Shared visualization controls styling for both /tree and /search pages */
 
+/*
+ * Controls live ABOVE the tree in document flow — never absolute top-right
+ * overlay (that looked like a permanent “pinned node” on the visual).
+ */
 .visualization-controls {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 20;
-    max-width: min(300px, calc(100% - 24px));
-    max-height: min(70vh, 520px);
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    z-index: 5;
+    width: 100%;
+    max-width: 100%;
+    max-height: min(42vh, 360px);
+    margin: 0 0 10px;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     background: linear-gradient(135deg, rgba(38, 29, 69, 0.96), rgba(26, 21, 48, 0.96));
-    border: 2px solid #96DDF2;
-    border-radius: 16px;
-    padding: 10px 12px 12px;
+    border: 1px solid #96DDF2;
+    border-radius: 12px;
+    padding: 8px 10px;
     display: flex !important;
     flex-direction: column;
-    gap: 10px;
-    box-shadow: 0 0 20px rgba(150, 221, 242, 0.28);
+    gap: 6px;
+    box-shadow: 0 0 16px rgba(150, 221, 242, 0.22);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     pointer-events: auto;
 }
 
+.visualization-controls.is-collapsed {
+    max-height: none;
+    overflow: visible;
+}
+
+/* Toggle always available (desktop + mobile) so the panel can stay collapsed */
 .viz-controls-toggle {
-    display: none;
+    display: flex !important;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     padding: 8px 10px;
     margin: 0;
     border: 1px solid #3f2c70;
@@ -284,38 +297,25 @@
     color: rgba(150, 221, 242, 0.5);
 }
 
-/* iPad + phones: controls sit ABOVE the tree (not over it) and collapse by default */
+/* iPad + phones: denser compact panel above the tree */
 @media (max-width: 1024px) {
   .response-container {
     display: flex;
     flex-direction: column;
   }
   .visualization-controls {
-    position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    left: auto !important;
     order: -1;
-    z-index: 5;
-    width: 100%;
-    max-width: 100%;
     max-height: min(38vh, 280px);
     margin: 0 0 8px;
     padding: 6px 8px;
     gap: 4px;
     border-radius: 10px;
-    border-width: 1px;
-  }
-  .visualization-controls.is-collapsed {
-    max-height: none;
-    overflow: visible;
   }
   .visualization-controls:not(.is-collapsed) {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
   .viz-controls-toggle {
-    display: flex !important;
     min-height: 36px;
     padding: 6px 8px;
     font-size: 0.8rem;

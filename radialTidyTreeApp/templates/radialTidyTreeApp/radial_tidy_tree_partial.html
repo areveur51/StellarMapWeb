@@ -38,7 +38,16 @@
         touch-action: none;
     }
 
-    /* Breadcrumbs: pinned top-left of the visual */
+    /* Hidden until a node is selected — never leave an empty shell visible */
+    #radial-tree-container > .sm-tree-breadcrumbs:not(.is-visible),
+    #radial-tree-container > .sm-tree-props:not(.is-visible) {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Breadcrumbs: pinned top-left — cyberpunk chrome matching app chrome */
     #radial-tree-container > .sm-tree-breadcrumbs {
         position: absolute !important;
         top: 10px !important;
@@ -54,14 +63,16 @@
         margin: 0 !important;
         padding: 8px 10px;
         border-radius: 12px;
-        background: rgba(16, 13, 35, 0.92);
+        background: linear-gradient(135deg, rgba(38, 29, 69, 0.96), rgba(16, 13, 35, 0.96));
         border: 1px solid #96DDF2;
-        box-shadow: 0 0 16px rgba(150, 221, 242, 0.25);
+        box-shadow: 0 0 18px rgba(150, 221, 242, 0.28), inset 0 0 24px rgba(63, 44, 112, 0.35);
         pointer-events: auto;
         transform: none !important;
     }
     #radial-tree-container > .sm-tree-breadcrumbs.is-visible {
         display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     .sm-tree-breadcrumbs__chip {
         display: inline-flex;
@@ -72,33 +83,46 @@
         font-size: 0.85rem;
         font-weight: 700;
         line-height: 1.2;
-        color: #fff;
-        background: #3f2c70;
-        border: 1px solid #96DDF2;
+        letter-spacing: 0.02em;
+        color: #e8e4ff;
+        background: linear-gradient(135deg, #3f2c70, #2a1f4d);
+        border: 1px solid rgba(150, 221, 242, 0.55);
+        box-shadow: 0 0 8px rgba(63, 44, 112, 0.5);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
     .sm-tree-breadcrumbs__chip--asset {
-        background: #fcec04;
-        color: #111;
+        background: linear-gradient(135deg, #fcec04, #d4c003);
+        color: #1a1530;
         border-color: #fcec04;
+        text-shadow: none;
+    }
+    .sm-tree-breadcrumbs__chip--issuer {
+        background: linear-gradient(135deg, #3f2c70, #261d45);
+        color: #96DDF2;
+        border-color: #00FF9C;
     }
     .sm-tree-breadcrumbs__chip--active {
-        box-shadow: 0 0 10px rgba(11, 231, 132, 0.55);
+        box-shadow: 0 0 12px rgba(11, 231, 132, 0.55);
         border-color: #0BE784;
+        color: #0BE784;
+    }
+    .sm-tree-breadcrumbs__chip--asset.sm-tree-breadcrumbs__chip--active {
+        color: #1a1530;
+        box-shadow: 0 0 12px rgba(252, 236, 4, 0.55);
     }
     .sm-tree-breadcrumbs__sep {
         color: #0BE784;
         font-weight: 800;
         font-size: 1rem;
-        opacity: 0.9;
+        text-shadow: 0 0 8px rgba(11, 231, 132, 0.45);
         user-select: none;
     }
 
     /*
-     * Properties popup — pinned top-right of the visual (not in SVG).
-     * Same purple/yellow theme as original node tooltip.
+     * Properties popup — pinned top-right.
+     * Issuer: purple card; Asset: yellow card (original tooltip colors + app chrome).
      */
     #radial-tree-container > .sm-tree-props {
         position: absolute !important;
@@ -106,7 +130,7 @@
         right: 12px !important;
         left: auto !important;
         bottom: auto !important;
-        width: min(260px, calc(100% - 24px));
+        width: min(270px, calc(100% - 24px));
         max-height: min(70%, 360px);
         z-index: 30 !important;
         display: none;
@@ -114,77 +138,101 @@
         gap: 0;
         margin: 0 !important;
         padding: 0;
-        border-radius: 6px;
-        border: none;
-        background: rgba(63, 44, 112, 0.94);
-        color: #fff;
-        box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.25);
+        border-radius: 10px;
+        border: 1px solid #96DDF2;
+        background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(38, 29, 69, 0.97));
+        color: #f5f3ff;
+        box-shadow: 0 0 22px rgba(150, 221, 242, 0.3), 3px 3px 12px rgba(0, 0, 0, 0.35);
         overflow: hidden;
         pointer-events: auto;
-        font: 12px sans-serif;
+        font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
         transform: none !important;
     }
     #radial-tree-container > .sm-tree-props.is-visible {
         display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
     }
     #radial-tree-container > .sm-tree-props.sm-tree-props--asset {
-        background: rgba(252, 236, 4, 0.94);
-        color: #111;
-        box-shadow: 3px 3px 12px rgba(0, 0, 0, 0.28);
+        background: linear-gradient(160deg, rgba(252, 236, 4, 0.96), rgba(214, 196, 20, 0.94));
+        color: #1a1530;
+        border-color: #fcec04;
+        box-shadow: 0 0 20px rgba(252, 236, 4, 0.35), 3px 3px 12px rgba(0, 0, 0, 0.3);
     }
     #radial-tree-container > .sm-tree-props.sm-tree-props--issuer {
-        background: rgba(63, 44, 112, 0.94);
-        color: #fff;
+        background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(26, 21, 48, 0.97));
+        color: #f5f3ff;
+        border-color: #96DDF2;
     }
     .sm-tree-props__header {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        gap: 4px;
-        padding: 4px 4px 0;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 8px 0 12px;
         min-height: 0;
+        border-bottom: 1px solid rgba(150, 221, 242, 0.2);
     }
     .sm-tree-props__title {
-        display: none;
+        display: block;
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #96DDF2;
+    }
+    .sm-tree-props--asset .sm-tree-props__title {
+        color: #3f2c70;
     }
     .sm-tree-props__close {
-        min-width: 28px;
-        min-height: 28px;
+        min-width: 32px;
+        min-height: 32px;
         padding: 0;
-        border-radius: 4px;
-        border: none;
-        background: transparent;
-        color: inherit;
-        opacity: 0.75;
+        border-radius: 8px;
+        border: 1px solid rgba(150, 221, 242, 0.35);
+        background: rgba(16, 13, 35, 0.35);
+        color: #96DDF2;
+        opacity: 0.9;
         font-size: 1.15rem;
         line-height: 1;
         cursor: pointer;
         touch-action: manipulation;
     }
+    .sm-tree-props--asset .sm-tree-props__close {
+        color: #3f2c70;
+        border-color: rgba(63, 44, 112, 0.35);
+        background: rgba(255, 255, 255, 0.25);
+    }
     .sm-tree-props__close:hover {
         opacity: 1;
-        background: rgba(0, 0, 0, 0.12);
-    }
-    .sm-tree-props--issuer .sm-tree-props__close:hover {
-        background: rgba(255, 255, 255, 0.12);
+        border-color: #0BE784;
+        color: #0BE784;
+        box-shadow: 0 0 10px rgba(11, 231, 132, 0.35);
     }
     #sm-tree-props-body,
     .sm-tree-props__body {
-        padding: 4px 12px 12px;
+        padding: 10px 12px 12px;
         overflow: auto;
         -webkit-overflow-scrolling: touch;
         line-height: 1.55;
         word-wrap: break-word;
-        font: 12px sans-serif;
+        font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
     }
     .sm-tree-props__body b,
     #sm-tree-props-body b {
         font-weight: 700;
+        color: #96DDF2;
+    }
+    .sm-tree-props--asset .sm-tree-props__body b,
+    .sm-tree-props--asset #sm-tree-props-body b {
+        color: #3f2c70;
     }
     .sm-tree-props__line {
         display: block;
-        margin: 0 0 2px;
+        margin: 0 0 4px;
         word-break: break-word;
+        color: inherit;
     }
 
     @media (max-width: 1024px) {

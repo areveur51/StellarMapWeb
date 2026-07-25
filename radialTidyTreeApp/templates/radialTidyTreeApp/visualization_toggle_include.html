@@ -109,7 +109,7 @@
         window.currentMode = localStorage.getItem('visualizationMode') || 'radial';
     }
 
-    // Collapsible controls: default collapsed on tablet/phone so panel does not cover the tree
+    // Collapsible controls: default collapsed on all viewports (no floating overlay on the tree)
     (function initVizControlsCollapse() {
         if (window.__smVizCollapseBound) return;
         window.__smVizCollapseBound = true;
@@ -117,10 +117,10 @@
             var panel = document.getElementById('visualization-controls');
             var btn = document.getElementById('viz-controls-toggle');
             if (!panel || !btn) return;
-            var narrow = window.matchMedia('(max-width: 1024px)').matches;
             var stored = null;
             try { stored = localStorage.getItem('vizControlsOpen'); } catch (e) {}
-            var open = stored === '1' ? true : stored === '0' ? false : !narrow;
+            // Default closed so nothing is permanently pinned over the visual
+            var open = stored === '1';
             panel.classList.toggle('is-collapsed', !open);
             btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         }

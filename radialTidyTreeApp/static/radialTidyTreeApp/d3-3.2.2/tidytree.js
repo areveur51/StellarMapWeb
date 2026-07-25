@@ -352,9 +352,13 @@ function renderRadialTree(jsonData) {
             .style('touch-action', 'none'); // pan/zoom without page scroll fighting
 
         svg.selectAll('*').remove();
+        // Remove legacy floating tooltip / SVG breadcrumb artifacts (looked like pinned nodes)
+        d3.selectAll('body > .tooltip').remove();
+        d3.selectAll('#radial-tree-container .breadcrumb-container').remove();
         clearTreeSelectionUI();
 
         const g = svg.append('g')
+            .attr('class', 'sm-tree-zoom-layer')
             .attr('transform', `translate(${size / 2},${size / 2})`);
 
         const zoom = d3.zoom()
@@ -831,14 +835,20 @@ function clearTreeSelectionUI() {
         crumbs.innerHTML = '';
         crumbs.classList.remove('is-visible');
         crumbs.hidden = true;
+        crumbs.style.display = 'none';
+        crumbs.style.visibility = 'hidden';
     }
     const pane = document.getElementById('sm-tree-props');
     if (pane) {
         pane.classList.remove('is-visible', 'sm-tree-props--asset', 'sm-tree-props--issuer');
         pane.hidden = true;
+        pane.style.display = 'none';
+        pane.style.visibility = 'hidden';
     }
     const body = document.getElementById('sm-tree-props-body');
     if (body) body.innerHTML = '';
+    // Orphan body tooltips from older tidy/hover path
+    try { d3.selectAll('body > .tooltip').style('opacity', 0).remove(); } catch (e) {}
 }
 
 function nodeDisplayLabel(data, opts) {
@@ -871,6 +881,8 @@ function renderTreeBreadcrumbs(pathToRoot) {
         chip.className = 'sm-tree-breadcrumbs__chip';
         if (n.data && n.data.node_type === 'ASSET') {
             chip.classList.add('sm-tree-breadcrumbs__chip--asset');
+        } else {
+            chip.classList.add('sm-tree-breadcrumbs__chip--issuer');
         }
         if (i === pathToRoot.length - 1) {
             chip.classList.add('sm-tree-breadcrumbs__chip--active');
@@ -880,6 +892,8 @@ function renderTreeBreadcrumbs(pathToRoot) {
         crumbs.appendChild(chip);
     });
     crumbs.hidden = false;
+    crumbs.style.display = '';
+    crumbs.style.visibility = 'visible';
     crumbs.classList.add('is-visible');
 }
 
@@ -919,9 +933,16 @@ function renderTreePropertiesPane(hierarchyNode) {
     }
 
     body.innerHTML = html;
+    const titleEl = pane.querySelector('.sm-tree-props__title');
+    if (titleEl) {
+        titleEl.textContent = isAsset ? 'Asset' : 'Account';
+        titleEl.style.display = 'block';
+    }
     pane.classList.remove('sm-tree-props--asset', 'sm-tree-props--issuer');
     pane.classList.add(isAsset ? 'sm-tree-props--asset' : 'sm-tree-props--issuer');
     pane.hidden = false;
+    pane.style.display = '';
+    pane.style.visibility = 'visible';
     pane.classList.add('is-visible');
 }
 
