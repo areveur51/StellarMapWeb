@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **App-wide DRY progress navigation** — sidebar + shell links use `StellarMapProgress.navigate`; elapsed time shown on overlay; `searchAccount` helper on all pages
 - **Aggregation closeout** — rewrite `test_lineage_with_siblings_api` as Django TestCase (no pytest; valid keys); document Definition of Done in `LINEAGE_AGGREGATION.md`
 - **Progressive siblings (PR5)** — optional `LINEAGE_PROGRESSIVE_SIBLINGS`; API `include_siblings` / `structure_only`; search UI path-first then siblings second fetch
 - **Frontend server tree (PR6b)** — search poll prefers API `tree` when `meta.tree_build.algorithm` is `buildTreeFromLineage_v1`; client rebuild remains fallback
@@ -21,6 +22,7 @@
 - **Astra read-only lab mode** — `CASSANDRA_READ_ONLY=1` loads Cassandra models and routes `apiApp` reads to Astra while ENV stays `development`; model saves and cache queue writes are blocked (safe with a read-only token)
 
 ### Changed
+- **HVA page performance** — prefer `is_hva` filter (no full network table scan), cap list length, limit rank-change enrichment queries
 - **System Dashboard UI** — metric sections use the same elevated panel + compact card language as Dependency Heartbeat (no more fixed 180×180 square tiles); shared `.dash-panel` styles
 - Menu no longer depends on Bootstrap-Vue `b-sidebar` (plain HTML/JS drawer; always clickable)
 - Login QR uses **qrcodejs** CDN (previous node-qrcode path 404'd); QR generates on page load; CSRF token on form

@@ -8,6 +8,7 @@
   {% include 'webApp/includes/head_assets.html' %}
 </head>
 <body class="bg-color-261D45">
+  {% include 'webApp/includes/sm_progress.html' %}
   <div id="app">
     <!-- Include shared search container and sidebar -->
     {% include 'webApp/search_container_include.html' %}
@@ -124,7 +125,8 @@
     </div>
   </div>
 
-  <!-- Network switch mixin must load before Vue mounts the shared top bar -->
+  <!-- Progress + network helpers before Vue -->
+  <script src="{% static 'webApp/js/sm_progress.js' %}?v=4"></script>
   <script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
   <!-- Include Vue.js and BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
@@ -133,21 +135,29 @@
   <!-- Threshold change handler -->
   <script>
     function changeThreshold(threshold) {
-      // Reload page with new threshold parameter
       const url = new URL(window.location.href);
       url.searchParams.set('threshold', threshold);
-      window.location.href = url.toString();
+      if (window.StellarMapProgress && StellarMapProgress.navigate) {
+        StellarMapProgress.navigate(url.pathname + url.search, {
+          title: 'Loading high value accounts…',
+          message: 'Threshold ' + threshold,
+        });
+      } else {
+        window.location.href = url.toString();
+      }
     }
   </script>
   
   <!-- Vue.js app instance for search functionality -->
   <script>
-    // Register BootstrapVue with Vue
     Vue.use(BootstrapVue);
     
     new Vue({
       el: '#app',
-      mixins: [typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {}],
+      mixins: [
+        typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {},
+        typeof sm_progress_mixin !== 'undefined' ? sm_progress_mixin : {},
+      ],
       data: {
         query_account: '',
         network_toggle: true,
@@ -155,10 +165,11 @@
       },
       methods: {
         search() {
-          if (this.query_account.trim()) {
-            const network = this.network_selected || (this.network_toggle ? 'public' : 'testnet');
-            window.location.href = `/search?account=${encodeURIComponent(this.query_account)}&network=${network}`;
-          }
+          var account = (this.query_account || '').trim();
+          if (!account) return;
+          var network = this.network_selected || (this.network_toggle ? 'public' : 'testnet');
+          if (this.smProgressSearch) this.smProgressSearch(account, network);
+          else window.location.href = '/search/?account=' + encodeURIComponent(account) + '&network=' + network;
         },
       }
     });

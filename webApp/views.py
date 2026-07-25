@@ -1238,84 +1238,92 @@ def high_value_accounts_view(request):
     
     hva_accounts = []
     total_hva_balance = 0
-    
+    # Cap list length for SSR (page stays usable; leaderboard is top-N by definition)
+    HVA_DISPLAY_LIMIT = 150
+    # Rank-change enrichment is N partition lookups — only top rows
+    HVA_RANK_ENRICH_LIMIT = 25 if getattr(settings, 'CASSANDRA_READ_ONLY', False) else 50
+
     try:
-        # Query strategy based on selected threshold:
-        # - If threshold <= admin default: Need to scan more records (potential accounts below is_hva threshold)
-        # - If threshold > admin default: Can safely use is_hva filter
         admin_threshold = HVARankingHelper.get_hva_threshold()
-        
-        if selected_threshold <= admin_threshold:
-            # Need broader query - get all accounts and filter in-memory
-            # This is necessary because is_hva flag is based on admin_threshold
-            # Note: This will do a table scan, but necessary for lower thresholds
-            # OPTIMIZATION: Filter by network to reduce scan size
-            all_records = StellarCreatorAccountLineage.objects.filter(network_name=network_name).all()
-            hva_records = [
-                rec for rec in all_records
-                if rec.xlm_balance and rec.xlm_balance >= selected_threshold
-            ]
-        else:
-            # Can use is_hva filter safely since selected_threshold > admin_threshold
-            # OPTIMIZATION: Filter by network and is_hva flag
-            hva_records = StellarCreatorAccountLineage.objects.filter(
+        # Prefer is_hva filter (indexed path / smaller set). Full network scan is too
+        # expensive on Cassandra (multi-second–minute). For thresholds below admin
+        # default we still start from is_hva and only fall back to a capped scan
+        # when not in read-only lab mode.
+        records = []
+        try:
+            qs = StellarCreatorAccountLineage.objects.filter(
                 is_hva=True,
-                network_name=network_name
-            ).all()
-            hva_records = [
-                rec for rec in hva_records
-                if rec.xlm_balance and rec.xlm_balance >= selected_threshold
-            ]
-        
-        qualifying_records = hva_records
-        
+                network_name=network_name,
+            )
+            records = list(qs)
+        except Exception as e:
+            sentry_sdk.capture_exception(e)
+            records = []
+
+        if (
+            not records
+            and selected_threshold < admin_threshold
+            and not getattr(settings, 'CASSANDRA_READ_ONLY', False)
+        ):
+            # Dev/SQL only: broader filter when is_hva empty and lower threshold
+            try:
+                records = list(
+                    StellarCreatorAccountLineage.objects.filter(network_name=network_name)
+                )
+            except Exception as e:
+                sentry_sdk.capture_exception(e)
+                records = []
+
+        hva_records = [
+            rec for rec in records
+            if rec.xlm_balance and rec.xlm_balance >= selected_threshold
+        ]
+
         sorted_records = sorted(
-            qualifying_records,
+            hva_records,
             key=lambda x: x.xlm_balance if x.xlm_balance else 0,
-            reverse=True
-        )
-        
-        # Enrich with rank change data (last 24 hours)
-        # NOTE: This uses N queries but each is efficient (partition-key lookup on stellar_account)
-        # Batch fetching would require full table scan which is worse for Cassandra
+            reverse=True,
+        )[:HVA_DISPLAY_LIMIT]
+
         cutoff_time = timezone.now() - timedelta(hours=24)
-        
+
         for rank, record in enumerate(sorted_records, start=1):
-            # Split tags into list for template rendering
             tags_list = [tag.strip() for tag in record.tags.split(',')] if record.tags else []
-            
-            # Get most recent standing change
+
             rank_change = 0
             event_type = None
             previous_rank = None
             balance_change_pct = 0.0
-            
-            try:
-                # OPTIMIZATION: Query by partition key (stellar_account) for efficient lookup
-                # Filter by threshold AND network in-memory for Cassandra compatibility
-                all_changes = HVAStandingChange.objects.filter(
-                    stellar_account=record.stellar_account
-                ).all()
-                
-                # Filter by threshold AND network (in-memory for Cassandra compatibility)
-                threshold_changes = [
-                    c for c in all_changes 
-                    if (hasattr(c, 'xlm_threshold') and abs(c.xlm_threshold - selected_threshold) < 1.0
-                        and c.network_name == network_name)
-                ]
-                
-                if threshold_changes:
-                    # Get most recent change for this threshold
-                    recent_change = sorted(threshold_changes, key=lambda x: x.created_at, reverse=True)[0]
-                    
-                    if recent_change.created_at and recent_change.created_at >= cutoff_time:
-                        rank_change = recent_change.rank_change or 0
-                        event_type = recent_change.event_type
-                        previous_rank = recent_change.old_rank
-                        balance_change_pct = recent_change.balance_change_pct or 0.0
-            except Exception:
-                pass  # Silently ignore change tracking errors
-            
+
+            if rank <= HVA_RANK_ENRICH_LIMIT:
+                try:
+                    all_changes = list(
+                        HVAStandingChange.objects.filter(
+                            stellar_account=record.stellar_account
+                        )
+                    )
+                    threshold_changes = [
+                        c for c in all_changes
+                        if (
+                            hasattr(c, 'xlm_threshold')
+                            and abs((c.xlm_threshold or 0) - selected_threshold) < 1.0
+                            and c.network_name == network_name
+                        )
+                    ]
+                    if threshold_changes:
+                        recent_change = sorted(
+                            threshold_changes,
+                            key=lambda x: x.created_at or timezone.now(),
+                            reverse=True,
+                        )[0]
+                        if recent_change.created_at and recent_change.created_at >= cutoff_time:
+                            rank_change = recent_change.rank_change or 0
+                            event_type = recent_change.event_type
+                            previous_rank = recent_change.old_rank
+                            balance_change_pct = recent_change.balance_change_pct or 0.0
+                except Exception:
+                    pass
+
             hva_accounts.append({
                 'stellar_account': record.stellar_account,
                 'network_name': record.network_name,
@@ -1326,7 +1334,6 @@ def high_value_accounts_view(request):
                 'status': record.status,
                 'created_at': record.created_at,
                 'updated_at': record.updated_at,
-                # Rank change data
                 'current_rank': rank,
                 'rank_change': rank_change,
                 'event_type': event_type,
@@ -1334,10 +1341,10 @@ def high_value_accounts_view(request):
                 'balance_change_pct': balance_change_pct,
             })
             total_hva_balance += (record.xlm_balance or 0)
-        
+
     except Exception as e:
         sentry_sdk.capture_exception(e)
-    
+
     context = {
         'hva_accounts': hva_accounts,
         'total_hva_count': len(hva_accounts),
@@ -1345,6 +1352,7 @@ def high_value_accounts_view(request):
         'selected_threshold': selected_threshold,
         'supported_thresholds': HVARankingHelper.get_supported_thresholds(),
         'admin_default_threshold': HVARankingHelper.get_hva_threshold(),
+        'hva_display_limit': HVA_DISPLAY_LIMIT,
     }
     
     return render(request, 'webApp/high_value_accounts.html', context)

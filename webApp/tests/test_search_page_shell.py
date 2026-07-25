@@ -180,6 +180,40 @@ class SearchPageHttpShellTests(SimpleTestCase):
         self.assertIn("networkLabel", js)
 
 
+class ProgressJsShellCoverageTests(SimpleTestCase):
+    """All main shells must load progress markup + script and support navigate."""
+
+    SHELLS = (
+        "webApp/templates/webApp/index.html",
+        "webApp/templates/webApp/search.html",
+        "webApp/templates/webApp/dashboard.html",
+        "webApp/templates/webApp/bulk_search.html",
+        "webApp/templates/webApp/high_value_accounts.html",
+        "webApp/templates/webApp/query_builder.html",
+    )
+
+    def test_shells_include_progress_and_script(self):
+        for rel in self.SHELLS:
+            text = (PROJECT_ROOT / rel).read_text()
+            self.assertIn("sm_progress.html", text, rel)
+            self.assertIn("sm_progress.js", text, rel)
+            # Progress before Vue
+            self.assertLess(text.find("sm_progress.js"), text.find("vue@2"), rel)
+
+    def test_progress_js_exports_nav_and_elapsed(self):
+        js = (PROJECT_ROOT / "webApp/static/webApp/js/sm_progress.js").read_text()
+        for name in (
+            "StellarMapProgress",
+            "navigate",
+            "searchAccount",
+            "bindShellNav",
+            "elapsed",
+            "sm_progress_mixin",
+            "smProgressSearch",
+        ):
+            self.assertIn(name, js)
+
+
 class ProgressJsBehaviorTests(SimpleTestCase):
     """Execute StellarMapProgress show/hide in Node with a minimal DOM stub."""
 

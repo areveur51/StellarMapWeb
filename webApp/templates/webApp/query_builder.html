@@ -204,7 +204,8 @@
         {% endverbatim %}
     </div>
   </div>
-<script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
+<script src="{% static 'webApp/js/sm_progress.js' %}?v=4"></script>
+  <script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap-vue@2.23.1/dist/bootstrap-vue.min.js" crossorigin="anonymous"></script>
   
@@ -213,7 +214,10 @@
     
     var vm = new Vue({
         el: '#app',
-        mixins: [typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {}],
+        mixins: [
+          typeof sm_network_mixin !== 'undefined' ? sm_network_mixin : {},
+          typeof sm_progress_mixin !== 'undefined' ? sm_progress_mixin : {},
+        ],
         data: {
           query_account: '',
           network_toggle: true,
@@ -326,9 +330,12 @@
         },
         methods: {
           async search() {
-            if (this.query_account && this.query_account.trim()) {
-              const searchUrl = `/search/?account=${encodeURIComponent(this.query_account)}&network=${this.network_selected}`;
-              window.location.href = searchUrl;
+            var account = (this.query_account || '').trim();
+            if (!account) return;
+            if (this.smProgressSearch) this.smProgressSearch(account, this.network_selected);
+            else {
+              window.location.href = '/search/?account=' + encodeURIComponent(account) +
+                '&network=' + encodeURIComponent(this.network_selected || 'public');
             }
           },
           
