@@ -68,21 +68,23 @@ class TestVisualizationSiblingSpacing:
         assert 'assetBalanceMin' in content
         assert 'assetBalanceMax' in content
     
-    def test_tidytree_js_has_nodesize_layout(self):
+    def test_tidytree_js_has_full_circle_size_layout(self):
         """
-        Verify tidytree.js uses nodeSize() instead of size() 
-        to prevent angle rescaling that clusters siblings
+        Full-circle radial layout: d3.tree().size([2π, r]) fills the ring,
+        with radius adapted to sibling density (maxSiblingsAtDepth / minChordPx).
+        (nodeSize left sparse trees in a half-empty sector.)
         """
         with open('radialTidyTreeApp/static/radialTidyTreeApp/d3-3.2.2/tidytree.js', 'r') as f:
             content = f.read()
-        
-        # Should use nodeSize for proper sibling spacing
-        assert '.nodeSize([' in content, \
-            "Radial tree must use .nodeSize() to preserve separation values"
-        
-        # Should have angle normalization after layout
+
+        assert '.size([2 * Math.PI' in content, \
+            "Radial tree must use .size([2π, r]) for a complete circle"
+        assert 'maxSiblingsAtDepth' in content and 'minChordPx' in content, \
+            "Radius must adapt to sibling density"
+        assert 'maxSectorSize = Math.PI' not in content, \
+            "Must not clamp layout to a half-circle lineage sector"
         assert 'Normalize angles' in content or 'd.x = ((d.x - minX)' in content, \
-            "Must normalize angles to [0, 2π] after nodeSize layout"
+            "Must normalize angles to [0, 2π] after layout"
     
     def test_tidytree_js_has_lineage_css_classes(self):
         """

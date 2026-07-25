@@ -2,42 +2,54 @@
 <!-- Shared visualization toggle component for both /tree and /search endpoints -->
 <!-- CSS is loaded separately via visualization_controls.css for DRY -->
 
-<div class="visualization-controls">
-    <div class="visualization-toggle">
-        <span class="toggle-label">Layout:</span>
-        <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()">
-            <div class="toggle-slider"></div>
+<div class="visualization-controls" id="visualization-controls">
+    <button type="button"
+            class="viz-controls-toggle"
+            id="viz-controls-toggle"
+            aria-expanded="false"
+            aria-controls="viz-controls-body"
+            title="Show or hide tree filters">
+        <span class="viz-controls-toggle__label">Tree controls</span>
+        <span class="viz-controls-toggle__chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="viz-controls-body" id="viz-controls-body">
+    <div class="viz-controls-toolbar">
+        <div class="visualization-toggle">
+            <span class="toggle-label">Layout</span>
+            <div class="toggle-switch" id="layout-toggle" onclick="toggleVisualizationMode()">
+                <div class="toggle-slider"></div>
+            </div>
+            <span class="mode-indicator" id="mode-indicator">Radial</span>
         </div>
-        <span class="mode-indicator" id="mode-indicator">Radial</span>
+        <div class="zoom-controls">
+            <span class="toggle-label">Zoom</span>
+            <div class="zoom-buttons">
+                <button class="zoom-btn" id="zoom-out-btn" onclick="zoomOut()" type="button">−</button>
+                <button class="zoom-btn" id="zoom-fit-btn" onclick="zoomFit()" type="button">Fit</button>
+                <button class="zoom-btn" id="zoom-in-btn" onclick="zoomIn()" type="button">+</button>
+            </div>
+        </div>
     </div>
     <div class="spacing-control tidy-only" id="vertical-spacing-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Vertical Spacing:</span>
+        <span class="toggle-label">V-space</span>
         <input type="range" id="spacing-slider" class="spacing-slider" min="0.5" max="3" step="0.1" value="1">
         <span class="spacing-value" id="spacing-value">1.0x</span>
     </div>
     <div class="spacing-control tidy-only" id="min-child-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Min Child Distance:</span>
+        <span class="toggle-label">Min child</span>
         <input type="range" id="min-child-slider" class="spacing-slider" min="0.3" max="1.5" step="0.1" value="0.6">
         <span class="spacing-value" id="min-child-value">0.6x</span>
     </div>
     <div class="spacing-control tidy-only" id="max-child-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Max Child Distance:</span>
+        <span class="toggle-label">Max child</span>
         <input type="range" id="max-child-slider" class="spacing-slider" min="1" max="3" step="0.1" value="1.5">
         <span class="spacing-value" id="max-child-value">1.5x</span>
     </div>
-    <div class="zoom-controls">
-        <span class="toggle-label" style="font-size: 0.8em;">Zoom:</span>
-        <div class="zoom-buttons">
-            <button class="zoom-btn" id="zoom-out-btn" onclick="zoomOut()">−</button>
-            <button class="zoom-btn" id="zoom-fit-btn" onclick="zoomFit()">Fit</button>
-            <button class="zoom-btn" id="zoom-in-btn" onclick="zoomIn()">+</button>
-        </div>
-    </div>
-    
-    <!-- Tree Filters -->
+
+    <!-- Tree Filters (compact) -->
     <div class="filter-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Slider Increment:</span>
-        <select id="slider-increment" class="filter-input" style="width: 100%; padding: 4px; font-size: 0.75em; margin-top: 3px; background: #1a1a2e; color: #0BE784; border: 1px solid #0BE784; cursor: pointer;">
+        <span class="toggle-label">Increment</span>
+        <select id="slider-increment" class="filter-input" style="width: 100%; padding: 4px; font-size: 0.8em; margin-top: 2px; background: #1a1a2e; color: #0BE784; border: 1px solid #0BE784; cursor: pointer;">
             <option value="5">5</option>
             <option value="10">10</option>
             <option value="50">50</option>
@@ -48,45 +60,46 @@
         </select>
     </div>
     <div class="filter-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Issuer Balance:</span>
-        <div style="margin-top: 3px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
+        <span class="toggle-label">Issuer bal</span>
+        <div style="margin-top: 2px;">
+            <div class="filter-range-meta" style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
                 <span>Min: <span id="issuer-min-value">0</span></span>
                 <span>Max: <span id="issuer-max-value">∞</span></span>
             </div>
-            <div style="display: flex; gap: 5px; align-items: center;">
+            <div class="filter-range-row" style="display: flex; gap: 5px; align-items: center;">
                 <input type="range" id="issuer-min-slider" class="spacing-slider" min="0" max="100000" step="1000" value="0" style="flex: 1;">
                 <input type="range" id="issuer-max-slider" class="spacing-slider" min="1000000" max="50000000" step="1000" value="50000000" style="flex: 1;">
             </div>
         </div>
     </div>
     <div class="filter-control">
-        <span class="toggle-label" style="font-size: 0.8em;">Asset Balance:</span>
-        <div style="margin-top: 3px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
+        <span class="toggle-label">Asset bal</span>
+        <div style="margin-top: 2px;">
+            <div class="filter-range-meta" style="display: flex; justify-content: space-between; font-size: 0.7em; color: #888; margin-bottom: 2px;">
                 <span>Min: <span id="asset-min-value">0</span></span>
                 <span>Max: <span id="asset-max-value">∞</span></span>
             </div>
-            <div style="display: flex; gap: 5px; align-items: center;">
+            <div class="filter-range-row" style="display: flex; gap: 5px; align-items: center;">
                 <input type="range" id="asset-min-slider" class="spacing-slider" min="0" max="100000" step="1000" value="0" style="flex: 1;">
                 <input type="range" id="asset-max-slider" class="spacing-slider" min="1000000" max="50000000" step="1000" value="50000000" style="flex: 1;">
             </div>
         </div>
     </div>
-    <div class="filter-control">
-        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.8em;">
-            <input type="checkbox" id="issuers-only-filter" style="cursor: pointer;">
-            <span class="toggle-label">Issuers Only</span>
-        </label>
+    <div class="viz-controls-actions">
+        <div class="filter-control" style="border-top: none; padding-top: 0;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8em; min-height: 32px;">
+                <input type="checkbox" id="issuers-only-filter" style="cursor: pointer; width: 16px; height: 16px;">
+                <span class="toggle-label">Issuers only</span>
+            </label>
+        </div>
+        <button class="zoom-btn" id="reset-filters-btn" onclick="resetTreeFilters()" type="button" style="font-size: 0.75em;">Reset</button>
     </div>
-    <div class="filter-control">
-        <button class="zoom-btn" id="reset-filters-btn" onclick="resetTreeFilters()" style="width: 100%; font-size: 0.75em;">Reset Filters</button>
-    </div>
-    <div class="filter-control" id="filter-status" style="display: none; border-top: none; padding-top: 5px;">
-        <span class="toggle-label" style="font-size: 0.75em; color: #0BE784;">
+    <div class="filter-control" id="filter-status" style="display: none; border-top: none; padding-top: 2px;">
+        <span class="toggle-label" style="font-size: 0.72em; color: #0BE784;">
             <span id="filter-status-text">Showing all nodes</span>
         </span>
     </div>
+    </div><!-- /.viz-controls-body -->
 </div>
 
 <script>
@@ -95,6 +108,45 @@
     if (typeof window.currentMode === 'undefined') {
         window.currentMode = localStorage.getItem('visualizationMode') || 'radial';
     }
+
+    // Collapsible controls: default collapsed on all viewports (no floating overlay on the tree)
+    (function initVizControlsCollapse() {
+        if (window.__smVizCollapseBound) return;
+        window.__smVizCollapseBound = true;
+        function apply() {
+            var panel = document.getElementById('visualization-controls');
+            var btn = document.getElementById('viz-controls-toggle');
+            if (!panel || !btn) return;
+            var stored = null;
+            try { stored = localStorage.getItem('vizControlsOpen'); } catch (e) {}
+            // Default closed so nothing is permanently pinned over the visual
+            var open = stored === '1';
+            panel.classList.toggle('is-collapsed', !open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        document.addEventListener('click', function (e) {
+            var btn = e.target && e.target.closest ? e.target.closest('#viz-controls-toggle') : null;
+            if (!btn) return;
+            e.preventDefault();
+            var panel = document.getElementById('visualization-controls');
+            if (!panel) return;
+            var open = panel.classList.contains('is-collapsed');
+            panel.classList.toggle('is-collapsed', !open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            try { localStorage.setItem('vizControlsOpen', open ? '1' : '0'); } catch (err) {}
+        });
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', apply);
+        } else {
+            apply();
+        }
+        window.addEventListener('resize', function () {
+            // only auto-collapse when crossing into narrow if user never set preference
+            try {
+                if (localStorage.getItem('vizControlsOpen') == null) apply();
+            } catch (e) {}
+        });
+    })();
     
     // Global tree filter settings (min filters start at 0 = no filter)
     if (typeof window.treeFilters === 'undefined') {
@@ -171,53 +223,43 @@
         
         // Initialize slider
         if (spacingSlider && spacingValue) {
-            console.log('Spacing slider found, initializing...');
             spacingSlider.value = window.nodeSpacingMultiplier;
             spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
             
-            // Add slider event listener
+            // Debounced re-render while dragging (matches filter debounce)
+            var __smSpacingTimer = null;
             spacingSlider.addEventListener('input', function() {
-                console.log('Slider input event fired, value:', this.value);
                 const newValue = parseFloat(this.value);
-                console.log('Parsed value:', newValue);
-                console.log('Current mode:', window.currentMode);
-                console.log('Current tree data exists:', !!window.currentTreeData);
-                console.log('renderRadialTree exists:', typeof renderRadialTree);
-                console.log('renderTidyTree exists:', typeof renderTidyTree);
-                
-                // Validate the new value
-                if (!isNaN(newValue) && newValue >= 0.5 && newValue <= 3.0) {
-                    window.nodeSpacingMultiplier = newValue;
-                    spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
-                    localStorage.setItem('nodeSpacingMultiplier', window.nodeSpacingMultiplier);
-                    
-                    console.log('Spacing multiplier changed to:', window.nodeSpacingMultiplier);
-                    
-                    // Re-render the current tree with new spacing using global window.currentMode
-                    if (window.currentTreeData) {
-                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
-                            console.log('About to call renderRadialTree...');
-                            renderRadialTree(window.currentTreeData);
-                            console.log('Spacing changed: Re-rendered radial tree with', window.nodeSpacingMultiplier + 'x spacing');
-                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
-                            console.log('About to call renderTidyTree...');
-                            renderTidyTree(window.currentTreeData);
-                            console.log('Spacing changed: Re-rendered tidy tree with', window.nodeSpacingMultiplier + 'x spacing');
-                        } else {
-                            console.error('Cannot determine which render function to call');
-                        }
-                    } else {
-                        console.warn('Spacing changed but no tree data available to re-render');
+                if (isNaN(newValue) || newValue < 0.5 || newValue > 3.0) return;
+                window.nodeSpacingMultiplier = newValue;
+                spacingValue.textContent = window.nodeSpacingMultiplier.toFixed(1) + 'x';
+                localStorage.setItem('nodeSpacingMultiplier', window.nodeSpacingMultiplier);
+                if (__smSpacingTimer) clearTimeout(__smSpacingTimer);
+                __smSpacingTimer = setTimeout(function () {
+                    __smSpacingTimer = null;
+                    if (!window.currentTreeData) return;
+                    if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                        renderRadialTree(window.currentTreeData);
+                    } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                        renderTidyTree(window.currentTreeData);
                     }
-                } else {
-                    console.error('Invalid spacing value:', newValue);
-                }
+                }, 120);
             });
-            console.log('Spacing slider event listener attached successfully');
-        } else {
-            console.error('Spacing slider or value element not found!');
         }
         
+        function reRenderCurrentTreeDebounced(timerKey, delayMs) {
+            if (window[timerKey]) clearTimeout(window[timerKey]);
+            window[timerKey] = setTimeout(function () {
+                window[timerKey] = null;
+                if (!window.currentTreeData) return;
+                if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
+                    renderRadialTree(window.currentTreeData);
+                } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
+                    renderTidyTree(window.currentTreeData);
+                }
+            }, delayMs || 120);
+        }
+
         // Initialize min child spacing slider
         const minChildSlider = document.getElementById('min-child-slider');
         const minChildValue = document.getElementById('min-child-value');
@@ -231,15 +273,7 @@
                     window.minChildSpacing = newValue;
                     minChildValue.textContent = window.minChildSpacing.toFixed(1) + 'x';
                     localStorage.setItem('minChildSpacing', window.minChildSpacing);
-                    
-                    // Re-render tree
-                    if (window.currentTreeData) {
-                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
-                            renderRadialTree(window.currentTreeData);
-                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
-                            renderTidyTree(window.currentTreeData);
-                        }
-                    }
+                    reRenderCurrentTreeDebounced('__smMinChildTimer', 120);
                 }
             });
         }
@@ -257,15 +291,7 @@
                     window.maxChildSpacing = newValue;
                     maxChildValue.textContent = window.maxChildSpacing.toFixed(1) + 'x';
                     localStorage.setItem('maxChildSpacing', window.maxChildSpacing);
-                    
-                    // Re-render tree
-                    if (window.currentTreeData) {
-                        if (window.currentMode === 'radial' && typeof renderRadialTree === 'function') {
-                            renderRadialTree(window.currentTreeData);
-                        } else if (window.currentMode === 'tidy' && typeof renderTidyTree === 'function') {
-                            renderTidyTree(window.currentTreeData);
-                        }
-                    }
+                    reRenderCurrentTreeDebounced('__smMaxChildTimer', 120);
                 }
             });
         }
@@ -284,7 +310,6 @@
             updateSpacingControlsVisibility();  // Show spacing controls for tidy tree
             if (window.currentTreeData && typeof renderTidyTree === 'function') {
                 renderTidyTree(window.currentTreeData);
-                console.log('Toggle: Switched to Tidy Tree with data');
             }
         } else {
             window.currentMode = 'radial';
@@ -294,7 +319,6 @@
             updateSpacingControlsVisibility();  // Hide spacing controls for radial
             if (window.currentTreeData && typeof renderRadialTree === 'function') {
                 renderRadialTree(window.currentTreeData);
-                console.log('Toggle: Switched to Radial with data');
             }
         }
     }
@@ -365,9 +389,18 @@
         return false;
     };
     
+    // Debounce expensive full re-renders while dragging sliders
+    var __smFilterTimer = null;
+    function applyTreeFiltersDebounced() {
+        if (__smFilterTimer) clearTimeout(__smFilterTimer);
+        __smFilterTimer = setTimeout(function () {
+            __smFilterTimer = null;
+            applyTreeFilters();
+        }, 120);
+    }
+
     // Apply tree filters by re-rendering with color muting
     function applyTreeFilters() {
-        console.log('Applying tree filters with color muting...');
         
         // Re-render the tree (rendering functions will use shouldMuteNode to apply colors)
         if (window.currentTreeData) {
@@ -448,7 +481,6 @@
             }
         }
         
-        console.log('Tree filters reset');
     }
     
     // Update slider step values based on selected increment
@@ -462,8 +494,6 @@
         if (issuerMaxSlider) issuerMaxSlider.setAttribute('step', increment);
         if (assetMinSlider) assetMinSlider.setAttribute('step', increment);
         if (assetMaxSlider) assetMaxSlider.setAttribute('step', increment);
-        
-        console.log('Slider increments updated to:', increment);
     }
     
     // Initialize filter controls with range sliders
@@ -489,7 +519,6 @@
             window.sliderIncrement = parseInt(this.value);
             localStorage.setItem('sliderIncrement', window.sliderIncrement);
             updateSliderIncrements(window.sliderIncrement);
-            console.log('Slider increment changed to:', window.sliderIncrement);
         });
         
         // Issuer Min slider
@@ -505,7 +534,7 @@
             } else {
                 localStorage.removeItem('treeFilter_issuerMin');
             }
-            applyTreeFilters();
+            applyTreeFiltersDebounced();
         });
         
         // Issuer Max slider
@@ -521,7 +550,7 @@
             } else {
                 localStorage.removeItem('treeFilter_issuerMax');
             }
-            applyTreeFilters();
+            applyTreeFiltersDebounced();
         });
         
         // Asset Min slider
@@ -537,7 +566,7 @@
             } else {
                 localStorage.removeItem('treeFilter_assetMin');
             }
-            applyTreeFilters();
+            applyTreeFiltersDebounced();
         });
         
         // Asset Max slider
@@ -553,7 +582,7 @@
             } else {
                 localStorage.removeItem('treeFilter_assetMax');
             }
-            applyTreeFilters();
+            applyTreeFiltersDebounced();
         });
         
         // Issuers Only checkbox
@@ -562,7 +591,5 @@
             localStorage.setItem('treeFilter_issuersOnly', window.treeFilters.issuersOnly);
             applyTreeFilters();
         });
-        
-        console.log('Tree filters initialized:', window.treeFilters);
     }
 </script>

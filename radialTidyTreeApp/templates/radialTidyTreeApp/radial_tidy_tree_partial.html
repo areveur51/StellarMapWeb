@@ -6,11 +6,15 @@
 {% endcomment %}
 
 <style>
+    /* Stage: block layout so overlays pin to edges (not flex-centered with the SVG) */
     #radial-tree-container {
-        position: relative;
+        position: relative !important;
+        display: block !important;
         width: 100%;
-        height: 800px;
-        min-height: 60vh;
+        height: min(70vh, 640px);
+        min-height: 360px;
+        touch-action: none;
+        overflow: hidden;
     }
     #radial-tree-container .sm-tree-placeholder {
         position: absolute;
@@ -23,13 +27,248 @@
         pointer-events: none;
         z-index: 0;
     }
+    /* Zoom/pan only affects SVG internals — never these overlays */
     #radial-tree-container svg#tree {
-        position: relative;
+        position: absolute !important;
+        inset: 0;
         z-index: 1;
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+    }
+
+    /* Hidden until a node is selected — never leave an empty shell visible */
+    #radial-tree-container > .sm-tree-breadcrumbs:not(.is-visible),
+    #radial-tree-container > .sm-tree-props:not(.is-visible) {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        opacity: 0 !important;
+    }
+
+    /* Breadcrumbs: pinned top-left — cyberpunk chrome matching app chrome */
+    #radial-tree-container > .sm-tree-breadcrumbs {
+        position: absolute !important;
+        top: 10px !important;
+        left: 10px !important;
+        right: auto !important;
+        bottom: auto !important;
+        max-width: min(70%, calc(100% - 280px));
+        z-index: 30 !important;
+        display: none;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin: 0 !important;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(38, 29, 69, 0.96), rgba(16, 13, 35, 0.96));
+        border: 1px solid #96DDF2;
+        box-shadow: 0 0 18px rgba(150, 221, 242, 0.28), inset 0 0 24px rgba(63, 44, 112, 0.35);
+        pointer-events: auto;
+        transform: none !important;
+    }
+    #radial-tree-container > .sm-tree-breadcrumbs.is-visible {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    .sm-tree-breadcrumbs__chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        line-height: 1.2;
+        letter-spacing: 0.02em;
+        color: #e8e4ff;
+        background: linear-gradient(135deg, #3f2c70, #2a1f4d);
+        border: 1px solid rgba(150, 221, 242, 0.55);
+        box-shadow: 0 0 8px rgba(63, 44, 112, 0.5);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sm-tree-breadcrumbs__chip--asset {
+        background: linear-gradient(135deg, #fcec04, #d4c003);
+        color: #1a1530;
+        border-color: #fcec04;
+        text-shadow: none;
+    }
+    .sm-tree-breadcrumbs__chip--issuer {
+        background: linear-gradient(135deg, #3f2c70, #261d45);
+        color: #96DDF2;
+        border-color: #00FF9C;
+    }
+    .sm-tree-breadcrumbs__chip--active {
+        box-shadow: 0 0 12px rgba(11, 231, 132, 0.55);
+        border-color: #0BE784;
+        color: #0BE784;
+    }
+    .sm-tree-breadcrumbs__chip--asset.sm-tree-breadcrumbs__chip--active {
+        color: #1a1530;
+        box-shadow: 0 0 12px rgba(252, 236, 4, 0.55);
+    }
+    .sm-tree-breadcrumbs__sep {
+        color: #0BE784;
+        font-weight: 800;
+        font-size: 1rem;
+        text-shadow: 0 0 8px rgba(11, 231, 132, 0.45);
+        user-select: none;
+    }
+
+    /*
+     * Properties popup — pinned top-right.
+     * Issuer: purple card; Asset: yellow card (original tooltip colors + app chrome).
+     */
+    #radial-tree-container > .sm-tree-props {
+        position: absolute !important;
+        top: 12px !important;
+        right: 12px !important;
+        left: auto !important;
+        bottom: auto !important;
+        width: min(270px, calc(100% - 24px));
+        max-height: min(70%, 360px);
+        z-index: 30 !important;
+        display: none;
+        flex-direction: column;
+        gap: 0;
+        margin: 0 !important;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid #96DDF2;
+        background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(38, 29, 69, 0.97));
+        color: #f5f3ff;
+        box-shadow: 0 0 22px rgba(150, 221, 242, 0.3), 3px 3px 12px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        pointer-events: auto;
+        font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
+        transform: none !important;
+    }
+    #radial-tree-container > .sm-tree-props.is-visible {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+    #radial-tree-container > .sm-tree-props.sm-tree-props--asset {
+        background: linear-gradient(160deg, rgba(252, 236, 4, 0.96), rgba(214, 196, 20, 0.94));
+        color: #1a1530;
+        border-color: #fcec04;
+        box-shadow: 0 0 20px rgba(252, 236, 4, 0.35), 3px 3px 12px rgba(0, 0, 0, 0.3);
+    }
+    #radial-tree-container > .sm-tree-props.sm-tree-props--issuer {
+        background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(26, 21, 48, 0.97));
+        color: #f5f3ff;
+        border-color: #96DDF2;
+    }
+    .sm-tree-props__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px 8px 0 12px;
+        min-height: 0;
+        border-bottom: 1px solid rgba(150, 221, 242, 0.2);
+    }
+    .sm-tree-props__title {
+        display: block;
+        margin: 0;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #96DDF2;
+    }
+    .sm-tree-props--asset .sm-tree-props__title {
+        color: #3f2c70;
+    }
+    .sm-tree-props__close {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0;
+        border-radius: 8px;
+        border: 1px solid rgba(150, 221, 242, 0.35);
+        background: rgba(16, 13, 35, 0.35);
+        color: #96DDF2;
+        opacity: 0.9;
+        font-size: 1.15rem;
+        line-height: 1;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+    .sm-tree-props--asset .sm-tree-props__close {
+        color: #3f2c70;
+        border-color: rgba(63, 44, 112, 0.35);
+        background: rgba(255, 255, 255, 0.25);
+    }
+    .sm-tree-props__close:hover {
+        opacity: 1;
+        border-color: #0BE784;
+        color: #0BE784;
+        box-shadow: 0 0 10px rgba(11, 231, 132, 0.35);
+    }
+    #sm-tree-props-body,
+    .sm-tree-props__body {
+        padding: 10px 12px 12px;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        line-height: 1.55;
+        word-wrap: break-word;
+        font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
+    }
+    .sm-tree-props__body b,
+    #sm-tree-props-body b {
+        font-weight: 700;
+        color: #96DDF2;
+    }
+    .sm-tree-props--asset .sm-tree-props__body b,
+    .sm-tree-props--asset #sm-tree-props-body b {
+        color: #3f2c70;
+    }
+    .sm-tree-props__line {
+        display: block;
+        margin: 0 0 4px;
+        word-break: break-word;
+        color: inherit;
+    }
+
+    @media (max-width: 1024px) {
+        #radial-tree-container {
+            height: min(62dvh, 560px);
+            min-height: 300px;
+        }
+        #radial-tree-container > .sm-tree-breadcrumbs {
+            max-width: calc(100% - 20px);
+        }
+        .sm-tree-breadcrumbs__chip {
+            font-size: 0.8rem;
+            padding: 7px 10px;
+            min-height: 36px;
+        }
+        /* Stay top-right on tablet/phone too — never re-center with the tree */
+        #radial-tree-container > .sm-tree-props {
+            top: 12px !important;
+            right: 12px !important;
+            left: auto !important;
+            bottom: auto !important;
+            width: min(280px, calc(100% - 24px));
+            max-height: min(45%, 240px);
+        }
     }
 </style>
 
 <div id="radial-tree-container">
     <div class="sm-tree-placeholder" id="sm-tree-placeholder">Loading lineage tree…</div>
+    <nav id="sm-tree-breadcrumbs" class="sm-tree-breadcrumbs" aria-label="Node path" hidden></nav>
+    <aside id="sm-tree-props" class="sm-tree-props sm-tree-props--issuer" aria-label="Node properties" hidden>
+        <div class="sm-tree-props__header">
+            <h3 class="sm-tree-props__title">Properties</h3>
+            <button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>
+        </div>
+        <div id="sm-tree-props-body" class="sm-tree-props__body"></div>
+    </aside>
     <svg id="tree" width="800" height="800" aria-label="Account lineage tree"></svg>
 </div>

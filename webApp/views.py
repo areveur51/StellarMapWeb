@@ -23,7 +23,125 @@ def _skeleton_tree(account):
         'node_type': 'ISSUER',
         'stellar_account': account or '',
         'children': [],
+        'is_lineage_path': True,
+        'is_sibling': False,
+        'is_searched_account': True,
+        'is_issuer': False,
     }
+
+
+def _lineage_example_paths():
+    """Candidate paths for the demo radial tree (schema matches buildTreeFromLineage_v1)."""
+    base = settings.BASE_DIR.parent
+    return [
+        os.path.join(
+            base,
+            'radialTidyTreeApp',
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'lineage_example.json',
+        ),
+        os.path.join(
+            base,
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'lineage_example.json',
+        ),
+        # Legacy fallback (older schema) only if example file missing
+        os.path.join(
+            base,
+            'radialTidyTreeApp',
+            'static',
+            'radialTidyTreeApp',
+            'json',
+            'test_small.json',
+        ),
+    ]
+
+
+def _load_lineage_example_tree():
+    """
+    Load the canned example tree for /search/ with no account param.
+
+    This is **not** live public/testnet data — it demonstrates how real
+    aggregated lineage + siblings + assets should appear in the radial tree.
+    """
+    last_err = None
+    for path in _lineage_example_paths():
+        try:
+            if not os.path.isfile(path):
+                continue
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, dict) and (
+                data.get('stellar_account') or data.get('name') or data.get('children') is not None
+            ):
+                return data, path
+        except Exception as e:
+            last_err = e
+            continue
+    if last_err:
+        sentry_sdk.capture_exception(last_err)
+    return None, None
+
+
+def _find_searched_account_in_tree(node):
+    """Prefer the node flagged is_searched_account; else deepest lineage leaf."""
+    if not isinstance(node, dict):
+        return ''
+    if node.get('is_searched_account') and node.get('stellar_account'):
+        return node['stellar_account']
+    for child in node.get('children') or []:
+        if not isinstance(child, dict):
+            continue
+        if child.get('node_type') == 'ASSET':
+            continue
+        found = _find_searched_account_in_tree(child)
+        if found:
+            return found
+    if node.get('is_lineage_path') and node.get('stellar_account'):
+        # leaf-ish: no ISSUER children
+        issuer_kids = [
+            c for c in (node.get('children') or [])
+            if isinstance(c, dict) and c.get('node_type') != 'ASSET'
+        ]
+        if not issuer_kids:
+            return node['stellar_account']
+    return node.get('stellar_account') or node.get('name') or ''
+
+
+def _example_table_rows_from_tree(tree):
+    """Flatten ISSUER nodes into a simple lineage-table-shaped list for the demo."""
+    rows = []
+
+    def walk(n, level=0):
+        if not isinstance(n, dict):
+            return
+        if n.get('node_type') == 'ASSET':
+            return
+        addr = n.get('stellar_account') or n.get('name') or ''
+        if addr:
+            rows.append({
+                'stellar_account': addr,
+                'stellar_creator_account': n.get('creator_account') or '',
+                'network_name': 'public',
+                'stellar_account_created_at': n.get('created') or '',
+                'home_domain': n.get('home_domain') or '',
+                'xlm_balance': n.get('xlm_balance') if n.get('xlm_balance') is not None else '',
+                'status': 'EXAMPLE',
+                'is_lineage_path': bool(n.get('is_lineage_path')),
+                'is_sibling': bool(n.get('is_sibling')),
+                'is_searched_account': bool(n.get('is_searched_account')),
+                'hierarchy_level': level,
+            })
+        for c in n.get('children') or []:
+            if isinstance(c, dict) and c.get('node_type') != 'ASSET':
+                walk(c, level + 1)
+
+    walk(tree or {}, 0)
+    return rows
 
 
 def _is_terminal_search_cache_status(status):
@@ -351,79 +469,61 @@ def search_view(request):
     account = request.GET.get('account')  # No default, check if provided
     network = request.GET.get('network', 'public')  # Secure default
     
-    # Check if this is a default view (no account parameter provided)
+    # No account param: show canned example tree (schema matches real aggregate output).
+    # This is a demo of creator-path + siblings + assets — not live network data.
     if not account:
-        # Load default test data from test.json
-        # Use BASE_DIR.parent since apps are at workspace root, not in StellarMapWeb/
-        test_json_path = os.path.join(
-            settings.BASE_DIR.parent, 
-            'radialTidyTreeApp', 
-            'static', 
-            'radialTidyTreeApp', 
-            'json', 
-            'test.json'
+        tree_data, example_path = _load_lineage_example_tree()
+        if not tree_data:
+            tree_data = _skeleton_tree(
+                'GD6WU64OEP5C4LRBH6NK3MHYIA2ADN6K6II6EXPNVUR3ERBXT4AN4ACD'
+            )
+            tree_data['home_domain'] = 'example.stellarmap.demo'
+            tree_data['is_searched_account'] = True
+
+        network = 'public'
+        demo_account = _find_searched_account_in_tree(tree_data) or tree_data.get(
+            'stellar_account', ''
         )
-        try:
-            with open(test_json_path, 'r') as f:
-                tree_data = json.load(f)
-            
-            # Set default display values from test data
-            account = tree_data.get('stellar_account', 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB')
-            network = 'public'  # Default to public network
-            
-            # Fetch pending accounts for default view - use helper function
-            pending_accounts_data = fetch_pending_accounts()
-            
-            context = {
-                'search_variable': 'Default Tree Data',
-                'ENV': config('ENV', default='development'),
-                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
-                'account_genealogy_items': [],  # Could parse from tree_data if needed
-                'tree_data': tree_data,
-                'account': account,  # Template expects 'account' not 'query_account'
-                'network': network,  # Template expects 'network' not 'network_selected'
-                'query_account': account,  # For form persistence
-                'network_selected': network,  # For form persistence
-                'radial_tidy_tree_variable': tree_data,  # For the tree template
-                'pending_accounts_data': pending_accounts_data,
-                'request_status_data': {},
-                'account_lineage_data': [],
-            }
-            response = render(request, 'webApp/search.html', context)
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            return response
-            
-        except Exception as e:
-            sentry_sdk.capture_exception(e)
-            # Fallback: Create simple default tree structure
-            tree_data = {
-                'stellar_account': 'GALPCCZN4YXA3YMJHKL6CVIECKPLJJCTVMSNYWBTKJW4K5HQLYLDMZTB',
-                'node_type': 'ISSUER',
-                'created': '2015-09-30 13:15:54',
-                'children': []
-            }
-            account = tree_data['stellar_account']
-            network = 'public'
-            
-            context = {
-                'search_variable': 'Fallback Tree Data',
-                'ENV': config('ENV', default='development'),
-                'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
-                'account_genealogy_items': [],
-                'tree_data': tree_data,
-                'account': account,
-                'network': network,
-                'query_account': account,
-                'network_selected': network,
-                'radial_tidy_tree_variable': tree_data,
-            }
-            response = render(request, 'webApp/search.html', context)
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            return response
+        # Search box starts empty so users paste a real G… address to inquire
+        account_lineage_data = _example_table_rows_from_tree(tree_data)
+        pending_accounts_data = fetch_pending_accounts()
+
+        context = {
+            'search_variable': 'Example lineage visualization',
+            'ENV': config('ENV', default='development'),
+            'SENTRY_DSN_VUE': config('SENTRY_DSN_VUE', default=''),
+            'account_genealogy_items': [],
+            'tree_data': tree_data,
+            'account': '',  # empty — not a live inquiry
+            'network': network,
+            'query_account': '',
+            'network_selected': network,
+            'radial_tidy_tree_variable': tree_data,
+            'pending_accounts_data': pending_accounts_data,
+            'request_status_data': {
+                'status': 'EXAMPLE_DATASET',
+                'cache_status': 'DEMO',
+                'message': (
+                    'Example radial tidy tree (not live public/testnet data). '
+                    'Paste a Stellar account above to scan and aggregate real '
+                    'creator-path + related accounts for that address.'
+                ),
+                'example_demo_account': demo_account,
+                'example_source': example_path or 'fallback',
+            },
+            'account_lineage_data': account_lineage_data,
+            'is_cached': False,
+            'is_refreshing': False,
+            'is_example_dataset': True,
+            'lineage_progressive_siblings': bool(
+                getattr(settings, 'LINEAGE_PROGRESSIVE_SIBLINGS', False)
+            ),
+        }
+        response = render(request, 'webApp/search.html', context)
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        return response
     
     # If account was provided, validate and process
     # Secure validation
@@ -1195,166 +1295,48 @@ def theme_test_view(request):
 
 def high_value_accounts_view(request):
     """
-    High Value Accounts (HVA) view - displays accounts above a configurable XLM threshold.
-    Supports multiple threshold leaderboards (10K, 50K, 100K, 500K, 750K, 1M XLM).
-    Now includes rank change tracking from HVAStandingChange events.
-    
-    Query Parameters:
-        threshold: XLM threshold to use (default: admin-configured threshold)
-    
-    Returns:
-        HttpResponse: Rendered HVA page with list of high value accounts.
+    High Value Accounts (HVA) leaderboard.
+
+    Optimized path (apiApp.helpers.hva_leaderboard):
+    - SQL: indexed is_hva + balance filter, ordered top-N
+    - Cassandra: bounded scan (no full-table list()), short response cache
+    - Rank-change enrichment skipped on Cassandra (N partition reads)
+
+    Query params: network, threshold
     """
-    from apiApp.models import StellarCreatorAccountLineage, HVAStandingChange, BigQueryPipelineConfig
-    from apiApp.helpers.hva_ranking import HVARankingHelper
-    from datetime import timedelta
-    from django.utils import timezone
     import sentry_sdk
-    
-    # Get network from query parameter (default: public)
+
+    from apiApp.helpers.hva_leaderboard import build_hva_leaderboard
+
     network_name = request.GET.get('network', 'public')
-    if network_name not in ['public', 'testnet']:
+    if network_name not in ('public', 'testnet'):
         network_name = 'public'
-    
-    # Get threshold from query parameter or use admin-configured default
+
+    threshold_param = request.GET.get('threshold')
     try:
-        threshold_param = request.GET.get('threshold')
-        if threshold_param:
-            selected_threshold = float(threshold_param)
-        else:
-            # Use admin-configured default
-            selected_threshold = HVARankingHelper.get_hva_threshold()
+        selected_threshold = float(threshold_param) if threshold_param else None
     except (ValueError, TypeError):
-        selected_threshold = HVARankingHelper.get_hva_threshold()
-    
-    # Validate threshold is supported
-    supported_thresholds = HVARankingHelper.get_supported_thresholds()
-    if selected_threshold not in supported_thresholds:
-        # Find closest supported threshold
-        selected_threshold = min(
-            supported_thresholds,
-            key=lambda x: abs(x - selected_threshold)
-        )
-    
-    hva_accounts = []
-    total_hva_balance = 0
-    # Cap list length for SSR (page stays usable; leaderboard is top-N by definition)
-    HVA_DISPLAY_LIMIT = 150
-    # Rank-change enrichment is N partition lookups — only top rows
-    HVA_RANK_ENRICH_LIMIT = 25 if getattr(settings, 'CASSANDRA_READ_ONLY', False) else 50
+        selected_threshold = None
 
     try:
-        admin_threshold = HVARankingHelper.get_hva_threshold()
-        # Prefer is_hva filter (indexed path / smaller set). Full network scan is too
-        # expensive on Cassandra (multi-second–minute). For thresholds below admin
-        # default we still start from is_hva and only fall back to a capped scan
-        # when not in read-only lab mode.
-        records = []
-        try:
-            qs = StellarCreatorAccountLineage.objects.filter(
-                is_hva=True,
-                network_name=network_name,
-            )
-            records = list(qs)
-        except Exception as e:
-            sentry_sdk.capture_exception(e)
-            records = []
-
-        if (
-            not records
-            and selected_threshold < admin_threshold
-            and not getattr(settings, 'CASSANDRA_READ_ONLY', False)
-        ):
-            # Dev/SQL only: broader filter when is_hva empty and lower threshold
-            try:
-                records = list(
-                    StellarCreatorAccountLineage.objects.filter(network_name=network_name)
-                )
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-                records = []
-
-        hva_records = [
-            rec for rec in records
-            if rec.xlm_balance and rec.xlm_balance >= selected_threshold
-        ]
-
-        sorted_records = sorted(
-            hva_records,
-            key=lambda x: x.xlm_balance if x.xlm_balance else 0,
-            reverse=True,
-        )[:HVA_DISPLAY_LIMIT]
-
-        cutoff_time = timezone.now() - timedelta(hours=24)
-
-        for rank, record in enumerate(sorted_records, start=1):
-            tags_list = [tag.strip() for tag in record.tags.split(',')] if record.tags else []
-
-            rank_change = 0
-            event_type = None
-            previous_rank = None
-            balance_change_pct = 0.0
-
-            if rank <= HVA_RANK_ENRICH_LIMIT:
-                try:
-                    all_changes = list(
-                        HVAStandingChange.objects.filter(
-                            stellar_account=record.stellar_account
-                        )
-                    )
-                    threshold_changes = [
-                        c for c in all_changes
-                        if (
-                            hasattr(c, 'xlm_threshold')
-                            and abs((c.xlm_threshold or 0) - selected_threshold) < 1.0
-                            and c.network_name == network_name
-                        )
-                    ]
-                    if threshold_changes:
-                        recent_change = sorted(
-                            threshold_changes,
-                            key=lambda x: x.created_at or timezone.now(),
-                            reverse=True,
-                        )[0]
-                        if recent_change.created_at and recent_change.created_at >= cutoff_time:
-                            rank_change = recent_change.rank_change or 0
-                            event_type = recent_change.event_type
-                            previous_rank = recent_change.old_rank
-                            balance_change_pct = recent_change.balance_change_pct or 0.0
-                except Exception:
-                    pass
-
-            hva_accounts.append({
-                'stellar_account': record.stellar_account,
-                'network_name': record.network_name,
-                'xlm_balance': record.xlm_balance or 0,
-                'stellar_creator_account': record.stellar_creator_account,
-                'home_domain': record.home_domain,
-                'tags': tags_list,
-                'status': record.status,
-                'created_at': record.created_at,
-                'updated_at': record.updated_at,
-                'current_rank': rank,
-                'rank_change': rank_change,
-                'event_type': event_type,
-                'previous_rank': previous_rank,
-                'balance_change_pct': balance_change_pct,
-            })
-            total_hva_balance += (record.xlm_balance or 0)
-
+        context = build_hva_leaderboard(
+            network_name=network_name,
+            selected_threshold=selected_threshold,
+            use_cache=True,
+        )
     except Exception as e:
         sentry_sdk.capture_exception(e)
+        context = {
+            'hva_accounts': [],
+            'total_hva_count': 0,
+            'total_hva_balance': 0,
+            'selected_threshold': selected_threshold or 100000.0,
+            'supported_thresholds': [10000, 50000, 100000, 500000, 750000, 1000000],
+            'admin_default_threshold': 100000.0,
+            'hva_display_limit': 100,
+            'meta': {'error': str(e)},
+        }
 
-    context = {
-        'hva_accounts': hva_accounts,
-        'total_hva_count': len(hva_accounts),
-        'total_hva_balance': total_hva_balance,
-        'selected_threshold': selected_threshold,
-        'supported_thresholds': HVARankingHelper.get_supported_thresholds(),
-        'admin_default_threshold': HVARankingHelper.get_hva_threshold(),
-        'hva_display_limit': HVA_DISPLAY_LIMIT,
-    }
-    
     return render(request, 'webApp/high_value_accounts.html', context)
 
 

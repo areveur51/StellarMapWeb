@@ -48,8 +48,8 @@ class SearchViewDefaultTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'webApp/search.html')
     
-    def test_search_view_loads_test_data(self):
-        """Test that search view loads test.json data by default."""
+    def test_search_view_loads_example_lineage_tree(self):
+        """Default /search/ loads canned lineage_example (not live network data)."""
         response = self.client.get('/search/')
         self.assertEqual(response.status_code, 200)
         
@@ -57,10 +57,16 @@ class SearchViewDefaultTests(TestCase):
         self.assertIn('tree_data', response.context)
         tree_data = response.context['tree_data']
         
-        # Verify tree_data is not empty
+        # Verify tree_data is not empty and matches real aggregate shape
         self.assertIsNotNone(tree_data)
         self.assertIsInstance(tree_data, dict)
         self.assertIn('stellar_account', tree_data)
+        self.assertTrue(response.context.get('is_example_dataset'))
+        # Schema parity with buildTreeFromLineage_v1
+        self.assertIn('is_lineage_path', tree_data)
+        self.assertIn('children', tree_data)
+        # Search box empty — user must inquire a real account
+        self.assertEqual(response.context.get('account') or '', '')
     
     def test_search_view_context_variables(self):
         """Test that all required context variables are present."""

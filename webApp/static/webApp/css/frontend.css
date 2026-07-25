@@ -508,8 +508,9 @@ body.sm-progress-active {
     background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
     margin-bottom: 17px;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
     border: 1px solid #3f2c70;
     border-radius: 8px;
     box-shadow: 0 4px 30px rgba(150, 221, 242, 0.15), inset 0 0 100px rgba(150, 221, 242, 0.03);
@@ -534,16 +535,15 @@ body.sm-progress-active {
     to { transform: rotate(360deg); }
 }
 
-/* Radial tree inner container - fill parent */
+/* Radial tree inner container - fill parent (do NOT flex-center; overlays pin to edges) */
 #radial-tree-container {
     width: 100%;
     height: 100%;
     min-height: 80vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     position: relative;
     z-index: 1;
+    overflow: hidden;
 }
 
 /* Vue.js table overrides for dark theme */
@@ -1844,8 +1844,9 @@ body.sm-progress-active {
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 1100px;
-  margin: 0 auto;
+  max-width: none; /* full screen width (within top-container padding) */
+  margin: 0;
+  box-sizing: border-box;
   border: 4px solid var(--search-container-border);
   border-radius: 10px;
   background: linear-gradient(135deg, #100D23 0%, #1a1530 100%);
@@ -2055,23 +2056,68 @@ body.sm-progress-active {
   margin: 12px 0 16px;
   background: linear-gradient(135deg, #231B3D 0%, #1a1530 100%);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   border: 1px solid #3f2c70;
   border-radius: 10px;
   position: relative;
   overflow: hidden;
+  padding: 8px;
+}
+.response-container {
+  position: relative;
 }
 #radial-tree-container {
   width: 100%;
   height: min(70vh, 640px);
-  min-height: 420px;
+  min-height: 360px;
   position: relative;
+  display: block;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
+/* SVG fills the stage; zoom/pan only transforms inside the SVG */
 #radial-tree-container svg#tree {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+  z-index: 1;
+}
+/* Pinned HUD — position only; full theme lives in visualization_controls.css
+   (external sheet survives Vue mount; #app inline <style> does not). */
+#radial-tree-container > .sm-tree-breadcrumbs,
+#radial-tree-container > .sm-tree-props {
+  position: absolute !important;
+  z-index: 30 !important;
+  margin: 0 !important;
+  transform: none !important;
+  float: none !important;
+}
+#radial-tree-container > .sm-tree-breadcrumbs {
+  top: 10px !important;
+  left: 10px !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+#radial-tree-container > .sm-tree-props {
+  top: 12px !important;
+  right: 12px !important;
+  left: auto !important;
+  bottom: auto !important;
+}
+@media (max-width: 1024px) {
+  .radial-tree-visual {
+    min-height: min(62dvh, 560px);
+    padding: 6px;
+  }
+  #radial-tree-container {
+    height: min(62dvh, 560px);
+    min-height: 300px;
+  }
 }
 
 /* Tables: allow horizontal scroll on small screens */
@@ -2335,6 +2381,9 @@ body.sm-progress-active {
   z-index: 2001;
   pointer-events: auto !important;
   overflow: visible !important;
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
 }
 
 /* Drawer */

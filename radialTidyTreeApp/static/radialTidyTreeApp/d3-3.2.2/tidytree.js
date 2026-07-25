@@ -284,307 +284,167 @@ function renderRadialTree(jsonData) {
             };
         }
 
-        console.log('Processing tree data:', processedData);
-
-        // Pre-analyze tree to calculate optimal radius where nodes TOUCH but DON'T OVERLAP
+        // Pre-analyze tree: adapt radius so the densest sibling ring fills a full circle
         const tempRoot = d3.hierarchy(processedData);
         const tempDescendants = tempRoot.descendants();
-        
-        // Count nodes at each depth level
         const nodesPerDepth = {};
         let maxDepth = 0;
+        let maxSiblingsAtDepth = 1;
         tempDescendants.forEach(d => {
             nodesPerDepth[d.depth] = (nodesPerDepth[d.depth] || 0) + 1;
             maxDepth = Math.max(maxDepth, d.depth);
-        });
-        
-        // Calculate compact radius following Bostock's pattern
-        // Use smaller label width for standard sizes, and apply compactness factor
-        const labelWidth = 50; // pixels per node label (compact spacing)
-        let minRadius = 200; // reduced absolute minimum for compactness
-        
-        for (let depth = 1; depth <= maxDepth; depth++) {
-            const nodeCount = nodesPerDepth[depth] || 0;
-            if (nodeCount > 0) {
-                // Calculate radius and apply compactness factor to shorten child lines
-                const requiredRadius = (nodeCount * labelWidth * maxDepth) / (2 * Math.PI * depth);
-                minRadius = Math.max(minRadius, requiredRadius * RADIAL_COMPACTNESS);
+            if (d.depth > 0) {
+                maxSiblingsAtDepth = Math.max(maxSiblingsAtDepth, nodesPerDepth[d.depth]);
             }
+        });
+        // Also consider widest sibling group under a single parent
+        tempRoot.each(d => {
+            if (d.children && d.children.length > maxSiblingsAtDepth) {
+                maxSiblingsAtDepth = d.children.length;
+            }
+        });
+
+        // Arc spacing: node diameter + gap so circles do not sit on top of each other
+        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
+        const nodeHitR = RADIAL_NODE_SIZE + 1.5; // matches searched-account max circle
+        const minNodeGapPx = 8; // clear air between circle edges
+        const minChordPx = Math.max(
+            nodeHitR * 2 + minNodeGapPx,
+            28,
+            34 * spacingMultiplier
+        );
+        // circumference ≈ 2π r  =>  r >= (siblings * minChord) / 2π
+        const radiusFromSiblings = (maxSiblingsAtDepth * minChordPx) / (2 * Math.PI);
+        // Depth rings need at least one full node diameter + gap between levels
+        const minRadialStep = nodeHitR * 2 + minNodeGapPx + 12;
+        const radiusFromDepth = Math.max(1, maxDepth) * Math.max(minRadialStep, maxSiblingsAtDepth < 20 ? 90 : 70);
+        let calculatedRadius = Math.max(200, radiusFromSiblings, radiusFromDepth * RADIAL_COMPACTNESS);
+        // Soft cap for small viewports (still allow zoom for dense trees)
+        const hostEl = document.getElementById('radial-tree-container');
+        const vw = Math.min(
+            (typeof window !== 'undefined' && window.innerWidth) || 800,
+            (hostEl && hostEl.clientWidth) || 800
+        );
+        const vh = Math.min(
+            (typeof window !== 'undefined' && window.innerHeight) || 800,
+            (hostEl && hostEl.clientHeight) || 640
+        );
+        const viewportCap = Math.max(180, Math.min(vw, vh) * 0.48);
+        if (calculatedRadius > viewportCap * 2.2) {
+            calculatedRadius = viewportCap * 2.2;
         }
-        
-        // Use calculated radius for compact tree
-        const calculatedRadius = Math.floor(minRadius);
-        
-        console.log(`[Radial Tree] Nodes per depth:`, nodesPerDepth);
-        console.log(`[Radial Tree] Max depth: ${maxDepth}, Total nodes: ${tempDescendants.length}`);
-        console.log(`[Radial Tree] Calculated compact radius: ${calculatedRadius}px`);
-        console.log(`[Radial Tree] Standard sizes - Node: ${RADIAL_NODE_SIZE}px, Text: ${RADIAL_TEXT_SIZE}px, Compactness: ${RADIAL_COMPACTNESS}`);
-        
-        // Set canvas size based on radius to fit whole tree on screen
-        const size = Math.floor((calculatedRadius + 150) * 2); // Reduced margin for compact layout
-        const radius = calculatedRadius;
+        calculatedRadius = Math.floor(calculatedRadius);
+        let size = Math.floor((calculatedRadius + 100) * 2);
+        let radius = calculatedRadius;
+
+        ensureTreeChrome();
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
             d3.select('body').append('svg').attr('id', 'tree');
         }
-        
+
         const svg = d3.select('#tree')
             .attr('width', '100%')
             .attr('height', '100%')
             .attr('viewBox', `0 0 ${size} ${size}`)
-            .attr('preserveAspectRatio', 'xMidYMid meet');
-            
-        svg.selectAll('*').remove();
+            .attr('preserveAspectRatio', 'xMidYMid meet')
+            .style('touch-action', 'none'); // pan/zoom without page scroll fighting
 
-        // Create main group for zoom/pan transformations
+        svg.selectAll('*').remove();
+        // Remove legacy floating tooltip / SVG breadcrumb artifacts (looked like pinned nodes)
+        d3.selectAll('body > .tooltip').remove();
+        d3.selectAll('#radial-tree-container .breadcrumb-container').remove();
+        clearTreeSelectionUI();
+
         const g = svg.append('g')
+            .attr('class', 'sm-tree-zoom-layer')
             .attr('transform', `translate(${size / 2},${size / 2})`);
-        
-        // Set up D3 zoom behavior
+
         const zoom = d3.zoom()
-            .scaleExtent([0.1, 10])  // Min and max zoom levels
+            .scaleExtent([0.12, 8])
+            .filter((event) => {
+                // Allow node clicks; block only primary-button pan from starting on nodes
+                if (event.type === 'wheel') return true;
+                if (event.target && event.target.closest && event.target.closest('.node')) {
+                    return event.type === 'wheel';
+                }
+                return !event.ctrlKey || event.type === 'wheel';
+            })
             .on('zoom', (event) => {
-                g.attr('transform', `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`);
+                g.attr(
+                    'transform',
+                    `translate(${size / 2 + event.transform.x},${size / 2 + event.transform.y}) scale(${event.transform.k})`
+                );
             });
-        
-        // Apply zoom to SVG
         svg.call(zoom);
-        
-        // Store zoom and SVG in global scope for zoom controls
         window.zoomBehavior = zoom;
         window.svg = svg;
-        
-        // Reset zoom function for "Fit to Window" button
-        window.resetZoom = function() {
-            svg.transition().duration(750)
-                .call(zoom.transform, d3.zoomIdentity);
+        window.resetZoom = function () {
+            svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
         };
 
-        const breadcrumbContainer = svg.append('g')
-            .attr('class', 'breadcrumb-container')
-            .attr('transform', 'translate(20, 20)');
-
-        // Get spacing multiplier from global variable (controlled by slider)
-        const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
-        console.log('[Radial Tree] Rendering with spacing multiplier:', spacingMultiplier);
-        console.log('[Radial Tree] Using Mike Bostock approach: .size([2π, radius])');
-        
-        // Use Mike Bostock's canonical approach from https://gist.github.com/mbostock/4063550
-        // Key: .size([2 * Math.PI, radius]) ensures siblings naturally spread around full 360° arc
+        // Full-circle layout: angles span [0, 2π] so siblings complete a radial ring
+        // (no lineage-sector clamp — that left half the circle empty with few siblings)
         const tree = d3.tree()
-            .size([2 * Math.PI, radius * 0.9])  // Full circle, use 90% for inner content + label space
+            .size([2 * Math.PI, radius * 0.88])
             .separation((a, b) => {
-                // Bostock's separation formula: siblings closer, non-siblings farther
-                return (a.parent === b.parent ? 1 : 2) / a.depth;
+                // Equal weight among siblings so a ring fills evenly;
+                // slight extra gap between different parents
+                if (a.parent === b.parent) {
+                    return 1;
+                }
+                return 1.35;
             });
 
         const root = d3.hierarchy(processedData);
-        console.log('[Radial Tree] Tree has', root.children ? root.children.length : 0, 'children');
-
-        // Run D3 tree layout - with .size([2π, radius]), angles are already distributed 0 to 2π
         tree(root);
-        
         const descendants = root.descendants();
-        console.log('[Radial Tree] Layout complete - angles naturally span 0 to 2π');
-        console.log('[Radial Tree] Total nodes:', descendants.length);
-        
-        // LINEAGE-FIRST POSITIONING: Position lineage nodes sequentially, then fit others around them
-        // Extract lineage chain in hierarchical order (root → searched account)
-        const lineageChain = [];
-        descendants.forEach(d => {
-            if (d.data && d.data.is_lineage_path) {
-                lineageChain.push(d);
-            }
-        });
-        
-        // Sort lineage by depth to get correct order (parent → child)
-        lineageChain.sort((a, b) => a.depth - b.depth);
-        
-        console.log('[Lineage-First Layout] Found', lineageChain.length, 'lineage nodes');
-        
-        // Store original angles from D3 layout BEFORE we modify anything
-        const originalAngles = new Map();
-        descendants.forEach(d => originalAngles.set(d, d.x));
-        
-        // ADAPTIVE LINE LENGTH: Adjust radius based on node count for better readability
-        // Fewer nodes = longer lines (more spread out), many nodes = shorter lines (compact)
-        const totalNodeCount = descendants.length;
-        let lineageRadiusMultiplier, nonLineageRadiusMultiplier;
-        
-        if (totalNodeCount < 50) {
-            // Few nodes: make lines long for readability
-            lineageRadiusMultiplier = 0.75;
-            nonLineageRadiusMultiplier = 0.95;
-        } else if (totalNodeCount < 150) {
-            // Medium nodes: moderate compression
-            lineageRadiusMultiplier = 0.6;
-            nonLineageRadiusMultiplier = 0.92;
-        } else {
-            // Many nodes: keep compact
-            lineageRadiusMultiplier = 0.5;
-            nonLineageRadiusMultiplier = 0.9;
-        }
-        
-        console.log('[Lineage-First Layout] Adaptive radii for', totalNodeCount, 'nodes:',
-                   'lineage=' + (lineageRadiusMultiplier * 100).toFixed(0) + '%,',
-                   'non-lineage=' + (nonLineageRadiusMultiplier * 100).toFixed(0) + '%');
-        
-        if (lineageChain.length > 1) {
-            // FIBONACCI SPIRAL: Use golden angle for natural, organic spacing
-            // Golden angle ≈ 137.508° (2π / φ², where φ is the golden ratio)
-            const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ≈ 2.399963 radians ≈ 137.508°
-            
-            console.log('[Lineage-First Layout] Using Fibonacci spiral with golden angle:', 
-                       (goldenAngle * 180 / Math.PI).toFixed(3), '°');
-            
-            // Calculate angle per node, scaling down for compactness
-            // But ensure the total sector never exceeds reasonable bounds
-            const maxSectorSize = Math.PI; // Max 180° for lineage (leave half circle for others)
-            let anglePerNode = goldenAngle * 0.05; // Start with ~6.9° per node for tight spiral
-            
-            // Adjust if lineage chain would exceed max sector
-            let lineageSectorSize = (lineageChain.length - 1) * anglePerNode;
-            if (lineageSectorSize > maxSectorSize) {
-                // Scale down to fit within max sector
-                anglePerNode = maxSectorSize / (lineageChain.length - 1);
-                lineageSectorSize = maxSectorSize;
-                console.log('[Lineage-First Layout] Adjusted angle per node to fit:', 
-                           (anglePerNode * 180 / Math.PI).toFixed(1), '°');
-            }
-            
-            // Center the spiral around 0 radians (top of circle)
-            // This ensures the median lineage node sits on the vertical axis
-            const lineageSectorStart = -(lineageSectorSize / 2);
-            const lineageSectorEnd = +(lineageSectorSize / 2);
-            
-            console.log('[Lineage-First Layout] Fibonacci sector:', 
-                       (lineageSectorStart * 180 / Math.PI).toFixed(1), '° to',
-                       (lineageSectorEnd * 180 / Math.PI).toFixed(1), '°',
-                       '(', (lineageSectorSize * 180 / Math.PI).toFixed(1), '° total)');
-            
-            // Find the max depth in lineage chain
-            const maxLineageDepth = Math.max(...lineageChain.map(d => d.depth));
-            const maxLineageRadius = radius * lineageRadiusMultiplier;
-            
-            // Position lineage nodes sequentially in spiral pattern
-            lineageChain.forEach((node, i) => {
-                // Progress through the sector following fibonacci-inspired spacing
-                node.x = lineageSectorStart + (i * anglePerNode);
-                
-                // Compress radial position to keep spiral compact
-                // Map depth 0..maxLineageDepth to radius 0..maxLineageRadius
-                const depthRatio = maxLineageDepth > 0 ? node.depth / maxLineageDepth : 0;
-                node.y = depthRatio * maxLineageRadius;
-                
-                console.log(`  Lineage[${i}] ${node.data.stellar_account || node.data.name} →`, 
-                           (node.x * 180 / Math.PI).toFixed(1), '°,',
-                           'r=' + node.y.toFixed(1) + 'px');
-            });
-            
-            // REDISTRIBUTE NON-LINEAGE PARENT GROUPS to utilize full circle space
-            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
-            
-            // Find max depth of all nodes to determine safe radius cap
-            const maxDepth = Math.max(...descendants.map(d => d.depth));
-            const maxSafeRadius = radius * nonLineageRadiusMultiplier; // Use adaptive radius cap
-            
-            // Group non-lineage nodes by their parent
-            const parentGroups = new Map();
-            nonLineageNodes.forEach(node => {
-                const parentId = node.parent ? (node.parent.data.stellar_account || node.parent.data.name) : 'root';
-                if (!parentGroups.has(parentId)) {
-                    parentGroups.set(parentId, {
-                        parent: node.parent,
-                        children: [],
-                        descendantCount: 0
-                    });
-                }
-                const group = parentGroups.get(parentId);
-                group.children.push(node);
-                // Count all descendants recursively for weighting
-                group.descendantCount += 1 + (node.descendants ? node.descendants().length - 1 : 0);
-            });
-            
-            console.log('[Lineage-First Layout] Found', parentGroups.size, 'parent groups with',
-                       nonLineageNodes.length, 'total non-lineage nodes');
-            
-            // Calculate available angular space (full circle minus lineage sector)
-            const availableAngle = 2 * Math.PI - lineageSectorSize;
-            const availableStart = lineageSectorEnd;
-            const availableEnd = availableStart + availableAngle;
-            
-            // Distribute parent groups evenly across available space
-            const groupsArray = Array.from(parentGroups.values());
-            const totalDescendants = groupsArray.reduce((sum, g) => sum + g.descendantCount, 0);
-            
-            let currentAngle = availableStart;
-            groupsArray.forEach((group, groupIndex) => {
-                // Allocate angular space proportional to group size
-                const groupWeight = totalDescendants > 0 ? group.descendantCount / totalDescendants : 1 / groupsArray.length;
-                const groupAngleSpan = availableAngle * groupWeight;
-                const groupCenterAngle = currentAngle + (groupAngleSpan / 2);
-                
-                console.log(`  Group[${groupIndex}] (${group.children.length} children,`,
-                           `${group.descendantCount} descendants) → center angle:`,
-                           (groupCenterAngle * 180 / Math.PI).toFixed(1), '°');
-                
-                // Position each child in the group relative to group center
-                group.children.forEach(node => {
-                    if (node.parent) {
-                        // Calculate angular offset from parent in original D3 layout
-                        const originalParentAngle = originalAngles.get(node.parent);
-                        const originalNodeAngle = originalAngles.get(node);
-                        let angularOffset = originalNodeAngle - originalParentAngle;
-                        
-                        // Normalize offset to [-π, π]
-                        while (angularOffset > Math.PI) angularOffset -= 2 * Math.PI;
-                        while (angularOffset < -Math.PI) angularOffset += 2 * Math.PI;
-                        
-                        // Position child relative to group center angle (preserves sibling spacing)
-                        node.x = (groupCenterAngle + angularOffset) % (2 * Math.PI);
-                        if (node.x < 0) node.x += 2 * Math.PI;
-                    } else {
-                        // Root node or orphan - use group center angle
-                        node.x = groupCenterAngle;
-                    }
-                    
-                    // SCALE radius adaptively: extend for small graphs, compress for large
-                    // D3 layout defaults to 0.9 * radius, so scale relative to that baseline
-                    const baselineMultiplier = 0.9;
-                    const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
-                    node.y = node.y * scaleFactor;
-                    
-                    // Additional safety cap at adaptive threshold
-                    const depthRatio = maxDepth > 0 ? node.depth / maxDepth : 0;
-                    node.y = Math.min(node.y, depthRatio * maxSafeRadius);
-                });
-                
-                currentAngle += groupAngleSpan;
-            });
-            
-            console.log('[Lineage-First Layout] Complete - lineage path is now sequential');
-        } else {
-            console.log('[Lineage-First Layout] Skipping lineage spiral - only', lineageChain.length, 'lineage node(s)');
-            
-            // Still apply adaptive scaling to all non-lineage nodes
-            const nonLineageNodes = descendants.filter(d => !d.data || !d.data.is_lineage_path);
-            const baselineMultiplier = 0.9;
-            const scaleFactor = nonLineageRadiusMultiplier / baselineMultiplier;
-            
-            console.log('[Lineage-First Layout] Applying adaptive scaling to', nonLineageNodes.length,
-                       'non-lineage nodes with factor:', scaleFactor.toFixed(3));
-            
-            nonLineageNodes.forEach(node => {
-                node.y = node.y * scaleFactor;
-            });
-        }
-        
-        // Let D3's natural layout handle spacing - .size([2π, radius]) already spreads nodes
-        // around the full 360° circle, so no manual redistribution needed!
 
-        // Debug counter for logging
-        let linkCounter = 0;
+        // Normalize angles into [0, 2π] after layout (stable for polar projection)
+        let minX = Infinity;
+        let maxX = -Infinity;
+        descendants.forEach(d => {
+            if (d.x < minX) minX = d.x;
+            if (d.x > maxX) maxX = d.x;
+        });
+        const spanX = maxX - minX || 1;
+        if (Math.abs(spanX - 2 * Math.PI) > 0.05 || minX < -0.01 || maxX > 2 * Math.PI + 0.01) {
+            // Normalize angles to [0, 2π] so the ring is complete
+            descendants.forEach(d => {
+                d.x = ((d.x - minX) / spanX) * 2 * Math.PI;
+            });
+        }
+
+        // Soft radial scale: few nodes stretch outward; dense trees stay compact
+        const totalNodeCount = descendants.length;
+        let radialScale = 1;
+        if (totalNodeCount < 30) radialScale = 1.05;
+        else if (totalNodeCount > 200) radialScale = 0.92;
+        if (radialScale !== 1) {
+            descendants.forEach(d => {
+                d.y = d.y * radialScale;
+            });
+        }
+
+        // Post-layout: enforce non-overlapping node circles (angular + radial)
+        resolveRadialNodeOverlaps(descendants, {
+            nodeRadius: nodeHitR,
+            minGap: minNodeGapPx,
+            minRadialStep: minRadialStep
+        });
+
+        // Expand canvas if outer ring grew past original radius budget
+        let maxY = 0;
+        descendants.forEach(d => { if (d.y > maxY) maxY = d.y; });
+        if (maxY > radius * 0.92) {
+            radius = Math.ceil(maxY / 0.88);
+            size = Math.floor((radius + 100) * 2);
+            svg.attr('viewBox', `0 0 ${size} ${size}`);
+            g.attr('transform', `translate(${size / 2},${size / 2})`);
+        }
+
+        const debugRadial = !!(typeof window !== 'undefined' && window.SM_DEBUG_RADIAL);
         
         // Custom link generator for lineage paths that takes the shortest angular path
         // Uses manual SVG arc construction to ensure shortest path around the circle
@@ -649,15 +509,6 @@ function renderRadialTree(jsonData) {
                 }
             })
             .style('stroke', d => {
-                // Debug: Log link metadata for first 5 links
-                if (linkCounter < 5) {
-                    console.log('[Radial Link Color]', 
-                        'target:', d.target.data.stellar_account || d.target.data.name,
-                        'is_lineage_path:', d.target.data.is_lineage_path,
-                        'is_sibling:', d.target.data.is_sibling);
-                    linkCounter++;
-                }
-                
                 // Color coding: Red for direct lineage path, Gray for siblings
                 if (d.target.data && d.target.data.is_lineage_path) {
                     return '#ff3366';  // Red for direct lineage path
@@ -699,44 +550,39 @@ function renderRadialTree(jsonData) {
             .attr('transform', d => {
                 const angle = (d.x * 180 / Math.PI) - 90;
                 return `rotate(${angle})translate(${d.y},0)`;
-            });
+            })
+            .style('cursor', 'pointer');
+
+        function circleFill(d) {
+            if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return '#1a1a2e';
+            return '#3f2c70';
+        }
+        function circleStroke(d) {
+            if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return '#2a2a3e';
+            if (d.data.is_searched_account) return '#00ffff';
+            return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+        }
 
         node.append('circle')
             .attr('r', d => {
-                // Fixed standard size with slight increase for searched account
                 return d.data.is_searched_account ? RADIAL_NODE_SIZE + 1.5 : RADIAL_NODE_SIZE;
             })
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', d => {
-                // Check if node should be muted (filtered)
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return '#1a1a2e';  // Dark background color (muted)
-                }
-                return '#3f2c70';  // Normal cyberpunk purple
-            })
-            .style('stroke', d => {
-                // Check if node should be muted (filtered)
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return '#2a2a3e';  // Slightly lighter dark (muted)
-                }
-                // Cyan glow for searched account
-                if (d.data.is_searched_account) {
-                    return '#00ffff';  // Cyan for searched account
-                }
-                // Yellow for assets, green for issuers
-                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
-            })
+            .style('fill', circleFill)
+            .style('stroke', circleStroke)
             .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2px')
             .style('opacity', d => {
-                // Reduce opacity for muted nodes
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return 0.2;  // Very dim for filtered nodes
-                }
-                return 1;  // Normal visibility
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return 0.2;
+                return 1;
             })
-            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none')
-            .on('mouseover', function(event, d) { showTooltip(event, d); })
-            .on('mouseout', function(event, d) { hideTooltip(); });
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none');
+
+        // Dense sibling rings: slightly smaller labels so arcs stay readable
+        const labelPx = maxSiblingsAtDepth > 48
+            ? Math.max(11, RADIAL_TEXT_SIZE - 4)
+            : maxSiblingsAtDepth > 24
+                ? Math.max(13, RADIAL_TEXT_SIZE - 2)
+                : RADIAL_TEXT_SIZE;
 
         node.append('text')
             .attr('dy', '.31em')
@@ -744,45 +590,24 @@ function renderRadialTree(jsonData) {
             .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
             .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
             .text(d => {
-                // For ISSUER nodes (stellar_account), show last 7 characters
                 if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
                     return d.data.stellar_account.slice(-7);
                 }
-                // For ASSET nodes, show the asset code
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
-            .style('font-size', RADIAL_TEXT_SIZE + 'px')
+            .style('font-size', labelPx + 'px')
             .style('font-weight', '500')
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+            .style('pointer-events', 'none')
             .style('opacity', d => {
-                // Reduce opacity for muted nodes
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return 0.15;  // Very dim text for filtered nodes
-                }
-                return 1;  // Normal visibility
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return 0.15;
+                return 1;
             });
 
-        let tooltip = d3.select('body').select('.tooltip');
-        if (tooltip.empty()) {
-            tooltip = d3.select('body').append('div')
-                .attr('class', 'tooltip')
-                .style('opacity', 0)
-                .style('position', 'absolute')
-                .style('color', 'black')
-                .style('padding', '10px')
-                .style('border-radius', '6px')
-                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
-                .style('font', '12px sans-serif')
-                .style('width', '250px')
-                .style('word-wrap', 'break-word')
-                .style('pointer-events', 'none')
-                .style('z-index', '1000');
-        }
-
-        function getPathToRoot(node) {
+        function getPathToRoot(hierarchyNode) {
             const path = [];
-            let current = node;
+            let current = hierarchyNode;
             while (current) {
                 path.unshift(current);
                 current = current.parent;
@@ -790,147 +615,28 @@ function renderRadialTree(jsonData) {
             return path;
         }
 
-        function showTooltip(event, d) {
-            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
-            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
-            
-            const pathToRoot = getPathToRoot(d);
-            const pathLinks = new Set();
-            for (let i = 1; i < pathToRoot.length; i++) {
-                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
-            }
-            
-            link.style('stroke', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
-            })
-            .style('stroke-width', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? '3px' : '1.5px';
-            })
-            .style('opacity', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? 1 : 0.3;
-            });
-
-            breadcrumbContainer.selectAll('*').remove();
-            
-            let xOffset = 0;
-            pathToRoot.forEach((node, i) => {
-                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-                // Truncate ISSUER stellar_account to last 7 characters for breadcrumb
-                let breadcrumbText;
-                if (node.data.stellar_account && node.data.node_type === 'ISSUER') {
-                    breadcrumbText = node.data.stellar_account.slice(-7);
-                } else {
-                    breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
-                }
-                const textWidth = breadcrumbText.length * 7;
-                
-                breadcrumbContainer.append('rect')
-                    .attr('x', xOffset)
-                    .attr('y', 0)
-                    .attr('width', textWidth + 20)
-                    .attr('height', 25)
-                    .attr('fill', breadcrumbColor)
-                    .attr('rx', 4);
-                
-                breadcrumbContainer.append('text')
-                    .attr('x', xOffset + 10)
-                    .attr('y', 17)
-                    .text(breadcrumbText)
-                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
-                    .style('font-size', '12px')
-                    .style('font-weight', 'bold');
-                
-                xOffset += textWidth + 25;
-                
-                if (i < pathToRoot.length - 1) {
-                    breadcrumbContainer.append('text')
-                        .attr('x', xOffset)
-                        .attr('y', 17)
-                        .text('>')
-                        .style('fill', 'white')
-                        .style('font-size', '14px')
-                        .style('font-weight', 'bold');
-                    xOffset += 20;
-                }
-            });
-            
-            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
-            if (d.data.node_type === 'ASSET') {
-                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
-                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
-                tooltipHTML += '<b>Balance:</b> ' + (parseFloat(d.data.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
-            } else {
-                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
-                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
-                tooltipHTML += '<b>XLM Balance:</b> ' + (parseFloat(d.data.xlm_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
-                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
-            }
-            tooltip.html(tooltipHTML)
-                .style('background', backgroundColor)
-                .style('color', textColor)
-                .style('opacity', 1);
-            
-            // Smart positioning to prevent tooltip from going off-screen
-            const tooltipNode = tooltip.node();
-            const tooltipRect = tooltipNode.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            
-            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
-            let left = event.clientX + 10;
-            let top = event.clientY - 28;
-            
-            // Check right edge - if tooltip goes off-screen, show on left side of cursor
-            if (left + tooltipRect.width > viewportWidth) {
-                left = event.clientX - tooltipRect.width - 10;
-            }
-            
-            // Check left edge - ensure tooltip doesn't go off left side
-            if (left < 0) {
-                left = 10;
-            }
-            
-            // Check bottom edge - if tooltip goes off-screen, show above cursor
-            if (top + tooltipRect.height > viewportHeight) {
-                top = event.clientY - tooltipRect.height - 10;
-            }
-            
-            // Check top edge - ensure tooltip doesn't go off top
-            if (top < 0) {
-                top = event.clientY + 20;
-            }
-            
-            // Convert to page coordinates by adding scroll offsets
-            tooltip.style('left', (left + window.scrollX) + 'px')
-                .style('top', (top + window.scrollY) + 'px');
+        function linkKey(sourceData, targetData) {
+            const s = sourceData.stellar_account || sourceData.asset_code || sourceData.name || 'root';
+            const t = targetData.stellar_account || targetData.asset_code || targetData.name || 'node';
+            return s + '_' + t;
         }
 
-        function hideTooltip() {
-            tooltip.style('opacity', 0);
-            
-            // CRITICAL FIX: Don't reset ALL links - restore based on their type
-            link.each(function(d) {
+        function restoreLinkStyles() {
+            link.each(function (d) {
                 const linkElement = d3.select(this);
                 if (d.target.data && d.target.data.is_lineage_path) {
-                    // Restore red lineage links
                     linkElement
                         .style('stroke', '#ff3366')
                         .style('stroke-width', '2.5px')
                         .style('opacity', 0.9)
-                        .style('filter', 'none');  // Remove any hover effects
+                        .style('filter', 'none');
                 } else if (d.target.data && d.target.data.is_sibling) {
-                    // Restore gray sibling links
                     linkElement
                         .style('stroke', '#888888')
                         .style('stroke-width', '1.5px')
                         .style('opacity', 0.5)
                         .style('filter', 'none');
                 } else {
-                    // Restore default purple links
                     linkElement
                         .style('stroke', '#3f2c70')
                         .style('stroke-width', '1.5px')
@@ -938,11 +644,106 @@ function renderRadialTree(jsonData) {
                         .style('filter', 'none');
                 }
             });
-            
-            breadcrumbContainer.selectAll('*').remove();
         }
 
-        console.log('Radial tree rendered successfully');
+        function highlightPath(pathToRoot) {
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(linkKey(pathToRoot[i - 1].data, pathToRoot[i].data));
+            }
+            link.style('stroke', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return '#ff0000';
+                if (linkData.target.data && linkData.target.data.is_lineage_path) return '#ff3366';
+                if (linkData.target.data && linkData.target.data.is_sibling) return '#888888';
+                return '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return '3px';
+                return (linkData.target.data && linkData.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return 1;
+                return (linkData.target.data && linkData.target.data.is_lineage_path) ? 0.9 : 0.25;
+            });
+        }
+
+        let selectedNode = null;
+
+        function markSelected(d) {
+            node.classed('node-selected', n => n === d);
+            node.select('circle')
+                .style('stroke-width', n => {
+                    if (n === d) return '5px';
+                    return n.data.is_searched_account ? '4px' : '2px';
+                })
+                .style('filter', n => {
+                    if (n === d) return 'drop-shadow(0 0 10px #0BE784)';
+                    return n.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none';
+                });
+        }
+
+        function selectNode(d) {
+            selectedNode = d;
+            window.__smSelectedTreeNode = d;
+            const pathToRoot = getPathToRoot(d);
+            highlightPath(pathToRoot);
+            markSelected(d);
+            renderTreeBreadcrumbs(pathToRoot);
+            renderTreePropertiesPane(d);
+        }
+
+        function clearSelection() {
+            selectedNode = null;
+            window.__smSelectedTreeNode = null;
+            restoreLinkStyles();
+            node.classed('node-selected', false);
+            node.select('circle')
+                .style('stroke-width', n => n.data.is_searched_account ? '4px' : '2px')
+                .style('filter', n => n.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none');
+            clearTreeSelectionUI();
+        }
+
+        node.on('click', function (event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (selectedNode === d) {
+                clearSelection();
+            } else {
+                selectNode(d);
+            }
+        });
+
+        // Background click clears selection (not when interacting with chrome)
+        svg.on('click.clear-selection', function (event) {
+            if (event.target === svg.node()) {
+                clearSelection();
+            }
+        });
+
+        const closeBtn = document.getElementById('sm-tree-props-close');
+        if (closeBtn && !closeBtn.__smBound) {
+            closeBtn.__smBound = true;
+            closeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.__smClearTreeSelection === 'function') {
+                    window.__smClearTreeSelection();
+                }
+            });
+        }
+        window.__smClearTreeSelection = clearSelection;
+
+        if (debugRadial) {
+            console.log('Radial tree rendered', {
+                nodes: totalNodeCount,
+                maxSiblingsAtDepth,
+                radius,
+                size
+            });
+        }
         
     } catch (error) {
         console.error('Error rendering radial tree:', error);
@@ -958,6 +759,326 @@ function renderRadialTree(jsonData) {
                 .style('fill', '#666')
                 .text('Tree visualization unavailable');
         }
+    }
+}
+
+// --- Radial chrome + non-overlap helpers (HTML overlays live outside SVG) ---
+
+function ensureTreeChrome() {
+    const host = document.getElementById('radial-tree-container');
+    if (!host) return;
+
+    // Host must be the positioning context (not flex-centered with the SVG)
+    host.style.position = 'relative';
+    host.style.display = 'block';
+    host.style.overflow = 'hidden';
+
+    let crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (!crumbs) {
+        crumbs = document.createElement('nav');
+        crumbs.id = 'sm-tree-breadcrumbs';
+        crumbs.className = 'sm-tree-breadcrumbs';
+        crumbs.setAttribute('aria-label', 'Node path');
+        crumbs.hidden = true;
+        host.appendChild(crumbs);
+    }
+    let pane = document.getElementById('sm-tree-props');
+    if (!pane) {
+        pane = document.createElement('aside');
+        pane.id = 'sm-tree-props';
+        pane.className = 'sm-tree-props sm-tree-props--issuer';
+        pane.setAttribute('aria-label', 'Node properties');
+        pane.hidden = true;
+        pane.innerHTML =
+            '<div class="sm-tree-props__header">' +
+            '<h3 class="sm-tree-props__title">Properties</h3>' +
+            '<button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>' +
+            '</div><div id="sm-tree-props-body" class="sm-tree-props__body"></div>';
+        host.appendChild(pane);
+    }
+
+    // Always re-parent as direct children of the host AFTER the SVG so they
+    // stay outside the zoom/pan transform and above the canvas.
+    const svg = host.querySelector('svg#tree');
+    if (crumbs.parentNode !== host) host.appendChild(crumbs);
+    if (pane.parentNode !== host) host.appendChild(pane);
+    if (svg) {
+        // Keep SVG first for paint order; overlays last => on top
+        if (svg.nextSibling !== crumbs) host.insertBefore(svg, host.firstChild);
+        host.appendChild(crumbs);
+        host.appendChild(pane);
+    }
+
+    // Pin only — theme colors come from visualization_controls.css classes
+    crumbs.style.position = 'absolute';
+    crumbs.style.top = '10px';
+    crumbs.style.left = '10px';
+    crumbs.style.right = 'auto';
+    crumbs.style.bottom = 'auto';
+    crumbs.style.zIndex = '30';
+    crumbs.style.transform = 'none';
+    crumbs.style.margin = '0';
+    // Clear any stale inline colors that would override the theme sheet
+    crumbs.style.background = '';
+    crumbs.style.border = '';
+    crumbs.style.color = '';
+    crumbs.style.boxShadow = '';
+
+    pane.style.position = 'absolute';
+    pane.style.top = '12px';
+    pane.style.right = '12px';
+    pane.style.left = 'auto';
+    pane.style.bottom = 'auto';
+    pane.style.zIndex = '30';
+    pane.style.transform = 'none';
+    pane.style.margin = '0';
+    pane.style.background = '';
+    pane.style.border = '';
+    pane.style.color = '';
+    pane.style.boxShadow = '';
+}
+
+function clearTreeSelectionUI() {
+    const crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (crumbs) {
+        crumbs.innerHTML = '';
+        crumbs.classList.remove('is-visible');
+        crumbs.hidden = true;
+        crumbs.style.display = 'none';
+        crumbs.style.visibility = 'hidden';
+    }
+    const pane = document.getElementById('sm-tree-props');
+    if (pane) {
+        pane.classList.remove('is-visible', 'sm-tree-props--asset', 'sm-tree-props--issuer');
+        pane.hidden = true;
+        pane.style.display = 'none';
+        pane.style.visibility = 'hidden';
+    }
+    const body = document.getElementById('sm-tree-props-body');
+    if (body) body.innerHTML = '';
+    // Orphan body tooltips from older tidy/hover path
+    try { d3.selectAll('body > .tooltip').style('opacity', 0).remove(); } catch (e) {}
+}
+
+function nodeDisplayLabel(data, opts) {
+    opts = opts || {};
+    if (!data) return 'Root';
+    if (data.stellar_account && data.node_type === 'ISSUER') {
+        return opts.full ? data.stellar_account : data.stellar_account.slice(-7);
+    }
+    if (data.stellar_account && opts.full) return data.stellar_account;
+    if (data.stellar_account && !opts.full && data.stellar_account.length > 12) {
+        return data.stellar_account.slice(0, 4) + '…' + data.stellar_account.slice(-4);
+    }
+    return data.asset_code || data.name || data.stellar_account || 'Root';
+}
+
+function renderTreeBreadcrumbs(pathToRoot) {
+    ensureTreeChrome();
+    const crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (!crumbs) return;
+    crumbs.innerHTML = '';
+    pathToRoot.forEach(function (n, i) {
+        if (i > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'sm-tree-breadcrumbs__sep';
+            sep.textContent = '›';
+            sep.setAttribute('aria-hidden', 'true');
+            crumbs.appendChild(sep);
+        }
+        const chip = document.createElement('span');
+        chip.className = 'sm-tree-breadcrumbs__chip';
+        if (n.data && n.data.node_type === 'ASSET') {
+            chip.classList.add('sm-tree-breadcrumbs__chip--asset');
+        } else {
+            chip.classList.add('sm-tree-breadcrumbs__chip--issuer');
+        }
+        if (i === pathToRoot.length - 1) {
+            chip.classList.add('sm-tree-breadcrumbs__chip--active');
+        }
+        chip.textContent = nodeDisplayLabel(n.data, { full: false });
+        chip.title = nodeDisplayLabel(n.data, { full: true });
+        crumbs.appendChild(chip);
+    });
+    crumbs.hidden = false;
+    crumbs.style.display = '';
+    crumbs.style.visibility = 'visible';
+    crumbs.classList.add('is-visible');
+}
+
+function formatTreeNumber(value) {
+    const n = parseFloat(value || 0);
+    if (isNaN(n)) return '0';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderTreePropertiesPane(hierarchyNode) {
+    ensureTreeChrome();
+    const pane = document.getElementById('sm-tree-props');
+    const body = document.getElementById('sm-tree-props-body');
+    if (!pane || !body || !hierarchyNode) return;
+
+    const d = hierarchyNode.data || {};
+    const isAsset = d.node_type === 'ASSET';
+
+    // Match original floating tooltip field order and <b>Label:</b> value formatting
+    let html = '';
+    function line(label, value) {
+        if (value === undefined || value === null || value === '') value = 'N/A';
+        html += '<span class="sm-tree-props__line"><b>' + escapeHtml(label) + ':</b> ' +
+            escapeHtml(String(value)) + '</span>';
+    }
+
+    line('Name', d.stellar_account || d.asset_code || d.name || 'Unnamed');
+    if (isAsset) {
+        line('Issuer', d.asset_issuer);
+        line('Asset Type', d.asset_type);
+        line('Balance', formatTreeNumber(d.balance));
+    } else {
+        line('Created', d.created);
+        line('Home Domain', d.home_domain);
+        line('XLM Balance', formatTreeNumber(d.xlm_balance));
+        line('Creator', d.creator_account);
+    }
+
+    body.innerHTML = html;
+    const titleEl = pane.querySelector('.sm-tree-props__title');
+    if (titleEl) {
+        titleEl.textContent = isAsset ? 'Asset' : 'Account';
+        titleEl.style.display = 'block';
+    }
+    pane.classList.remove('sm-tree-props--asset', 'sm-tree-props--issuer');
+    pane.classList.add(isAsset ? 'sm-tree-props--asset' : 'sm-tree-props--issuer');
+    pane.hidden = false;
+    pane.style.display = '';
+    pane.style.visibility = 'visible';
+    pane.classList.add('is-visible');
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Push nodes apart so circle centers keep min distance (no node-on-node overlap).
+ * Operates in polar space per depth ring, then verifies cartesian distance.
+ */
+function resolveRadialNodeOverlaps(descendants, opts) {
+    opts = opts || {};
+    const nodeR = opts.nodeRadius || RADIAL_NODE_SIZE;
+    const minGap = opts.minGap != null ? opts.minGap : 8;
+    const minDist = nodeR * 2 + minGap;
+    const minRadialStep = opts.minRadialStep || (minDist + 4);
+    const TWO_PI = 2 * Math.PI;
+
+    const byDepth = new Map();
+    descendants.forEach(function (d) {
+        if (!byDepth.has(d.depth)) byDepth.set(d.depth, []);
+        byDepth.get(d.depth).push(d);
+    });
+    const depths = Array.from(byDepth.keys()).sort(function (a, b) { return a - b; });
+
+    let prevRadius = 0;
+    depths.forEach(function (depth) {
+        const nodes = byDepth.get(depth);
+        if (depth === 0) {
+            nodes.forEach(function (d) { d.y = 0; d.x = 0; });
+            prevRadius = 0;
+            return;
+        }
+
+        // Radius: keep layout y but never closer than minRadialStep to previous ring
+        let ringR = 0;
+        nodes.forEach(function (d) { if (d.y > ringR) ringR = d.y; });
+        ringR = Math.max(ringR, prevRadius + minRadialStep);
+
+        // Angular budget: enough circumference for all nodes on this ring
+        const n = nodes.length;
+        const needR = (n * minDist) / TWO_PI;
+        ringR = Math.max(ringR, needR);
+        nodes.forEach(function (d) { d.y = ringR; });
+
+        // Preserve order; enforce min angular separation (including wrap-around)
+        nodes.sort(function (a, b) { return a.x - b.x; });
+        const minAngle = minDist / Math.max(ringR, 1);
+
+        if (n * minAngle >= TWO_PI * 0.98) {
+            // Fully packed: even spacing around the circle
+            nodes.forEach(function (d, i) {
+                d.x = (i / n) * TWO_PI;
+            });
+        } else {
+            // Forward pass
+            for (let i = 1; i < n; i++) {
+                if (nodes[i].x - nodes[i - 1].x < minAngle) {
+                    nodes[i].x = nodes[i - 1].x + minAngle;
+                }
+            }
+            // If we overflowed past 2π, compact then re-center into [0, 2π)
+            let span = nodes[n - 1].x - nodes[0].x;
+            if (nodes[n - 1].x - nodes[0].x > TWO_PI - minAngle) {
+                nodes.forEach(function (d, i) {
+                    d.x = (i / n) * TWO_PI;
+                });
+            } else {
+                // Wrap-around gap between last and first
+                const wrapGap = (nodes[0].x + TWO_PI) - nodes[n - 1].x;
+                if (wrapGap < minAngle) {
+                    // Shift pack so wrap gap is satisfied, or even-space
+                    const needed = minAngle - wrapGap;
+                    if (span + needed <= TWO_PI) {
+                        // shrink from the end by spreading earlier... simpler: even space
+                        nodes.forEach(function (d, i) {
+                            d.x = (i / n) * TWO_PI;
+                        });
+                    } else {
+                        nodes.forEach(function (d, i) {
+                            d.x = (i / n) * TWO_PI;
+                        });
+                    }
+                } else if (nodes[0].x < 0 || nodes[n - 1].x > TWO_PI) {
+                    const shift = nodes[0].x;
+                    nodes.forEach(function (d) {
+                        d.x = ((d.x - shift) % TWO_PI + TWO_PI) % TWO_PI;
+                    });
+                    nodes.sort(function (a, b) { return a.x - b.x; });
+                }
+            }
+        }
+        prevRadius = ringR;
+    });
+
+    // Final cartesian pass: if any pair still too close, nudge outer node outward
+    function polarToXY(d) {
+        return {
+            x: d.y * Math.cos(d.x - Math.PI / 2),
+            y: d.y * Math.sin(d.x - Math.PI / 2)
+        };
+    }
+    for (let pass = 0; pass < 3; pass++) {
+        let moved = false;
+        for (let i = 0; i < descendants.length; i++) {
+            for (let j = i + 1; j < descendants.length; j++) {
+                const a = descendants[i];
+                const b = descendants[j];
+                if (a.depth === 0 || b.depth === 0) continue;
+                const pa = polarToXY(a);
+                const pb = polarToXY(b);
+                const dx = pa.x - pb.x;
+                const dy = pa.y - pb.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+                if (dist < minDist) {
+                    const outer = a.y >= b.y ? a : b;
+                    outer.y += (minDist - dist) + 2;
+                    moved = true;
+                }
+            }
+        }
+        if (!moved) break;
     }
 }
 
