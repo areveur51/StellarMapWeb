@@ -346,13 +346,54 @@ def build_hva_leaderboard(
 
     records: List[Any] = []
     if _use_cassandra():
-        records, scan_meta = _fetch_cassandra_top_records(
-            network_name=network_name,
-            threshold=selected_threshold,
-            limit=limit,
-            max_scan=_max_scan(),
-            max_seconds=_max_scan_seconds(),
+        # Cassandra driver can block for a long time on the first page fetch
+        # (ALLOW FILTERING / full scan). Hard-timeout the request path so the
+        # page never hangs the gunicorn worker.
+        import concurrent.futures
+
+        max_secs = _max_scan_seconds()
+        max_scan = _max_scan()
+        pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="hva-scan"
         )
+        try:
+            fut = pool.submit(
+                _fetch_cassandra_top_records,
+                network_name,
+                selected_threshold,
+                limit,
+                max_scan,
+                max_secs,
+            )
+            try:
+                records, scan_meta = fut.result(timeout=max_secs + 0.75)
+            except concurrent.futures.TimeoutError:
+                records = []
+                scan_meta = {
+                    "scanned": 0,
+                    "hit_scan_limit": False,
+                    "hit_time_limit": True,
+                    "qualifying_seen": 0,
+                    "max_scan": max_scan,
+                    "max_seconds": max_secs,
+                    "timed_out": True,
+                }
+                logger.warning(
+                    "HVA Cassandra scan timed out after %.1fs (network=%s threshold=%s)",
+                    max_secs,
+                    network_name,
+                    selected_threshold,
+                )
+        except Exception as e:
+            logger.error("HVA Cassandra scan executor failed: %s", e, exc_info=True)
+            records = []
+            scan_meta = {"error": str(e), "timed_out": True}
+        finally:
+            # Do not block the request waiting for a stuck Astra cursor
+            try:
+                pool.shutdown(wait=False, cancel_futures=True)
+            except TypeError:
+                pool.shutdown(wait=False)
         meta.update(scan_meta)
     else:
         try:
