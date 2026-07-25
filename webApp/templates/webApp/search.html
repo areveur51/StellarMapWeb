@@ -443,7 +443,7 @@
   </div>
 
   <!-- Shared app helpers BEFORE Vue so mixins/globals exist at new Vue() -->
-  <script src="{% static 'webApp/js/sm_progress.js' %}?v=3"></script>
+  <script src="{% static 'webApp/js/sm_progress.js' %}?v=4"></script>
   <script src="{% static 'webApp/js/sm_network.js' %}?v=3"></script>
   <!-- Load Vue followed by BootstrapVue -->
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.min.js" crossorigin="anonymous"></script>
@@ -616,16 +616,18 @@
           }
           this.loading = true;
           this.progressValue = 20;
-          const searchUrl = `/search/?account=${encodeURIComponent(account)}&network=${this.network_selected}`;
-          // DRY progress overlay survives full page navigation
-          if (window.StellarMapProgress && typeof StellarMapProgress.navigate === 'function') {
-            StellarMapProgress.navigate(searchUrl, {
-              title: 'Searching lineage…',
-              message: account,
-            });
+          if (this.smProgressSearch) {
+            this.smProgressSearch(account, this.network_selected);
+          } else if (window.StellarMapProgress && StellarMapProgress.navigate) {
+            StellarMapProgress.navigate(
+              '/search/?account=' + encodeURIComponent(account) +
+                '&network=' + encodeURIComponent(this.network_selected || 'public'),
+              { title: 'Searching lineage…', message: account }
+            );
           } else {
-            this.smProgressPulse && this.smProgressPulse('Searching lineage…', account);
-            window.location.href = searchUrl;
+            window.location.href =
+              '/search/?account=' + encodeURIComponent(account) +
+              '&network=' + encodeURIComponent(this.network_selected || 'public');
           }
         },
         toggleNetwork() {
