@@ -30,10 +30,28 @@ class RadialLayoutContractTests(SimpleTestCase):
         self.assertIn(".separation(", self.js)
         # Adaptive radius from sibling density
         self.assertIn("maxSiblingsAtDepth", self.js)
-        self.assertIn("minArcPx", self.js)
+        self.assertIn("minChordPx", self.js)
+        # Non-overlap post-process
+        self.assertIn("resolveRadialNodeOverlaps", self.js)
         # Must not re-introduce half-circle lineage sector clamp
         self.assertNotIn("maxSectorSize = Math.PI", self.js)
         self.assertNotIn("Fibonacci spiral", self.js)
+
+    def test_properties_pane_and_breadcrumbs(self):
+        self.assertIn("renderTreePropertiesPane", self.js)
+        self.assertIn("renderTreeBreadcrumbs", self.js)
+        self.assertIn("sm-tree-props", self.js)
+        self.assertIn("sm-tree-breadcrumbs", self.js)
+        # Click selects; floating hover tooltip no longer owns selection UX
+        self.assertIn("selectNode", self.js)
+        partial = (
+            PROJECT_ROOT
+            / "radialTidyTreeApp/templates/radialTidyTreeApp/radial_tidy_tree_partial.html"
+        ).read_text()
+        self.assertIn("sm-tree-props", partial)
+        self.assertIn("sm-tree-breadcrumbs", partial)
+        self.assertIn("top: 10px", partial)
+        self.assertIn("left: 10px", partial)
 
     def test_angle_normalization_present(self):
         self.assertIn("Normalize angles", self.js)

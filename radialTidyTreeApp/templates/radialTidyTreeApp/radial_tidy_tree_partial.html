@@ -12,6 +12,7 @@
         height: min(70vh, 640px);
         min-height: 360px;
         touch-action: none;
+        overflow: hidden;
     }
     #radial-tree-container .sm-tree-placeholder {
         position: absolute;
@@ -32,15 +33,190 @@
         display: block;
         touch-action: none;
     }
+
+    /* Breadcrumbs: top-left of the visual (HTML overlay, not tiny SVG text) */
+    .sm-tree-breadcrumbs {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: auto;
+        max-width: min(72%, calc(100% - 300px));
+        z-index: 6;
+        display: none;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(16, 13, 35, 0.92);
+        border: 1px solid #96DDF2;
+        box-shadow: 0 0 16px rgba(150, 221, 242, 0.25);
+        pointer-events: auto;
+    }
+    .sm-tree-breadcrumbs.is-visible { display: flex; }
+    .sm-tree-breadcrumbs__chip {
+        display: inline-flex;
+        align-items: center;
+        max-width: 100%;
+        padding: 6px 10px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: #fff;
+        background: #3f2c70;
+        border: 1px solid #96DDF2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .sm-tree-breadcrumbs__chip--asset {
+        background: #fcec04;
+        color: #111;
+        border-color: #fcec04;
+    }
+    .sm-tree-breadcrumbs__chip--active {
+        box-shadow: 0 0 10px rgba(11, 231, 132, 0.55);
+        border-color: #0BE784;
+    }
+    .sm-tree-breadcrumbs__sep {
+        color: #0BE784;
+        font-weight: 800;
+        font-size: 1rem;
+        opacity: 0.9;
+        user-select: none;
+    }
+
+    /* Properties side pane (right of visual) */
+    .sm-tree-props {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        bottom: 10px;
+        width: min(300px, 42%);
+        z-index: 6;
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 12px 14px;
+        border-radius: 14px;
+        background: linear-gradient(160deg, rgba(38, 29, 69, 0.97), rgba(16, 13, 35, 0.97));
+        border: 2px solid #96DDF2;
+        box-shadow: 0 0 22px rgba(150, 221, 242, 0.28);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        pointer-events: auto;
+        color: #e8e4ff;
+    }
+    .sm-tree-props.is-visible { display: flex; }
+    .sm-tree-props__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .sm-tree-props__title {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #96DDF2;
+    }
+    .sm-tree-props__close {
+        min-width: 36px;
+        min-height: 36px;
+        border-radius: 8px;
+        border: 1px solid #3f2c70;
+        background: rgba(16, 13, 35, 0.7);
+        color: #96DDF2;
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+    .sm-tree-props__close:hover {
+        border-color: #0BE784;
+        color: #0BE784;
+    }
+    .sm-tree-props__badge {
+        display: inline-block;
+        align-self: flex-start;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: rgba(11, 231, 132, 0.15);
+        color: #0BE784;
+        border: 1px solid rgba(11, 231, 132, 0.45);
+    }
+    .sm-tree-props__badge--asset {
+        background: rgba(252, 236, 4, 0.15);
+        color: #fcec04;
+        border-color: rgba(252, 236, 4, 0.45);
+    }
+    .sm-tree-props__dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: minmax(72px, 34%) 1fr;
+        gap: 6px 10px;
+        font-size: 0.82rem;
+    }
+    .sm-tree-props__dl dt {
+        margin: 0;
+        color: #96DDF2;
+        font-weight: 600;
+        opacity: 0.9;
+    }
+    .sm-tree-props__dl dd {
+        margin: 0;
+        color: #f5f3ff;
+        word-break: break-all;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.78rem;
+    }
+    .sm-tree-props__hint {
+        margin: 0;
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
     @media (max-width: 1024px) {
         #radial-tree-container {
             height: min(62dvh, 560px);
             min-height: 300px;
+        }
+        .sm-tree-breadcrumbs {
+            max-width: calc(100% - 20px);
+            font-size: 0.9rem;
+        }
+        .sm-tree-breadcrumbs__chip {
+            font-size: 0.8rem;
+            padding: 7px 10px;
+            min-height: 36px;
+        }
+        .sm-tree-props {
+            top: auto;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            width: auto;
+            max-height: 42%;
         }
     }
 </style>
 
 <div id="radial-tree-container">
     <div class="sm-tree-placeholder" id="sm-tree-placeholder">Loading lineage tree…</div>
+    <nav id="sm-tree-breadcrumbs" class="sm-tree-breadcrumbs" aria-label="Node path" hidden></nav>
+    <aside id="sm-tree-props" class="sm-tree-props" aria-label="Node properties" hidden>
+        <div class="sm-tree-props__header">
+            <h3 class="sm-tree-props__title">Properties</h3>
+            <button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>
+        </div>
+        <div id="sm-tree-props-body"></div>
+    </aside>
     <svg id="tree" width="800" height="800" aria-label="Account lineage tree"></svg>
 </div>

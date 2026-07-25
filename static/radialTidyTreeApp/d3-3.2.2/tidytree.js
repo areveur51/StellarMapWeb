@@ -304,30 +304,40 @@ function renderRadialTree(jsonData) {
             }
         });
 
-        // Arc spacing: enough px along circumference for label + node (last-7 labels ~42px)
+        // Arc spacing: node diameter + gap so circles do not sit on top of each other
         const spacingMultiplier = window.nodeSpacingMultiplier || 1.0;
-        const minArcPx = Math.max(28, 36 * spacingMultiplier); // chord budget per sibling
-        // circumference ≈ 2π r  =>  r >= (siblings * minArc) / 2π
-        const radiusFromSiblings = (maxSiblingsAtDepth * minArcPx) / (2 * Math.PI);
-        // Depth budget so multi-level trees remain readable
-        const radiusFromDepth = Math.max(1, maxDepth) * (maxSiblingsAtDepth < 20 ? 90 : 70);
-        let calculatedRadius = Math.max(180, radiusFromSiblings, radiusFromDepth * RADIAL_COMPACTNESS);
-        // Cap for mobile viewports
+        const nodeHitR = RADIAL_NODE_SIZE + 1.5; // matches searched-account max circle
+        const minNodeGapPx = 8; // clear air between circle edges
+        const minChordPx = Math.max(
+            nodeHitR * 2 + minNodeGapPx,
+            28,
+            34 * spacingMultiplier
+        );
+        // circumference ≈ 2π r  =>  r >= (siblings * minChord) / 2π
+        const radiusFromSiblings = (maxSiblingsAtDepth * minChordPx) / (2 * Math.PI);
+        // Depth rings need at least one full node diameter + gap between levels
+        const minRadialStep = nodeHitR * 2 + minNodeGapPx + 12;
+        const radiusFromDepth = Math.max(1, maxDepth) * Math.max(minRadialStep, maxSiblingsAtDepth < 20 ? 90 : 70);
+        let calculatedRadius = Math.max(200, radiusFromSiblings, radiusFromDepth * RADIAL_COMPACTNESS);
+        // Soft cap for small viewports (still allow zoom for dense trees)
+        const hostEl = document.getElementById('radial-tree-container');
         const vw = Math.min(
             (typeof window !== 'undefined' && window.innerWidth) || 800,
-            (document.getElementById('radial-tree-container') || {}).clientWidth || 800
+            (hostEl && hostEl.clientWidth) || 800
         );
         const vh = Math.min(
             (typeof window !== 'undefined' && window.innerHeight) || 800,
-            (document.getElementById('radial-tree-container') || {}).clientHeight || 640
+            (hostEl && hostEl.clientHeight) || 640
         );
-        const viewportCap = Math.max(160, Math.min(vw, vh) * 0.42);
-        if (calculatedRadius > viewportCap * 1.8) {
-            calculatedRadius = viewportCap * 1.8;
+        const viewportCap = Math.max(180, Math.min(vw, vh) * 0.48);
+        if (calculatedRadius > viewportCap * 2.2) {
+            calculatedRadius = viewportCap * 2.2;
         }
         calculatedRadius = Math.floor(calculatedRadius);
-        const size = Math.floor((calculatedRadius + 80) * 2);
-        const radius = calculatedRadius;
+        let size = Math.floor((calculatedRadius + 100) * 2);
+        let radius = calculatedRadius;
+
+        ensureTreeChrome();
 
         const treeContainer = d3.select('#tree');
         if (treeContainer.empty()) {
@@ -342,12 +352,21 @@ function renderRadialTree(jsonData) {
             .style('touch-action', 'none'); // pan/zoom without page scroll fighting
 
         svg.selectAll('*').remove();
+        clearTreeSelectionUI();
 
         const g = svg.append('g')
             .attr('transform', `translate(${size / 2},${size / 2})`);
 
         const zoom = d3.zoom()
-            .scaleExtent([0.15, 8])
+            .scaleExtent([0.12, 8])
+            .filter((event) => {
+                // Allow node clicks; block only primary-button pan from starting on nodes
+                if (event.type === 'wheel') return true;
+                if (event.target && event.target.closest && event.target.closest('.node')) {
+                    return event.type === 'wheel';
+                }
+                return !event.ctrlKey || event.type === 'wheel';
+            })
             .on('zoom', (event) => {
                 g.attr(
                     'transform',
@@ -360,10 +379,6 @@ function renderRadialTree(jsonData) {
         window.resetZoom = function () {
             svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
         };
-
-        const breadcrumbContainer = svg.append('g')
-            .attr('class', 'breadcrumb-container')
-            .attr('transform', 'translate(20, 20)');
 
         // Full-circle layout: angles span [0, 2π] so siblings complete a radial ring
         // (no lineage-sector clamp — that left half the circle empty with few siblings)
@@ -406,6 +421,23 @@ function renderRadialTree(jsonData) {
             descendants.forEach(d => {
                 d.y = d.y * radialScale;
             });
+        }
+
+        // Post-layout: enforce non-overlapping node circles (angular + radial)
+        resolveRadialNodeOverlaps(descendants, {
+            nodeRadius: nodeHitR,
+            minGap: minNodeGapPx,
+            minRadialStep: minRadialStep
+        });
+
+        // Expand canvas if outer ring grew past original radius budget
+        let maxY = 0;
+        descendants.forEach(d => { if (d.y > maxY) maxY = d.y; });
+        if (maxY > radius * 0.92) {
+            radius = Math.ceil(maxY / 0.88);
+            size = Math.floor((radius + 100) * 2);
+            svg.attr('viewBox', `0 0 ${size} ${size}`);
+            g.attr('transform', `translate(${size / 2},${size / 2})`);
         }
 
         const debugRadial = !!(typeof window !== 'undefined' && window.SM_DEBUG_RADIAL);
@@ -514,44 +546,32 @@ function renderRadialTree(jsonData) {
             .attr('transform', d => {
                 const angle = (d.x * 180 / Math.PI) - 90;
                 return `rotate(${angle})translate(${d.y},0)`;
-            });
+            })
+            .style('cursor', 'pointer');
+
+        function circleFill(d) {
+            if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return '#1a1a2e';
+            return '#3f2c70';
+        }
+        function circleStroke(d) {
+            if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return '#2a2a3e';
+            if (d.data.is_searched_account) return '#00ffff';
+            return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
+        }
 
         node.append('circle')
             .attr('r', d => {
-                // Fixed standard size with slight increase for searched account
                 return d.data.is_searched_account ? RADIAL_NODE_SIZE + 1.5 : RADIAL_NODE_SIZE;
             })
             .attr('data-node-type', d => d.data.node_type)
-            .style('fill', d => {
-                // Check if node should be muted (filtered)
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return '#1a1a2e';  // Dark background color (muted)
-                }
-                return '#3f2c70';  // Normal cyberpunk purple
-            })
-            .style('stroke', d => {
-                // Check if node should be muted (filtered)
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return '#2a2a3e';  // Slightly lighter dark (muted)
-                }
-                // Cyan glow for searched account
-                if (d.data.is_searched_account) {
-                    return '#00ffff';  // Cyan for searched account
-                }
-                // Yellow for assets, green for issuers
-                return d.data.node_type === 'ASSET' ? '#fcec04' : '#00FF9C';
-            })
+            .style('fill', circleFill)
+            .style('stroke', circleStroke)
             .style('stroke-width', d => d.data.is_searched_account ? '4px' : '2px')
             .style('opacity', d => {
-                // Reduce opacity for muted nodes
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return 0.2;  // Very dim for filtered nodes
-                }
-                return 1;  // Normal visibility
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return 0.2;
+                return 1;
             })
-            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none')
-            .on('mouseover', function(event, d) { showTooltip(event, d); })
-            .on('mouseout', function(event, d) { hideTooltip(); });
+            .style('filter', d => d.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none');
 
         // Dense sibling rings: slightly smaller labels so arcs stay readable
         const labelPx = maxSiblingsAtDepth > 48
@@ -566,11 +586,9 @@ function renderRadialTree(jsonData) {
             .attr('text-anchor', d => d.x < Math.PI ? 'start' : 'end')
             .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
             .text(d => {
-                // For ISSUER nodes (stellar_account), show last 7 characters
                 if (d.data.stellar_account && d.data.node_type === 'ISSUER') {
                     return d.data.stellar_account.slice(-7);
                 }
-                // For ASSET nodes, show the asset code
                 return d.data.asset_code || d.data.name || 'Unnamed';
             })
             .style('fill', 'white')
@@ -579,33 +597,13 @@ function renderRadialTree(jsonData) {
             .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
             .style('pointer-events', 'none')
             .style('opacity', d => {
-                // Reduce opacity for muted nodes
-                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) {
-                    return 0.15;  // Very dim text for filtered nodes
-                }
-                return 1;  // Normal visibility
+                if (window.shouldMuteNode && window.shouldMuteNode(d.data)) return 0.15;
+                return 1;
             });
 
-        let tooltip = d3.select('body').select('.tooltip');
-        if (tooltip.empty()) {
-            tooltip = d3.select('body').append('div')
-                .attr('class', 'tooltip')
-                .style('opacity', 0)
-                .style('position', 'absolute')
-                .style('color', 'black')
-                .style('padding', '10px')
-                .style('border-radius', '6px')
-                .style('box-shadow', '3px 3px 10px rgba(0, 0, 0, 0.25)')
-                .style('font', '12px sans-serif')
-                .style('width', '250px')
-                .style('word-wrap', 'break-word')
-                .style('pointer-events', 'none')
-                .style('z-index', '1000');
-        }
-
-        function getPathToRoot(node) {
+        function getPathToRoot(hierarchyNode) {
             const path = [];
-            let current = node;
+            let current = hierarchyNode;
             while (current) {
                 path.unshift(current);
                 current = current.parent;
@@ -613,147 +611,28 @@ function renderRadialTree(jsonData) {
             return path;
         }
 
-        function showTooltip(event, d) {
-            const nodeColor = d.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-            const backgroundColor = d.data.node_type === 'ASSET' ? 'rgba(252, 236, 4, 0.9)' : 'rgba(63, 44, 112, 0.9)';
-            const textColor = d.data.node_type === 'ASSET' ? 'black' : 'white';
-            
-            const pathToRoot = getPathToRoot(d);
-            const pathLinks = new Set();
-            for (let i = 1; i < pathToRoot.length; i++) {
-                pathLinks.add(`${pathToRoot[i-1].data.stellar_account || pathToRoot[i-1].data.asset_code || pathToRoot[i-1].data.name || 'root'}_${pathToRoot[i].data.stellar_account || pathToRoot[i].data.asset_code || pathToRoot[i].data.name}`);
-            }
-            
-            link.style('stroke', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? '#ff0000' : '#3f2c70';
-            })
-            .style('stroke-width', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? '3px' : '1.5px';
-            })
-            .style('opacity', linkData => {
-                const linkId = `${linkData.source.data.stellar_account || linkData.source.data.asset_code || linkData.source.data.name || 'root'}_${linkData.target.data.stellar_account || linkData.target.data.asset_code || linkData.target.data.name}`;
-                return pathLinks.has(linkId) ? 1 : 0.3;
-            });
-
-            breadcrumbContainer.selectAll('*').remove();
-            
-            let xOffset = 0;
-            pathToRoot.forEach((node, i) => {
-                const breadcrumbColor = node.data.node_type === 'ASSET' ? '#fcec04' : '#3f2c70';
-                // Truncate ISSUER stellar_account to last 7 characters for breadcrumb
-                let breadcrumbText;
-                if (node.data.stellar_account && node.data.node_type === 'ISSUER') {
-                    breadcrumbText = node.data.stellar_account.slice(-7);
-                } else {
-                    breadcrumbText = node.data.stellar_account || node.data.asset_code || node.data.name || 'Root';
-                }
-                const textWidth = breadcrumbText.length * 7;
-                
-                breadcrumbContainer.append('rect')
-                    .attr('x', xOffset)
-                    .attr('y', 0)
-                    .attr('width', textWidth + 20)
-                    .attr('height', 25)
-                    .attr('fill', breadcrumbColor)
-                    .attr('rx', 4);
-                
-                breadcrumbContainer.append('text')
-                    .attr('x', xOffset + 10)
-                    .attr('y', 17)
-                    .text(breadcrumbText)
-                    .style('fill', node.data.node_type === 'ASSET' ? 'black' : 'white')
-                    .style('font-size', '12px')
-                    .style('font-weight', 'bold');
-                
-                xOffset += textWidth + 25;
-                
-                if (i < pathToRoot.length - 1) {
-                    breadcrumbContainer.append('text')
-                        .attr('x', xOffset)
-                        .attr('y', 17)
-                        .text('>')
-                        .style('fill', 'white')
-                        .style('font-size', '14px')
-                        .style('font-weight', 'bold');
-                    xOffset += 20;
-                }
-            });
-            
-            let tooltipHTML = '<b>Name:</b> ' + (d.data.stellar_account || d.data.asset_code || d.data.name || 'Unnamed') + '<br>';
-            if (d.data.node_type === 'ASSET') {
-                tooltipHTML += '<b>Issuer:</b> ' + (d.data.asset_issuer || 'N/A') + '<br>';
-                tooltipHTML += '<b>Asset Type:</b> ' + (d.data.asset_type || 'N/A') + '<br>';
-                tooltipHTML += '<b>Balance:</b> ' + (parseFloat(d.data.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
-            } else {
-                tooltipHTML += '<b>Created:</b> ' + (d.data.created || 'N/A') + '<br>';
-                tooltipHTML += '<b>Home Domain:</b> ' + (d.data.home_domain || 'N/A') + '<br>';
-                tooltipHTML += '<b>XLM Balance:</b> ' + (parseFloat(d.data.xlm_balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) + '<br>';
-                tooltipHTML += '<b>Creator:</b> ' + (d.data.creator_account || 'N/A') + '<br>';
-            }
-            tooltip.html(tooltipHTML)
-                .style('background', backgroundColor)
-                .style('color', textColor)
-                .style('opacity', 1);
-            
-            // Smart positioning to prevent tooltip from going off-screen
-            const tooltipNode = tooltip.node();
-            const tooltipRect = tooltipNode.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            
-            // Use clientX/Y for viewport-relative positioning, then convert to page coordinates
-            let left = event.clientX + 10;
-            let top = event.clientY - 28;
-            
-            // Check right edge - if tooltip goes off-screen, show on left side of cursor
-            if (left + tooltipRect.width > viewportWidth) {
-                left = event.clientX - tooltipRect.width - 10;
-            }
-            
-            // Check left edge - ensure tooltip doesn't go off left side
-            if (left < 0) {
-                left = 10;
-            }
-            
-            // Check bottom edge - if tooltip goes off-screen, show above cursor
-            if (top + tooltipRect.height > viewportHeight) {
-                top = event.clientY - tooltipRect.height - 10;
-            }
-            
-            // Check top edge - ensure tooltip doesn't go off top
-            if (top < 0) {
-                top = event.clientY + 20;
-            }
-            
-            // Convert to page coordinates by adding scroll offsets
-            tooltip.style('left', (left + window.scrollX) + 'px')
-                .style('top', (top + window.scrollY) + 'px');
+        function linkKey(sourceData, targetData) {
+            const s = sourceData.stellar_account || sourceData.asset_code || sourceData.name || 'root';
+            const t = targetData.stellar_account || targetData.asset_code || targetData.name || 'node';
+            return s + '_' + t;
         }
 
-        function hideTooltip() {
-            tooltip.style('opacity', 0);
-            
-            // CRITICAL FIX: Don't reset ALL links - restore based on their type
-            link.each(function(d) {
+        function restoreLinkStyles() {
+            link.each(function (d) {
                 const linkElement = d3.select(this);
                 if (d.target.data && d.target.data.is_lineage_path) {
-                    // Restore red lineage links
                     linkElement
                         .style('stroke', '#ff3366')
                         .style('stroke-width', '2.5px')
                         .style('opacity', 0.9)
-                        .style('filter', 'none');  // Remove any hover effects
+                        .style('filter', 'none');
                 } else if (d.target.data && d.target.data.is_sibling) {
-                    // Restore gray sibling links
                     linkElement
                         .style('stroke', '#888888')
                         .style('stroke-width', '1.5px')
                         .style('opacity', 0.5)
                         .style('filter', 'none');
                 } else {
-                    // Restore default purple links
                     linkElement
                         .style('stroke', '#3f2c70')
                         .style('stroke-width', '1.5px')
@@ -761,9 +640,97 @@ function renderRadialTree(jsonData) {
                         .style('filter', 'none');
                 }
             });
-            
-            breadcrumbContainer.selectAll('*').remove();
         }
+
+        function highlightPath(pathToRoot) {
+            const pathLinks = new Set();
+            for (let i = 1; i < pathToRoot.length; i++) {
+                pathLinks.add(linkKey(pathToRoot[i - 1].data, pathToRoot[i].data));
+            }
+            link.style('stroke', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return '#ff0000';
+                if (linkData.target.data && linkData.target.data.is_lineage_path) return '#ff3366';
+                if (linkData.target.data && linkData.target.data.is_sibling) return '#888888';
+                return '#3f2c70';
+            })
+            .style('stroke-width', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return '3px';
+                return (linkData.target.data && linkData.target.data.is_lineage_path) ? '2.5px' : '1.5px';
+            })
+            .style('opacity', linkData => {
+                const id = linkKey(linkData.source.data, linkData.target.data);
+                if (pathLinks.has(id)) return 1;
+                return (linkData.target.data && linkData.target.data.is_lineage_path) ? 0.9 : 0.25;
+            });
+        }
+
+        let selectedNode = null;
+
+        function markSelected(d) {
+            node.classed('node-selected', n => n === d);
+            node.select('circle')
+                .style('stroke-width', n => {
+                    if (n === d) return '5px';
+                    return n.data.is_searched_account ? '4px' : '2px';
+                })
+                .style('filter', n => {
+                    if (n === d) return 'drop-shadow(0 0 10px #0BE784)';
+                    return n.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none';
+                });
+        }
+
+        function selectNode(d) {
+            selectedNode = d;
+            window.__smSelectedTreeNode = d;
+            const pathToRoot = getPathToRoot(d);
+            highlightPath(pathToRoot);
+            markSelected(d);
+            renderTreeBreadcrumbs(pathToRoot);
+            renderTreePropertiesPane(d);
+        }
+
+        function clearSelection() {
+            selectedNode = null;
+            window.__smSelectedTreeNode = null;
+            restoreLinkStyles();
+            node.classed('node-selected', false);
+            node.select('circle')
+                .style('stroke-width', n => n.data.is_searched_account ? '4px' : '2px')
+                .style('filter', n => n.data.is_searched_account ? 'drop-shadow(0 0 8px #00ffff)' : 'none');
+            clearTreeSelectionUI();
+        }
+
+        node.on('click', function (event, d) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (selectedNode === d) {
+                clearSelection();
+            } else {
+                selectNode(d);
+            }
+        });
+
+        // Background click clears selection (not when interacting with chrome)
+        svg.on('click.clear-selection', function (event) {
+            if (event.target === svg.node()) {
+                clearSelection();
+            }
+        });
+
+        const closeBtn = document.getElementById('sm-tree-props-close');
+        if (closeBtn && !closeBtn.__smBound) {
+            closeBtn.__smBound = true;
+            closeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof window.__smClearTreeSelection === 'function') {
+                    window.__smClearTreeSelection();
+                }
+            });
+        }
+        window.__smClearTreeSelection = clearSelection;
 
         if (debugRadial) {
             console.log('Radial tree rendered', {
@@ -788,6 +755,274 @@ function renderRadialTree(jsonData) {
                 .style('fill', '#666')
                 .text('Tree visualization unavailable');
         }
+    }
+}
+
+// --- Radial chrome + non-overlap helpers (HTML overlays live outside SVG) ---
+
+function ensureTreeChrome() {
+    const host = document.getElementById('radial-tree-container');
+    if (!host) return;
+
+    if (!document.getElementById('sm-tree-breadcrumbs')) {
+        const nav = document.createElement('nav');
+        nav.id = 'sm-tree-breadcrumbs';
+        nav.className = 'sm-tree-breadcrumbs';
+        nav.setAttribute('aria-label', 'Node path');
+        nav.hidden = true;
+        host.appendChild(nav);
+    }
+    if (!document.getElementById('sm-tree-props')) {
+        const aside = document.createElement('aside');
+        aside.id = 'sm-tree-props';
+        aside.className = 'sm-tree-props';
+        aside.setAttribute('aria-label', 'Node properties');
+        aside.hidden = true;
+        aside.innerHTML =
+            '<div class="sm-tree-props__header">' +
+            '<h3 class="sm-tree-props__title">Properties</h3>' +
+            '<button type="button" class="sm-tree-props__close" id="sm-tree-props-close" aria-label="Close properties">×</button>' +
+            '</div><div id="sm-tree-props-body"></div>';
+        host.appendChild(aside);
+    }
+}
+
+function clearTreeSelectionUI() {
+    const crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (crumbs) {
+        crumbs.innerHTML = '';
+        crumbs.classList.remove('is-visible');
+        crumbs.hidden = true;
+    }
+    const pane = document.getElementById('sm-tree-props');
+    if (pane) {
+        pane.classList.remove('is-visible');
+        pane.hidden = true;
+    }
+    const body = document.getElementById('sm-tree-props-body');
+    if (body) body.innerHTML = '';
+}
+
+function nodeDisplayLabel(data, opts) {
+    opts = opts || {};
+    if (!data) return 'Root';
+    if (data.stellar_account && data.node_type === 'ISSUER') {
+        return opts.full ? data.stellar_account : data.stellar_account.slice(-7);
+    }
+    if (data.stellar_account && opts.full) return data.stellar_account;
+    if (data.stellar_account && !opts.full && data.stellar_account.length > 12) {
+        return data.stellar_account.slice(0, 4) + '…' + data.stellar_account.slice(-4);
+    }
+    return data.asset_code || data.name || data.stellar_account || 'Root';
+}
+
+function renderTreeBreadcrumbs(pathToRoot) {
+    ensureTreeChrome();
+    const crumbs = document.getElementById('sm-tree-breadcrumbs');
+    if (!crumbs) return;
+    crumbs.innerHTML = '';
+    pathToRoot.forEach(function (n, i) {
+        if (i > 0) {
+            const sep = document.createElement('span');
+            sep.className = 'sm-tree-breadcrumbs__sep';
+            sep.textContent = '›';
+            sep.setAttribute('aria-hidden', 'true');
+            crumbs.appendChild(sep);
+        }
+        const chip = document.createElement('span');
+        chip.className = 'sm-tree-breadcrumbs__chip';
+        if (n.data && n.data.node_type === 'ASSET') {
+            chip.classList.add('sm-tree-breadcrumbs__chip--asset');
+        }
+        if (i === pathToRoot.length - 1) {
+            chip.classList.add('sm-tree-breadcrumbs__chip--active');
+        }
+        chip.textContent = nodeDisplayLabel(n.data, { full: false });
+        chip.title = nodeDisplayLabel(n.data, { full: true });
+        crumbs.appendChild(chip);
+    });
+    crumbs.hidden = false;
+    crumbs.classList.add('is-visible');
+}
+
+function formatTreeNumber(value) {
+    const n = parseFloat(value || 0);
+    if (isNaN(n)) return '0';
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function renderTreePropertiesPane(hierarchyNode) {
+    ensureTreeChrome();
+    const pane = document.getElementById('sm-tree-props');
+    const body = document.getElementById('sm-tree-props-body');
+    if (!pane || !body || !hierarchyNode) return;
+
+    const d = hierarchyNode.data || {};
+    const isAsset = d.node_type === 'ASSET';
+    const rows = [];
+
+    function add(label, value) {
+        if (value === undefined || value === null || value === '') value = 'N/A';
+        rows.push([label, String(value)]);
+    }
+
+    add('Type', d.node_type || (isAsset ? 'ASSET' : 'ACCOUNT'));
+    if (isAsset) {
+        add('Asset code', d.asset_code || d.name);
+        add('Issuer', d.asset_issuer);
+        add('Asset type', d.asset_type);
+        add('Balance', formatTreeNumber(d.balance));
+    } else {
+        add('Account', d.stellar_account || d.name);
+        add('Created', d.created);
+        add('Home domain', d.home_domain);
+        add('XLM balance', formatTreeNumber(d.xlm_balance));
+        add('Creator', d.creator_account);
+        if (d.assets && d.assets.length) {
+            add('Assets', d.assets.length);
+        }
+    }
+    if (d.is_searched_account) add('Role', 'Searched account');
+    if (d.is_lineage_path) add('Lineage', 'On direct path');
+    if (d.is_sibling) add('Lineage', 'Sibling');
+
+    let html = '<span class="sm-tree-props__badge' + (isAsset ? ' sm-tree-props__badge--asset' : '') + '">' +
+        (isAsset ? 'Asset' : 'Issuer / Account') + '</span>';
+    html += '<dl class="sm-tree-props__dl">';
+    rows.forEach(function (pair) {
+        html += '<dt>' + escapeHtml(pair[0]) + '</dt><dd>' + escapeHtml(pair[1]) + '</dd>';
+    });
+    html += '</dl>';
+    html += '<p class="sm-tree-props__hint">Click the node again or press × to close. Click empty canvas to deselect.</p>';
+    body.innerHTML = html;
+    pane.hidden = false;
+    pane.classList.add('is-visible');
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/**
+ * Push nodes apart so circle centers keep min distance (no node-on-node overlap).
+ * Operates in polar space per depth ring, then verifies cartesian distance.
+ */
+function resolveRadialNodeOverlaps(descendants, opts) {
+    opts = opts || {};
+    const nodeR = opts.nodeRadius || RADIAL_NODE_SIZE;
+    const minGap = opts.minGap != null ? opts.minGap : 8;
+    const minDist = nodeR * 2 + minGap;
+    const minRadialStep = opts.minRadialStep || (minDist + 4);
+    const TWO_PI = 2 * Math.PI;
+
+    const byDepth = new Map();
+    descendants.forEach(function (d) {
+        if (!byDepth.has(d.depth)) byDepth.set(d.depth, []);
+        byDepth.get(d.depth).push(d);
+    });
+    const depths = Array.from(byDepth.keys()).sort(function (a, b) { return a - b; });
+
+    let prevRadius = 0;
+    depths.forEach(function (depth) {
+        const nodes = byDepth.get(depth);
+        if (depth === 0) {
+            nodes.forEach(function (d) { d.y = 0; d.x = 0; });
+            prevRadius = 0;
+            return;
+        }
+
+        // Radius: keep layout y but never closer than minRadialStep to previous ring
+        let ringR = 0;
+        nodes.forEach(function (d) { if (d.y > ringR) ringR = d.y; });
+        ringR = Math.max(ringR, prevRadius + minRadialStep);
+
+        // Angular budget: enough circumference for all nodes on this ring
+        const n = nodes.length;
+        const needR = (n * minDist) / TWO_PI;
+        ringR = Math.max(ringR, needR);
+        nodes.forEach(function (d) { d.y = ringR; });
+
+        // Preserve order; enforce min angular separation (including wrap-around)
+        nodes.sort(function (a, b) { return a.x - b.x; });
+        const minAngle = minDist / Math.max(ringR, 1);
+
+        if (n * minAngle >= TWO_PI * 0.98) {
+            // Fully packed: even spacing around the circle
+            nodes.forEach(function (d, i) {
+                d.x = (i / n) * TWO_PI;
+            });
+        } else {
+            // Forward pass
+            for (let i = 1; i < n; i++) {
+                if (nodes[i].x - nodes[i - 1].x < minAngle) {
+                    nodes[i].x = nodes[i - 1].x + minAngle;
+                }
+            }
+            // If we overflowed past 2π, compact then re-center into [0, 2π)
+            let span = nodes[n - 1].x - nodes[0].x;
+            if (nodes[n - 1].x - nodes[0].x > TWO_PI - minAngle) {
+                nodes.forEach(function (d, i) {
+                    d.x = (i / n) * TWO_PI;
+                });
+            } else {
+                // Wrap-around gap between last and first
+                const wrapGap = (nodes[0].x + TWO_PI) - nodes[n - 1].x;
+                if (wrapGap < minAngle) {
+                    // Shift pack so wrap gap is satisfied, or even-space
+                    const needed = minAngle - wrapGap;
+                    if (span + needed <= TWO_PI) {
+                        // shrink from the end by spreading earlier... simpler: even space
+                        nodes.forEach(function (d, i) {
+                            d.x = (i / n) * TWO_PI;
+                        });
+                    } else {
+                        nodes.forEach(function (d, i) {
+                            d.x = (i / n) * TWO_PI;
+                        });
+                    }
+                } else if (nodes[0].x < 0 || nodes[n - 1].x > TWO_PI) {
+                    const shift = nodes[0].x;
+                    nodes.forEach(function (d) {
+                        d.x = ((d.x - shift) % TWO_PI + TWO_PI) % TWO_PI;
+                    });
+                    nodes.sort(function (a, b) { return a.x - b.x; });
+                }
+            }
+        }
+        prevRadius = ringR;
+    });
+
+    // Final cartesian pass: if any pair still too close, nudge outer node outward
+    function polarToXY(d) {
+        return {
+            x: d.y * Math.cos(d.x - Math.PI / 2),
+            y: d.y * Math.sin(d.x - Math.PI / 2)
+        };
+    }
+    for (let pass = 0; pass < 3; pass++) {
+        let moved = false;
+        for (let i = 0; i < descendants.length; i++) {
+            for (let j = i + 1; j < descendants.length; j++) {
+                const a = descendants[i];
+                const b = descendants[j];
+                if (a.depth === 0 || b.depth === 0) continue;
+                const pa = polarToXY(a);
+                const pb = polarToXY(b);
+                const dx = pa.x - pb.x;
+                const dy = pa.y - pb.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+                if (dist < minDist) {
+                    const outer = a.y >= b.y ? a : b;
+                    outer.y += (minDist - dist) + 2;
+                    moved = true;
+                }
+            }
+        }
+        if (!moved) break;
     }
 }
 

@@ -71,7 +71,7 @@ class TestVisualizationSiblingSpacing:
     def test_tidytree_js_has_full_circle_size_layout(self):
         """
         Full-circle radial layout: d3.tree().size([2π, r]) fills the ring,
-        with radius adapted to sibling density (maxSiblingsAtDepth / minArcPx).
+        with radius adapted to sibling density (maxSiblingsAtDepth / minChordPx).
         (nodeSize left sparse trees in a half-empty sector.)
         """
         with open('radialTidyTreeApp/static/radialTidyTreeApp/d3-3.2.2/tidytree.js', 'r') as f:
@@ -79,7 +79,7 @@ class TestVisualizationSiblingSpacing:
 
         assert '.size([2 * Math.PI' in content, \
             "Radial tree must use .size([2π, r]) for a complete circle"
-        assert 'maxSiblingsAtDepth' in content and 'minArcPx' in content, \
+        assert 'maxSiblingsAtDepth' in content and 'minChordPx' in content, \
             "Radius must adapt to sibling density"
         assert 'maxSectorSize = Math.PI' not in content, \
             "Must not clamp layout to a half-circle lineage sector"
