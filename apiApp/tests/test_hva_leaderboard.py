@@ -104,9 +104,10 @@ class HvaLeaderboardUnitTests(SimpleTestCase):
         )
 
         mock_cass.assert_called_once()
-        kwargs = mock_cass.call_args.kwargs
-        self.assertEqual(kwargs["max_scan"], 50)
-        self.assertEqual(kwargs["limit"], 5)
+        # Positional: (network, threshold, limit, max_scan, max_seconds)
+        args = mock_cass.call_args[0]
+        self.assertEqual(args[2], 5)  # limit
+        self.assertEqual(args[3], 50)  # max_scan
         self.assertEqual(payload["meta"]["backend"], "cassandra")
         self.assertEqual(payload["meta"]["scanned"], 40)
         self.assertEqual(payload["total_hva_count"], 1)
