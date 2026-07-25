@@ -809,7 +809,7 @@ function ensureTreeChrome() {
         host.appendChild(pane);
     }
 
-    // Inline pin (beats stray flex/center rules from older CSS)
+    // Pin only — theme colors come from visualization_controls.css classes
     crumbs.style.position = 'absolute';
     crumbs.style.top = '10px';
     crumbs.style.left = '10px';
@@ -818,6 +818,11 @@ function ensureTreeChrome() {
     crumbs.style.zIndex = '30';
     crumbs.style.transform = 'none';
     crumbs.style.margin = '0';
+    // Clear any stale inline colors that would override the theme sheet
+    crumbs.style.background = '';
+    crumbs.style.border = '';
+    crumbs.style.color = '';
+    crumbs.style.boxShadow = '';
 
     pane.style.position = 'absolute';
     pane.style.top = '12px';
@@ -827,6 +832,10 @@ function ensureTreeChrome() {
     pane.style.zIndex = '30';
     pane.style.transform = 'none';
     pane.style.margin = '0';
+    pane.style.background = '';
+    pane.style.border = '';
+    pane.style.color = '';
+    pane.style.boxShadow = '';
 }
 
 function clearTreeSelectionUI() {

@@ -1,19 +1,28 @@
 /* Shared visualization controls styling for both /tree and /search pages */
 
 /*
- * Controls live ABOVE the tree in document flow — never absolute top-right
- * overlay (that looked like a permanent “pinned node” on the visual).
+ * Controls live ABOVE the tree in document flow as a compact flexible column
+ * (not full screen width). Never absolute-overlay the visual.
  */
+.response-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
 .visualization-controls {
     position: relative;
     top: auto;
     right: auto;
     left: auto;
     z-index: 5;
-    width: 100%;
-    max-width: 100%;
+    /* Compact flexible column — not edge-to-edge */
+    width: min(320px, 100%);
+    max-width: min(320px, 100%);
+    min-width: min(220px, 100%);
+    flex: 0 1 auto;
+    align-self: flex-end;
     max-height: min(42vh, 360px);
-    margin: 0 0 10px;
+    margin: 0 0 10px auto;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -27,6 +36,7 @@
     box-shadow: 0 0 16px rgba(150, 221, 242, 0.22);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
     pointer-events: auto;
+    box-sizing: border-box;
 }
 
 .visualization-controls.is-collapsed {
@@ -305,11 +315,14 @@
   }
   .visualization-controls {
     order: -1;
+    width: min(300px, 100%);
+    max-width: min(300px, 100%);
     max-height: min(38vh, 280px);
-    margin: 0 0 8px;
+    margin: 0 0 8px auto;
     padding: 6px 8px;
     gap: 4px;
     border-radius: 10px;
+    align-self: flex-end;
   }
   .visualization-controls:not(.is-collapsed) {
     overflow-y: auto;
@@ -411,8 +424,11 @@
 
 @media (max-width: 600px) {
   .visualization-controls {
+    width: min(280px, calc(100% - 8px));
+    max-width: min(280px, calc(100% - 8px));
     max-height: min(34vh, 240px);
     padding: 5px 6px;
+    margin-left: auto;
   }
   .radial-tree-visual {
     min-height: min(58dvh, 480px);
@@ -420,5 +436,211 @@
   #radial-tree-container {
     height: min(58dvh, 480px);
     min-height: 280px;
+  }
+}
+
+/* ==========================================================================
+   Tree HUD theme (external CSS — Vue strips <style> inside #app partial)
+   Breadcrumbs top-left · Properties top-right · cyberpunk palette
+   ========================================================================== */
+
+#radial-tree-container > .sm-tree-breadcrumbs:not(.is-visible),
+#radial-tree-container > .sm-tree-props:not(.is-visible) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+#radial-tree-container > .sm-tree-breadcrumbs {
+  position: absolute !important;
+  top: 10px !important;
+  left: 10px !important;
+  right: auto !important;
+  bottom: auto !important;
+  max-width: min(70%, calc(100% - 280px));
+  z-index: 30 !important;
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 !important;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(38, 29, 69, 0.97), rgba(16, 13, 35, 0.97)) !important;
+  border: 1px solid #96DDF2 !important;
+  box-shadow: 0 0 18px rgba(150, 221, 242, 0.32), inset 0 0 24px rgba(63, 44, 112, 0.4) !important;
+  pointer-events: auto;
+  transform: none !important;
+  color: #e8e4ff;
+}
+#radial-tree-container > .sm-tree-breadcrumbs.is-visible {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.sm-tree-breadcrumbs__chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  color: #e8e4ff !important;
+  background: linear-gradient(135deg, #3f2c70, #2a1f4d) !important;
+  border: 1px solid rgba(150, 221, 242, 0.55) !important;
+  box-shadow: 0 0 8px rgba(63, 44, 112, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sm-tree-breadcrumbs__chip--asset {
+  background: linear-gradient(135deg, #fcec04, #d4c003) !important;
+  color: #1a1530 !important;
+  border-color: #fcec04 !important;
+}
+.sm-tree-breadcrumbs__chip--issuer {
+  background: linear-gradient(135deg, #3f2c70, #261d45) !important;
+  color: #96DDF2 !important;
+  border-color: #00FF9C !important;
+}
+.sm-tree-breadcrumbs__chip--active {
+  box-shadow: 0 0 12px rgba(11, 231, 132, 0.6) !important;
+  border-color: #0BE784 !important;
+  color: #0BE784 !important;
+}
+.sm-tree-breadcrumbs__chip--asset.sm-tree-breadcrumbs__chip--active {
+  color: #1a1530 !important;
+  box-shadow: 0 0 12px rgba(252, 236, 4, 0.55) !important;
+}
+.sm-tree-breadcrumbs__sep {
+  color: #0BE784 !important;
+  font-weight: 800;
+  font-size: 1rem;
+  text-shadow: 0 0 8px rgba(11, 231, 132, 0.45);
+  user-select: none;
+}
+
+#radial-tree-container > .sm-tree-props {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: min(270px, calc(100% - 24px));
+  max-height: min(70%, 360px);
+  z-index: 30 !important;
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  margin: 0 !important;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid #96DDF2 !important;
+  background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(26, 21, 48, 0.97)) !important;
+  color: #f5f3ff !important;
+  box-shadow: 0 0 22px rgba(150, 221, 242, 0.32), 3px 3px 12px rgba(0, 0, 0, 0.35) !important;
+  overflow: hidden;
+  pointer-events: auto;
+  font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
+  transform: none !important;
+}
+#radial-tree-container > .sm-tree-props.is-visible {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+#radial-tree-container > .sm-tree-props.sm-tree-props--issuer {
+  background: linear-gradient(160deg, rgba(63, 44, 112, 0.97), rgba(26, 21, 48, 0.97)) !important;
+  color: #f5f3ff !important;
+  border-color: #96DDF2 !important;
+}
+#radial-tree-container > .sm-tree-props.sm-tree-props--asset {
+  background: linear-gradient(160deg, rgba(252, 236, 4, 0.96), rgba(214, 196, 20, 0.94)) !important;
+  color: #1a1530 !important;
+  border-color: #fcec04 !important;
+  box-shadow: 0 0 20px rgba(252, 236, 4, 0.4), 3px 3px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.sm-tree-props__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 8px 6px 12px;
+  border-bottom: 1px solid rgba(150, 221, 242, 0.25);
+}
+.sm-tree-props__title {
+  display: block !important;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #96DDF2 !important;
+}
+.sm-tree-props--asset .sm-tree-props__title {
+  color: #3f2c70 !important;
+}
+.sm-tree-props__close {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid rgba(150, 221, 242, 0.4);
+  background: rgba(16, 13, 35, 0.4);
+  color: #96DDF2 !important;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.sm-tree-props--asset .sm-tree-props__close {
+  color: #3f2c70 !important;
+  border-color: rgba(63, 44, 112, 0.4);
+  background: rgba(255, 255, 255, 0.3);
+}
+.sm-tree-props__close:hover {
+  border-color: #0BE784 !important;
+  color: #0BE784 !important;
+  box-shadow: 0 0 10px rgba(11, 231, 132, 0.35);
+}
+#sm-tree-props-body,
+.sm-tree-props__body {
+  padding: 10px 12px 12px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  line-height: 1.55;
+  word-wrap: break-word;
+  font: 12px/1.55 "Segoe UI", system-ui, sans-serif;
+  color: inherit !important;
+}
+.sm-tree-props__body b,
+#sm-tree-props-body b {
+  font-weight: 700;
+  color: #96DDF2 !important;
+}
+.sm-tree-props--asset .sm-tree-props__body b,
+.sm-tree-props--asset #sm-tree-props-body b {
+  color: #3f2c70 !important;
+}
+.sm-tree-props__line {
+  display: block;
+  margin: 0 0 4px;
+  word-break: break-word;
+  color: inherit !important;
+}
+
+@media (max-width: 1024px) {
+  #radial-tree-container > .sm-tree-breadcrumbs {
+    max-width: calc(100% - 20px);
+  }
+  #radial-tree-container > .sm-tree-props {
+    width: min(280px, calc(100% - 24px));
+    max-height: min(45%, 240px);
   }
 }

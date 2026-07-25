@@ -2086,7 +2086,8 @@ body.sm-progress-active {
   touch-action: none;
   z-index: 1;
 }
-/* Pinned HUD overlays — outside SVG so zoom/pan never moves them */
+/* Pinned HUD — position only; full theme lives in visualization_controls.css
+   (external sheet survives Vue mount; #app inline <style> does not). */
 #radial-tree-container > .sm-tree-breadcrumbs,
 #radial-tree-container > .sm-tree-props {
   position: absolute !important;
@@ -2094,21 +2095,18 @@ body.sm-progress-active {
   margin: 0 !important;
   transform: none !important;
   float: none !important;
-  inset: auto; /* reset; explicit edges below */
 }
 #radial-tree-container > .sm-tree-breadcrumbs {
   top: 10px !important;
   left: 10px !important;
   right: auto !important;
   bottom: auto !important;
-  max-width: min(70%, calc(100% - 280px));
 }
 #radial-tree-container > .sm-tree-props {
   top: 12px !important;
   right: 12px !important;
   left: auto !important;
   bottom: auto !important;
-  width: min(260px, calc(100% - 24px));
 }
 @media (max-width: 1024px) {
   .radial-tree-visual {
@@ -2118,15 +2116,6 @@ body.sm-progress-active {
   #radial-tree-container {
     height: min(62dvh, 560px);
     min-height: 300px;
-  }
-  #radial-tree-container > .sm-tree-breadcrumbs {
-    max-width: calc(100% - 20px);
-  }
-  #radial-tree-container > .sm-tree-props {
-    top: 12px !important;
-    right: 12px !important;
-    bottom: auto !important;
-    left: auto !important;
   }
 }
 

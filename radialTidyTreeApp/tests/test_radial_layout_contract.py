@@ -66,6 +66,14 @@ class RadialLayoutContractTests(SimpleTestCase):
         self.assertIn("max-height: min(38vh", self.css)
         self.assertIn("viz-controls-toolbar", self.css)
         self.assertIn("viz-controls-toolbar", self.include)
+        # Compact column, not full-bleed width
+        self.assertIn("width: min(320px", self.css)
+        self.assertIn("align-self: flex-end", self.css)
+        # HUD theme must live in external CSS (Vue strips #app inline <style>)
+        self.assertIn("sm-tree-breadcrumbs__chip--issuer", self.css)
+        self.assertIn("sm-tree-props--asset", self.css)
+        self.assertIn("#96DDF2", self.css)
+        self.assertIn("#0BE784", self.css)
 
     def test_angle_normalization_present(self):
         self.assertIn("Normalize angles", self.js)
