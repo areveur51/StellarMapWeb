@@ -98,6 +98,11 @@ load_env() {
   export PYTHONUNBUFFERED=1
   export PYTHONOPTIMIZE="${PYTHONOPTIMIZE:-1}"
   export PYTHONDONTWRITEBYTECODE="${PYTHONDONTWRITEBYTECODE:-1}"
+  # shellcheck source=/dev/null
+  source /volume3/GrokBuild/tools/lab-tls-env.sh 2>/dev/null || true
+  if declare -F lab_tls_export >/dev/null 2>&1; then
+    lab_tls_export "$ROOT" "StellarMap"
+  fi
 }
 
 find_docker() {
@@ -724,6 +729,12 @@ cmd_start_host() {
         # Do NOT use --preload with Cassandra/Astra: forked workers inherit a
         # broken CQL session and HVA/lineage queries hang indefinitely.
         # (CLI/test client create a fresh session and work fine.)
+        # Optional self-signed TLS (lab-tls / HTTPS_KEY+HTTPS_CERT)
+        local guni_ssl=()
+        if [[ -n "${HTTPS_KEY:-}" && -n "${HTTPS_CERT:-}" && -f "${HTTPS_KEY}" && -f "${HTTPS_CERT}" ]]; then
+          guni_ssl=( --keyfile "$HTTPS_KEY" --certfile "$HTTPS_CERT" )
+          echo "[supervise] TLS enabled (self-signed) key=${HTTPS_KEY}" >>"$LOG_FILE"
+        fi
         "$py" -m gunicorn \
           --bind "${BIND_HOST}:${HOST_PORT}" \
           --worker-class gthread \
@@ -739,6 +750,7 @@ cmd_start_host() {
           --access-logfile "$access_log" \
           --error-logfile - \
           --capture-output \
+          "${guni_ssl[@]}" \
           StellarMapWeb.wsgi:application >>"$LOG_FILE" 2>&1 &
       else
         echo "[supervise] $(date -Iseconds 2>/dev/null || date) starting runserver (failures=${failures}/${max_restarts})" >>"$LOG_FILE"
